@@ -13,6 +13,9 @@ return new class extends Migration
     {
         Schema::create('data', function (Blueprint $table) {
             $table->id();
+            $table->string('name');
+            $table->json('raw_data')->nullable();
+            $table->json('digital_data')->nullable();
             $table->timestamps();
         });
     }

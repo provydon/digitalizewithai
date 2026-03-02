@@ -84,6 +84,7 @@ class DigitalizeController extends Controller
 
         $name = $request->input('name') ?: pathinfo($path, PATHINFO_FILENAME);
         $data = Data::create([
+            'user_id' => $request->user()->id,
             'name' => pathinfo($name, PATHINFO_FILENAME),
             'raw_data' => $rawData,
             'digital_data' => $digitalData,
@@ -97,10 +98,33 @@ class DigitalizeController extends Controller
     }
 
     /**
-     * Get a single Data record by id (the id returned from the upload).
+     * List all Data records for the authenticated user.
      */
-    public function show(Data $data): JsonResponse
+    public function index(Request $request): JsonResponse
     {
+        $items = Data::query()
+            ->forUser($request->user()->id)
+            ->latest()
+            ->get()
+            ->map(fn (Data $d) => [
+                'id' => $d->id,
+                'name' => $d->name,
+                'type' => $d->digital_data['type'] ?? null,
+                'created_at' => $d->created_at?->toIso8601String(),
+            ]);
+
+        return response()->json(['data' => $items]);
+    }
+
+    /**
+     * Get a single Data record by id (must belong to the authenticated user).
+     */
+    public function show(Request $request, Data $data): JsonResponse
+    {
+        if ($data->user_id !== $request->user()->id) {
+            abort(404);
+        }
+
         return response()->json([
             'id' => $data->id,
             'name' => $data->name,

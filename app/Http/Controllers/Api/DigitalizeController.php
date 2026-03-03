@@ -18,42 +18,61 @@ class DigitalizeController extends Controller
     private const VIDEO_MIMES = ['video/mp4', 'video/quicktime', 'video/webm'];
 
     /**
-     * Accept base64 file (image or video), store to S3/local, send to AI, save structured result to Data.
+     * Accept file (image or video) via multipart/form-data or base64 JSON, store to S3/local, send to AI, save structured result to Data.
      *
+     * Multipart: file (file), name (optional).
      * JSON body: { "file": "base64string" or "data:image/png;base64,...", "name": "optional", "mime_type": "optional if in data URL" }
      */
     public function store(Request $request): JsonResponse
     {
-        $request->validate([
-            'file' => 'required|string',
-            'name' => 'nullable|string|max:255',
-            'mime_type' => 'nullable|string|in:'.implode(',', array_merge(self::IMAGE_MIMES, self::VIDEO_MIMES)),
-        ]);
+        $allowedMimes = array_merge(self::IMAGE_MIMES, self::VIDEO_MIMES);
+        $mimeRule = 'in:'.implode(',', $allowedMimes);
 
-        $fileInput = $request->input('file');
-        $mimeType = $request->input('mime_type');
-        $base64 = $fileInput;
-
-        if (str_starts_with($fileInput, 'data:')) {
-            if (! preg_match('/^data:([^;]+);base64,(.+)$/', $fileInput, $m)) {
-                return response()->json(['message' => 'Invalid data URL for file.'], 422);
+        if ($request->hasFile('file')) {
+            $request->validate([
+                'file' => ['required', 'file', 'mimetypes:'.implode(',', $allowedMimes), 'max:20480'],
+                'name' => 'nullable|string|max:255',
+            ]);
+            $uploaded = $request->file('file');
+            $mimeType = $uploaded->getMimeType();
+            if (! in_array($mimeType, $allowedMimes, true)) {
+                return response()->json(['message' => 'Allowed mime types: '.implode(', ', $allowedMimes)], 422);
             }
-            $mimeType = $m[1];
-            $base64 = $m[2];
-        }
+            $decoded = $uploaded->get();
+            $base64 = base64_encode($decoded);
+            $nameFromRequest = $request->input('name') ?: pathinfo($uploaded->getClientOriginalName(), PATHINFO_FILENAME);
+        } else {
+            $request->validate([
+                'file' => 'required|string',
+                'name' => 'nullable|string|max:255',
+                'mime_type' => 'nullable|string|'.$mimeRule,
+            ]);
 
-        if (! $mimeType) {
-            return response()->json(['message' => 'mime_type is required when file is not a data URL.'], 422);
-        }
+            $fileInput = $request->input('file');
+            $mimeType = $request->input('mime_type');
+            $base64 = $fileInput;
 
-        $allowed = array_merge(self::IMAGE_MIMES, self::VIDEO_MIMES);
-        if (! in_array($mimeType, $allowed, true)) {
-            return response()->json(['message' => 'Allowed mime types: '.implode(', ', $allowed)], 422);
-        }
+            if (str_starts_with($fileInput, 'data:')) {
+                if (! preg_match('/^data:([^;]+);base64,(.+)$/', $fileInput, $m)) {
+                    return response()->json(['message' => 'Invalid data URL for file.'], 422);
+                }
+                $mimeType = $m[1];
+                $base64 = $m[2];
+            }
 
-        $decoded = base64_decode($base64, true);
-        if ($decoded === false) {
-            return response()->json(['message' => 'Invalid base64 in file.'], 422);
+            if (! $mimeType) {
+                return response()->json(['message' => 'mime_type is required when file is not a data URL.'], 422);
+            }
+
+            if (! in_array($mimeType, $allowedMimes, true)) {
+                return response()->json(['message' => 'Allowed mime types: '.implode(', ', $allowedMimes)], 422);
+            }
+
+            $decoded = base64_decode($base64, true);
+            if ($decoded === false) {
+                return response()->json(['message' => 'Invalid base64 in file.'], 422);
+            }
+            $nameFromRequest = $request->input('name');
         }
 
         $disk = config('filesystems.default');
@@ -82,7 +101,7 @@ class DigitalizeController extends Controller
             'content' => $response['content'],
         ];
 
-        $name = $request->input('name') ?: pathinfo($path, PATHINFO_FILENAME);
+        $name = $nameFromRequest ?: pathinfo($path, PATHINFO_FILENAME);
         $data = Data::create([
             'user_id' => $request->user()->id,
             'name' => pathinfo($name, PATHINFO_FILENAME),

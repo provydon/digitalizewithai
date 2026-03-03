@@ -26,6 +26,10 @@ api.interceptors.request.use(
         }
         config.headers.set('Accept', 'application/json');
         config.headers.set('X-Requested-With', 'XMLHttpRequest');
+        // Let axios set Content-Type (e.g. multipart/form-data with boundary) when sending FormData
+        if (config.data instanceof FormData) {
+            config.headers.delete('Content-Type');
+        }
         return config;
     },
     (error) => Promise.reject(error),

@@ -25,6 +25,8 @@ const items = ref<DigitalizedItem[]>([]);
 const loading = ref(true);
 const error = ref<string | null>(null);
 const uploadLoading = ref(false);
+const uploadProgress = ref(0);
+const uploadPhase = ref<'uploading' | 'extracting'>('uploading');
 const uploadError = ref<string | null>(null);
 const uploadSuccess = ref(false);
 const fileInput = ref<HTMLInputElement | null>(null);
@@ -89,7 +91,7 @@ function onDragOver(e: DragEvent) {
     e.preventDefault();
 }
 
-async function upload(input: HTMLInputElement | null, file: File) {
+async function upload(_input: HTMLInputElement | null, file: File) {
     const allowed = [
         'image/jpeg',
         'image/png',
@@ -108,51 +110,55 @@ async function upload(input: HTMLInputElement | null, file: File) {
     }
 
     uploadLoading.value = true;
+    uploadProgress.value = 0;
+    uploadPhase.value = 'uploading';
     uploadError.value = null;
     uploadSuccess.value = false;
 
-    return new Promise<void>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = async () => {
-            const dataUrl = reader.result as string;
-            try {
-                const { data } = await api.post<{
-                    id: number;
-                    name: string;
-                    digital_data?: { type?: string };
-                }>('/dashboard/digitalize', {
-                    file: dataUrl,
-                    name: file.name.replace(/\.[^.]+$/, '') || file.name,
-                }, { timeout: 300000 });
-                uploadSuccess.value = true;
-                items.value = [
-                    {
-                        id: data.id,
-                        name: data.name,
-                        type: data.digital_data?.type ?? null,
-                        created_at: new Date().toISOString(),
-                    },
-                    ...items.value,
-                ];
-                setTimeout(() => { uploadSuccess.value = false; }, 3000);
-            } catch (e: unknown) {
-                const err = e as { response?: { data?: { message?: string } }; message?: string };
-                uploadError.value =
-                    err.response?.data?.message ||
-                    err.message ||
-                    'Upload failed';
-            } finally {
-                uploadLoading.value = false;
-                resolve();
-            }
-        };
-        reader.onerror = () => {
-            uploadError.value = 'Could not read file';
-            uploadLoading.value = false;
-            resolve();
-        };
-        reader.readAsDataURL(file);
-    });
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('name', file.name.replace(/\.[^.]+$/, '') || file.name);
+
+    try {
+        const { data } = await api.post<{
+            id: number;
+            name: string;
+            digital_data?: { type?: string };
+        }>('/dashboard/digitalize', formData, {
+            timeout: 300000,
+            onUploadProgress(ev: { loaded: number; total?: number }) {
+                if (ev.total && ev.total > 0) {
+                    uploadProgress.value = Math.round((ev.loaded / ev.total) * 100);
+                    if (uploadProgress.value >= 100) {
+                        uploadPhase.value = 'extracting';
+                    }
+                }
+            },
+        });
+        uploadProgress.value = 100;
+        uploadPhase.value = 'extracting';
+        uploadSuccess.value = true;
+        items.value = [
+            {
+                id: data.id,
+                name: data.name,
+                type: data.digital_data?.type ?? null,
+                created_at: new Date().toISOString(),
+            },
+            ...items.value,
+        ];
+        setTimeout(() => { uploadSuccess.value = false; }, 3000);
+    } catch (e: unknown) {
+        const err = e as { response?: { data?: { message?: string } }; message?: string };
+        uploadError.value =
+            err.response?.data?.message ||
+            err.message ||
+            'Upload failed';
+    } finally {
+        uploadLoading.value = false;
+        uploadProgress.value = 0;
+        uploadPhase.value = 'uploading';
+    }
 }
 </script>
 
@@ -207,8 +213,17 @@ async function upload(input: HTMLInputElement | null, file: File) {
                     <p class="mb-3 text-xs text-muted-foreground">
                         Images: JPEG, PNG, GIF, WebP. Video: MP4, WebM. Max 20 MB.
                     </p>
-                    <div v-if="uploadLoading" class="text-sm text-muted-foreground">
-                        Uploading and extracting…
+                    <div v-if="uploadLoading" class="mt-2 space-y-2">
+                        <div class="flex items-center justify-between text-sm text-muted-foreground">
+                            <span>{{ uploadPhase === 'uploading' ? `Uploading… ${uploadProgress}%` : 'Extracting content…' }}</span>
+                            <span v-if="uploadPhase === 'uploading'" class="tabular-nums">{{ uploadProgress }}%</span>
+                        </div>
+                        <div class="h-2 w-full overflow-hidden rounded-full bg-muted">
+                            <div
+                                class="h-full rounded-full bg-primary transition-[width] duration-300 ease-out"
+                                :style="{ width: uploadPhase === 'extracting' ? '100%' : `${uploadProgress}%` }"
+                            />
+                        </div>
                     </div>
                     <p v-else-if="uploadError" class="text-sm text-destructive">
                         {{ uploadError }}

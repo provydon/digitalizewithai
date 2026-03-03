@@ -15,6 +15,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('dashboard/digitalize', [ApiDigitalizeController::class, 'store'])->name('dashboard.digitalize');
     Route::get('dashboard/api/data', [DashboardController::class, 'dataIndex'])->name('dashboard.api.data.index');
     Route::get('dashboard/api/data/{data}', [DataViewController::class, 'dataShow'])->name('dashboard.api.data.show');
+    Route::post('dashboard/api/data/{data}/ask', [DataViewController::class, 'ask'])->name('dashboard.api.data.ask');
+    Route::post('dashboard/api/data/{data}/ask/stream', [DataViewController::class, 'askStream'])->name('dashboard.api.data.ask.stream');
     Route::get('dashboard/data/{data}', [DataViewController::class, 'show'])->name('dashboard.data.show');
 });
 

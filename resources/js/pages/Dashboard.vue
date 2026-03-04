@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, onMounted, ref, watch } from 'vue';
-import { FileText, Plus, Search, Table as TableIcon, Trash2, Upload } from 'lucide-vue-next';
+import { Camera, FileText, Plus, Search, Table as TableIcon, Trash2, Upload, Video } from 'lucide-vue-next';
 import AppLayout from '@/layouts/AppLayout.vue';
 import api from '@/lib/api';
 import { dashboard } from '@/routes';
@@ -50,6 +50,8 @@ const uploadPhase = ref<'uploading' | 'extracting'>('uploading');
 const uploadError = ref<string | null>(null);
 const uploadSuccess = ref(false);
 const fileInput = ref<HTMLInputElement | null>(null);
+const cameraPhotoInput = ref<HTMLInputElement | null>(null);
+const cameraVideoInput = ref<HTMLInputElement | null>(null);
 
 const pendingFile = ref<File | null>(null);
 const uploadName = ref('');
@@ -127,6 +129,18 @@ function openFilePicker() {
     fileInput.value?.click();
 }
 
+function openCameraPhoto() {
+    uploadError.value = null;
+    uploadSuccess.value = false;
+    cameraPhotoInput.value?.click();
+}
+
+function openCameraVideo() {
+    uploadError.value = null;
+    uploadSuccess.value = false;
+    cameraVideoInput.value?.click();
+}
+
 function onFileChange(e: Event) {
     const input = e.target as HTMLInputElement;
     const file = input.files?.[0];
@@ -152,8 +166,9 @@ function onDrop(e: DragEvent) {
 function resetUploadForm() {
     pendingFile.value = null;
     uploadName.value = '';
-    const input = fileInput.value;
-    if (input) input.value = '';
+    [fileInput.value, cameraPhotoInput.value, cameraVideoInput.value].forEach((input) => {
+        if (input) input.value = '';
+    });
 }
 
 function startUpload() {
@@ -313,6 +328,56 @@ async function confirmDelete() {
                         class="hidden"
                         @change="onFileChange"
                     />
+                    <input
+                        ref="cameraPhotoInput"
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        class="hidden"
+                        aria-label="Take a picture"
+                        @change="onFileChange"
+                    />
+                    <input
+                        ref="cameraVideoInput"
+                        type="file"
+                        accept="video/*"
+                        capture="environment"
+                        class="hidden"
+                        aria-label="Record video"
+                        @change="onFileChange"
+                    />
+                    <div class="mb-4 flex flex-wrap items-center gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            :disabled="uploadLoading"
+                            @click="openCameraPhoto"
+                        >
+                            <Camera class="mr-1.5 h-4 w-4" />
+                            Take a picture
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            :disabled="uploadLoading"
+                            @click="openCameraVideo"
+                        >
+                            <Video class="mr-1.5 h-4 w-4" />
+                            Record video
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            :disabled="uploadLoading"
+                            @click="openFilePicker"
+                        >
+                            <Upload class="mr-1.5 h-4 w-4" />
+                            Choose a file
+                        </Button>
+                    </div>
                     <div
                         class="cursor-pointer rounded-lg border-2 border-dashed border-sidebar-border/70 bg-muted/30 p-6 text-center transition-colors dark:border-sidebar-border"
                         :class="{ 'border-primary/50 bg-primary/5': uploadLoading }"
@@ -326,15 +391,7 @@ async function confirmDelete() {
                     >
                         <Upload class="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
                         <p class="mb-3 text-sm text-muted-foreground">
-                            Drag a file here or
-                            <button
-                                type="button"
-                                class="font-medium text-primary underline-offset-4 hover:underline"
-                                :disabled="uploadLoading"
-                                @click.stop="openFilePicker"
-                            >
-                                choose a file
-                            </button>
+                            Or drag a file here
                         </p>
                         <p v-if="pendingFile" class="mb-2 text-sm font-medium text-foreground">
                             {{ pendingFile.name }}

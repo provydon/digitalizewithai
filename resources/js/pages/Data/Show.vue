@@ -40,7 +40,13 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Bar, Line, Pie } from 'vue-chartjs';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { Chart } from 'vue-chartjs';
 import * as XLSX from 'xlsx';
 import AppLayout from '@/layouts/AppLayout.vue';
 import api from '@/lib/api';
@@ -463,9 +469,19 @@ const canExportDoc = computed(() => isDocData.value && !!record.value);
 // —— Copy to clipboard ——
 const copyDocFeedback = ref(false);
 const copyTableFeedback = ref(false);
+const copyDocTooltipOpen = ref<boolean | undefined>(undefined);
+const copyTableTooltipOpen = ref<boolean | undefined>(undefined);
+const COPY_FEEDBACK_MS = 2500;
 
 async function copyDocToClipboard() {
     if (!record.value || !isDocData.value) return;
+    // Keep tooltip open and show "Copied" immediately so it doesn't close on click
+    copyDocTooltipOpen.value = true;
+    copyDocFeedback.value = true;
+    setTimeout(() => {
+        copyDocFeedback.value = false;
+        copyDocTooltipOpen.value = undefined;
+    }, COPY_FEEDBACK_MS);
     let text: string;
     if (isMultiPageDoc.value) {
         const { data } = await api.get<{ content: string }>(
@@ -475,20 +491,46 @@ async function copyDocToClipboard() {
     } else {
         text = docContent.value ?? '';
     }
-    await navigator.clipboard.writeText(text);
-    copyDocFeedback.value = true;
-    setTimeout(() => { copyDocFeedback.value = false; }, 2000);
+    const clipboard = navigator.clipboard;
+    if (clipboard) {
+        await clipboard.writeText(text);
+    } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+    }
 }
 
 function copyTableToClipboard() {
     const t = tableData.value;
     if (!t?.headers?.length) return;
+    // Keep tooltip open and show "Copied" immediately so it doesn't close on click
+    copyTableTooltipOpen.value = true;
+    copyTableFeedback.value = true;
+    setTimeout(() => {
+        copyTableFeedback.value = false;
+        copyTableTooltipOpen.value = undefined;
+    }, COPY_FEEDBACK_MS);
     const payload = { headers: t.headers, rows: t.rows ?? [] };
     const text = JSON.stringify(payload, null, 2);
-    navigator.clipboard.writeText(text).then(() => {
-        copyTableFeedback.value = true;
-        setTimeout(() => { copyTableFeedback.value = false; }, 2000);
-    });
+    const clipboard = navigator.clipboard;
+    if (clipboard) {
+        clipboard.writeText(text);
+    } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+    }
 }
 
 function exportToJson() {
@@ -635,6 +677,7 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
     <Head :title="record?.name ?? 'Data'" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
+        <TooltipProvider :delay-duration="300">
         <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl px-3 py-4 sm:p-4">
             <div class="flex items-center gap-4">
                 <Link
@@ -725,16 +768,24 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                                 Next
                                             </button>
                                         </div>
-                                        <div class="flex items-center gap-2">
-                                            <button
-                                                type="button"
-                                                class="inline-flex min-h-[44px] min-w-[44px] items-center justify-center gap-1.5 rounded-lg border border-sidebar-border/70 px-3 py-2 text-sm font-medium text-foreground hover:bg-muted/60 dark:border-sidebar-border sm:min-h-0 sm:min-w-0 sm:py-1.5"
-                                                title="Copy all to clipboard"
-                                                @click="copyDocToClipboard"
+                                        <div class="ml-auto flex items-center">
+                                            <Tooltip
+                                                :open="copyDocTooltipOpen"
+                                                @update:open="(v) => { if (!copyDocFeedback) copyDocTooltipOpen = v === false ? undefined : v }"
                                             >
-                                                <Copy class="h-4 w-4 shrink-0" />
-                                                <span>{{ copyDocFeedback ? 'Copied!' : 'Copy' }}</span>
-                                            </button>
+                                                <TooltipTrigger as-child>
+                                                    <button
+                                                        type="button"
+                                                        class="rounded p-1.5 text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                                                        @click="copyDocToClipboard"
+                                                    >
+                                                        <Copy class="h-3.5 w-3.5" />
+                                                    </button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    {{ copyDocFeedback ? 'Copied to clipboard' : 'Copy to clipboard' }}
+                                                </TooltipContent>
+                                            </Tooltip>
                                         </div>
                                     </div>
                                     <p v-if="docPageError" class="text-sm text-destructive">
@@ -776,15 +827,25 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                         >
                                             {{ rowsMeta.total.toLocaleString() }} row{{ rowsMeta.total !== 1 ? 's' : '' }}
                                         </span>
-                                        <button
-                                            type="button"
-                                            class="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-sidebar-border/70 px-3 py-2 text-sm font-medium text-foreground hover:bg-muted/60 dark:border-sidebar-border sm:min-h-0 sm:py-1.5"
-                                            title="Copy full table (JSON) to clipboard"
-                                            @click="copyTableToClipboard"
-                                        >
-                                            <Copy class="h-4 w-4 shrink-0" />
-                                            {{ copyTableFeedback ? 'Copied!' : 'Copy' }}
-                                        </button>
+                                        <div class="ml-auto">
+                                            <Tooltip
+                                                :open="copyTableTooltipOpen"
+                                                @update:open="(v) => { if (!copyTableFeedback) copyTableTooltipOpen = v }"
+                                            >
+                                                <TooltipTrigger as-child>
+                                                    <button
+                                                        type="button"
+                                                        class="rounded p-1.5 text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                                                        @click="copyTableToClipboard"
+                                                    >
+                                                        <Copy class="h-3.5 w-3.5" />
+                                                    </button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    {{ copyTableFeedback ? 'Copied to clipboard' : 'Copy to clipboard' }}
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </div>
                                     </div>
                                     <p v-if="rowsError" class="text-sm text-destructive">
                                         {{ rowsError }}
@@ -1011,18 +1072,9 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                         {{ effectiveChartConfig.title }}
                                     </p>
                                     <div class="h-[240px] w-full min-w-0 sm:h-[280px]">
-                                        <Bar
-                                            v-if="effectiveChartConfig?.chartType === 'bar'"
-                                            :data="chartData"
-                                            :options="chartOptions"
-                                        />
-                                        <Line
-                                            v-else-if="effectiveChartConfig?.chartType === 'line'"
-                                            :data="chartData"
-                                            :options="chartOptions"
-                                        />
-                                        <Pie
-                                            v-else-if="effectiveChartConfig?.chartType === 'pie'"
+                                        <Chart
+                                            v-if="effectiveChartConfig?.chartType"
+                                            :type="effectiveChartConfig.chartType"
                                             :data="chartData"
                                             :options="chartOptions"
                                         />
@@ -1157,5 +1209,6 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                 </div>
             </div>
         </div>
+        </TooltipProvider>
     </AppLayout>
 </template>

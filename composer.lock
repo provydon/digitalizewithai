@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "9584b44f686fc9df4f235f029dc71121",
+    "content-hash": "2d229e31d8a4f81670032bcc67da360e",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -3281,6 +3281,56 @@
                 }
             ],
             "time": "2026-02-26T21:31:53+00:00"
+        },
+        {
+            "name": "provydon/laravel-pgsearch",
+            "version": "1.6.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/provydon/laravel-pgsearch.git",
+                "reference": "0452ae91ce97963e57e51b004cafe66553593382"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/provydon/laravel-pgsearch/zipball/0452ae91ce97963e57e51b004cafe66553593382",
+                "reference": "0452ae91ce97963e57e51b004cafe66553593382",
+                "shasum": ""
+            },
+            "require": {
+                "illuminate/database": "^10.0|^11.0|^12.0",
+                "illuminate/support": "^10.0|^11.0|^12.0",
+                "php": ">=8.1"
+            },
+            "require-dev": {
+                "laravel/pint": "^1.24",
+                "orchestra/testbench": "^8.0|^9.0|^10.0",
+                "pestphp/pest": "^2.34",
+                "pestphp/pest-plugin-laravel": "^2.4",
+                "phpunit/phpunit": "^10.0|^11.0"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Provydon\\PgSearch\\PgSearchServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Provydon\\PgSearch\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "PostgreSQL-friendly search for Eloquent (ILIKE + normalization; optional FTS/trigram later).",
+            "support": {
+                "issues": "https://github.com/provydon/laravel-pgsearch/issues",
+                "source": "https://github.com/provydon/laravel-pgsearch/tree/v1.6.0"
+            },
+            "time": "2026-02-21T02:38:10+00:00"
         },
         {
             "name": "psr/clock",

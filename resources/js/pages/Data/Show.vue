@@ -20,13 +20,25 @@ import {
     MessageSquare,
     Table as TableIcon,
 } from 'lucide-vue-next';
+import { Pencil, Search, Trash2 } from 'lucide-vue-next';
 import {
     TabsContent,
     TabsList,
     TabsRoot,
     TabsTrigger,
 } from 'reka-ui';
-import { computed, nextTick, onMounted, ref } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Bar, Line, Pie } from 'vue-chartjs';
 import * as XLSX from 'xlsx';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -53,7 +65,9 @@ type ChatMessage = { role: 'user' | 'assistant'; content: string };
 
 type DigitalData = {
     type: string;
-    content: string;
+    content?: string | null;
+    doc_page_count?: number;
+    table_row_count?: number;
 };
 
 type DataRecord = {
@@ -109,8 +123,195 @@ const docContent = computed(() => {
     return dd.content ?? '';
 });
 
+const docPageCount = computed(() => {
+    const dd = record.value?.digital_data;
+    if (!dd || dd.type !== 'doc') return 0;
+    return Math.max(1, dd.doc_page_count ?? 1);
+});
+
+const isMultiPageDoc = computed(() => docPageCount.value > 1);
+
 const isTableData = computed(() => !!tableData.value);
-const isDocData = computed(() => docContent.value !== null);
+const isDocData = computed(() => {
+    const dd = record.value?.digital_data;
+    return !!dd && dd.type === 'doc';
+});
+
+// —— Doc pages: 100% backend. Only current page fetched from API when multi-page. ——
+const docPageCurrent = ref(1);
+const docPageContent = ref('');
+const docPageLoading = ref(false);
+const docPageError = ref<string | null>(null);
+
+async function fetchDocPage(page: number) {
+    if (!record.value || !isDocData.value) return;
+    docPageLoading.value = true;
+    docPageError.value = null;
+    try {
+        const { data } = await api.get<{ page: number; total_pages: number; content: string }>(
+            `/dashboard/api/data/${record.value.id}/doc-page`,
+            { params: { page } },
+        );
+        docPageContent.value = data.content ?? '';
+        docPageCurrent.value = data.page;
+    } catch (e: unknown) {
+        const err = e as { response?: { data?: { message?: string } }; message?: string };
+        docPageError.value = err.response?.data?.message ?? err.message ?? 'Failed to load page';
+    } finally {
+        docPageLoading.value = false;
+    }
+}
+
+const displayedDocContent = computed(() => {
+    if (isMultiPageDoc.value) return docPageContent.value;
+    return docContent.value ?? '';
+});
+
+watch(
+    () => [record.value?.id, isDocData.value, isMultiPageDoc.value] as const,
+    ([id, isDoc, multi]: [number | undefined, boolean, boolean]) => {
+        if (id && isDoc && multi) {
+            docPageCurrent.value = 1;
+            fetchDocPage(1);
+        } else if (!multi) {
+            docPageContent.value = '';
+        }
+    },
+);
+
+function goToDocPage(page: number) {
+    const total = docPageCount.value;
+    const p = Math.max(1, Math.min(total, page));
+    docPageCurrent.value = p;
+    fetchDocPage(p);
+}
+
+// —— Table rows: 100% backend. No full dataset on frontend — only current page from API. ——
+type TableRowRecord = { id: number; row_index: number; cells: unknown[] };
+type RowsMeta = { current_page: number; last_page: number; per_page: number; total: number };
+const tableHeaders = ref<string[]>([]);
+const tableRows = ref<TableRowRecord[]>([]); // current page only
+const rowsMeta = ref<RowsMeta | null>(null);
+const rowsLoading = ref(false);
+const rowsError = ref<string | null>(null);
+const tableSearch = ref(''); // sent as ?search= to API
+const tablePage = ref(1); // sent as ?page= to API
+const tablePerPage = ref(50);
+const editRowOpen = ref(false);
+const editRow = ref<TableRowRecord | null>(null);
+const editCells = ref<string[]>([]);
+const editSaving = ref(false);
+const deleteRowOpen = ref(false);
+const rowToDelete = ref<TableRowRecord | null>(null);
+const deleteConfirming = ref(false);
+let searchDebounce: ReturnType<typeof setTimeout> | null = null;
+
+async function fetchRecord() {
+    if (!record.value) return;
+    const { data } = await api.get<DataRecord>(`/dashboard/api/data/${props.id}`);
+    record.value = data;
+}
+
+async function fetchTableRows() {
+    if (!record.value || !isTableData.value) return;
+    rowsLoading.value = true;
+    rowsError.value = null;
+    try {
+        const params = new URLSearchParams({
+            page: String(tablePage.value),
+            per_page: String(tablePerPage.value),
+        });
+        if (tableSearch.value.trim()) params.set('search', tableSearch.value.trim());
+        const { data } = await api.get<{
+            headers: string[];
+            rows: TableRowRecord[];
+            meta: RowsMeta;
+        }>(`/dashboard/api/data/${record.value.id}/rows?${params}`);
+        tableHeaders.value = data.headers ?? [];
+        tableRows.value = data.rows ?? [];
+        rowsMeta.value = data.meta ?? null;
+    } catch (e: unknown) {
+        const err = e as { response?: { data?: { message?: string } }; message?: string };
+        rowsError.value = err.response?.data?.message ?? err.message ?? 'Failed to load rows';
+    } finally {
+        rowsLoading.value = false;
+    }
+}
+
+function openEditRow(row: TableRowRecord) {
+    editRow.value = row;
+    editCells.value = (row.cells ?? []).map((c) => (c == null ? '' : String(c)));
+    editRowOpen.value = true;
+}
+
+function closeEditRow() {
+    editRowOpen.value = false;
+    editRow.value = null;
+    editCells.value = [];
+}
+
+async function saveEditRow() {
+    if (!record.value || !editRow.value) return;
+    editSaving.value = true;
+    try {
+        await api.patch(
+            `/dashboard/api/data/${record.value.id}/rows/${editRow.value.id}`,
+            { cells: editCells.value },
+        );
+        await fetchRecord();
+        await fetchTableRows();
+        closeEditRow();
+    } catch (e: unknown) {
+        const err = e as { response?: { data?: { message?: string } }; message?: string };
+        rowsError.value = err.response?.data?.message ?? err.message ?? 'Failed to save';
+    } finally {
+        editSaving.value = false;
+    }
+}
+
+function openDeleteRow(row: TableRowRecord) {
+    rowToDelete.value = row;
+    deleteRowOpen.value = true;
+}
+
+function closeDeleteRow() {
+    deleteRowOpen.value = false;
+    rowToDelete.value = null;
+}
+
+async function confirmDeleteRow() {
+    if (!record.value || !rowToDelete.value) return;
+    deleteConfirming.value = true;
+    try {
+        await api.delete(`/dashboard/api/data/${record.value.id}/rows/${rowToDelete.value.id}`);
+        await fetchRecord();
+        await fetchTableRows();
+        closeDeleteRow();
+    } catch (e: unknown) {
+        const err = e as { response?: { data?: { message?: string } }; message?: string };
+        rowsError.value = err.response?.data?.message ?? err.message ?? 'Failed to delete';
+    } finally {
+        deleteConfirming.value = false;
+    }
+}
+
+watch(
+    () => [record.value?.id, isTableData.value] as const,
+    ([id, isTable]: [number | undefined, boolean]) => {
+        if (id && isTable) {
+            tablePage.value = 1;
+            fetchTableRows();
+        }
+    },
+);
+watch(tablePage, () => fetchTableRows());
+watch(tableSearch, () => {
+    if (searchDebounce) clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(() => {
+        tablePage.value = 1;
+        fetchTableRows();
+    }, 300);
+});
 
 // —— Ask AI (table only) ——
 const question = ref('');
@@ -236,9 +437,17 @@ function exportToExcel() {
     XLSX.writeFile(wb, `${record.value.name || 'export'}.xlsx`);
 }
 
-function exportToDoc() {
-    const content = docContent.value;
-    if (content == null || !record.value) return;
+async function exportToDoc() {
+    if (!record.value || !isDocData.value) return;
+    let content: string;
+    if (isMultiPageDoc.value) {
+        const { data } = await api.get<{ content: string }>(
+            `/dashboard/api/data/${record.value.id}/doc-content`,
+        );
+        content = data.content ?? '';
+    } else {
+        content = docContent.value ?? '';
+    }
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -248,7 +457,7 @@ function exportToDoc() {
     URL.revokeObjectURL(url);
 }
 
-const canExportDoc = computed(() => !!docContent.value && !!record.value);
+const canExportDoc = computed(() => isDocData.value && !!record.value);
 
 // —— Charts (AI-suggested, table only) ——
 const chartRequest = ref('');
@@ -444,50 +653,161 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
 
                         <TabsContent value="data" class="mt-0 rounded-b-xl">
                             <div class="p-6 pt-4">
-                                <!-- Doc: plain/markdown text -->
-                                <div
-                                    v-if="docContent !== null"
-                                    class="prose prose-sm max-w-none dark:prose-invert"
-                                >
-                                    <pre
-                                        class="whitespace-pre-wrap rounded-lg bg-muted/50 p-4 font-sans text-foreground"
-                                    >{{ docContent }}</pre>
+                                <!-- Doc: single page from record, multi-page from API (one page at a time) -->
+                                <div v-if="isDocData" class="space-y-4">
+                                    <div
+                                        v-if="isMultiPageDoc"
+                                        class="flex flex-wrap items-center gap-2 text-sm"
+                                    >
+                                        <span class="text-muted-foreground">
+                                            Page {{ docPageCurrent }} of {{ docPageCount }}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            class="rounded-lg border border-sidebar-border/70 px-3 py-1.5 text-foreground hover:bg-muted/60 disabled:opacity-50 dark:border-sidebar-border"
+                                            :disabled="docPageCurrent <= 1"
+                                            @click="goToDocPage(docPageCurrent - 1)"
+                                        >
+                                            Previous
+                                        </button>
+                                        <button
+                                            type="button"
+                                            class="rounded-lg border border-sidebar-border/70 px-3 py-1.5 text-foreground hover:bg-muted/60 disabled:opacity-50 dark:border-sidebar-border"
+                                            :disabled="docPageCurrent >= docPageCount"
+                                            @click="goToDocPage(docPageCurrent + 1)"
+                                        >
+                                            Next
+                                        </button>
+                                    </div>
+                                    <p v-if="docPageError" class="text-sm text-destructive">
+                                        {{ docPageError }}
+                                    </p>
+                                    <div
+                                        v-if="docPageLoading && isMultiPageDoc"
+                                        class="py-8 text-center text-sm text-muted-foreground"
+                                    >
+                                        Loading page…
+                                    </div>
+                                    <div
+                                        v-else
+                                        class="prose prose-sm max-w-none dark:prose-invert"
+                                    >
+                                        <pre
+                                            class="whitespace-pre-wrap rounded-lg bg-muted/50 p-4 font-sans text-foreground"
+                                        >{{ displayedDocContent || ' ' }}</pre>
+                                    </div>
                                 </div>
 
-                                <!-- Table: parsed JSON -->
-                                <div v-else-if="tableData" class="overflow-x-auto">
-                                    <table
-                                        class="w-full min-w-[300px] border-collapse text-left text-sm"
+                                <!-- Table: paginated, searchable, editable -->
+                                <div v-else-if="tableData" class="space-y-4">
+                                    <div class="flex flex-wrap items-center gap-3">
+                                        <div class="relative flex-1 min-w-[200px] max-w-sm">
+                                            <Search
+                                                class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                                            />
+                                            <input
+                                                v-model="tableSearch"
+                                                type="search"
+                                                placeholder="Search rows..."
+                                                class="w-full rounded-lg border border-sidebar-border/70 bg-background py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring dark:border-sidebar-border"
+                                            />
+                                        </div>
+                                        <span
+                                            v-if="rowsMeta"
+                                            class="text-sm text-muted-foreground"
+                                        >
+                                            {{ rowsMeta.total.toLocaleString() }} row{{ rowsMeta.total !== 1 ? 's' : '' }}
+                                        </span>
+                                    </div>
+                                    <p v-if="rowsError" class="text-sm text-destructive">
+                                        {{ rowsError }}
+                                    </p>
+                                    <div v-if="rowsLoading" class="py-8 text-center text-sm text-muted-foreground">
+                                        Loading rows…
+                                    </div>
+                                    <div v-else class="overflow-x-auto">
+                                        <table
+                                            class="w-full min-w-[300px] border-collapse text-left text-sm"
+                                        >
+                                            <thead>
+                                                <tr
+                                                    class="border-b border-sidebar-border bg-muted/50 dark:border-sidebar-border"
+                                                >
+                                                    <th
+                                                        v-for="(h, i) in tableHeaders"
+                                                        :key="i"
+                                                        class="px-4 py-3 font-medium text-foreground"
+                                                    >
+                                                        {{ h }}
+                                                    </th>
+                                                    <th
+                                                        class="w-24 px-4 py-3 font-medium text-foreground"
+                                                    >
+                                                        Actions
+                                                    </th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr
+                                                    v-for="row in tableRows"
+                                                    :key="row.id"
+                                                    class="border-b border-sidebar-border/70 dark:border-sidebar-border"
+                                                >
+                                                    <td
+                                                        v-for="(cell, ci) in (row.cells ?? [])"
+                                                        :key="ci"
+                                                        class="px-4 py-3 text-muted-foreground"
+                                                    >
+                                                        {{ cell == null ? '—' : cell }}
+                                                    </td>
+                                                    <td class="px-4 py-2">
+                                                        <div class="flex items-center gap-1">
+                                                            <button
+                                                                type="button"
+                                                                class="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                                                                title="Edit row"
+                                                                @click="openEditRow(row)"
+                                                            >
+                                                                <Pencil class="h-4 w-4" />
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                class="rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                                                                title="Delete row"
+                                                                @click="openDeleteRow(row)"
+                                                            >
+                                                                <Trash2 class="h-4 w-4" />
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div
+                                        v-if="rowsMeta && rowsMeta.last_page > 1"
+                                        class="flex flex-wrap items-center gap-2 text-sm"
                                     >
-                                        <thead>
-                                            <tr
-                                                class="border-b border-sidebar-border bg-muted/50 dark:border-sidebar-border"
-                                            >
-                                                <th
-                                                    v-for="(h, i) in (tableData.headers ?? [])"
-                                                    :key="i"
-                                                    class="px-4 py-3 font-medium text-foreground"
-                                                >
-                                                    {{ h }}
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr
-                                                v-for="(row, ri) in (tableData.rows ?? [])"
-                                                :key="ri"
-                                                class="border-b border-sidebar-border/70 dark:border-sidebar-border"
-                                            >
-                                                <td
-                                                    v-for="(cell, ci) in row"
-                                                    :key="ci"
-                                                    class="px-4 py-3 text-muted-foreground"
-                                                >
-                                                    {{ cell == null ? '—' : cell }}
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
+                                        <button
+                                            type="button"
+                                            class="rounded-lg border border-sidebar-border/70 px-3 py-1.5 text-foreground hover:bg-muted/60 disabled:opacity-50 dark:border-sidebar-border"
+                                            :disabled="tablePage <= 1"
+                                            @click="tablePage = Math.max(1, tablePage - 1)"
+                                        >
+                                            Previous
+                                        </button>
+                                        <span class="text-muted-foreground">
+                                            Page {{ rowsMeta.current_page }} of {{ rowsMeta.last_page }}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            class="rounded-lg border border-sidebar-border/70 px-3 py-1.5 text-foreground hover:bg-muted/60 disabled:opacity-50 dark:border-sidebar-border"
+                                            :disabled="tablePage >= rowsMeta.last_page"
+                                            @click="tablePage = Math.min(rowsMeta.last_page, tablePage + 1)"
+                                        >
+                                            Next
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <p v-else class="text-muted-foreground">
@@ -679,6 +999,71 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                             </div>
                         </TabsContent>
                     </TabsRoot>
+
+                    <!-- Edit row dialog -->
+                    <Dialog :open="editRowOpen" @update:open="editRowOpen = $event">
+                        <DialogContent class="sm:max-w-lg">
+                            <DialogHeader>
+                                <DialogTitle>Edit row</DialogTitle>
+                            </DialogHeader>
+                            <div
+                                v-if="editRow && tableHeaders.length"
+                                class="grid gap-3 py-2"
+                            >
+                                <div
+                                    v-for="(header, i) in tableHeaders"
+                                    :key="i"
+                                    class="grid gap-1.5"
+                                >
+                                    <Label :for="`edit-cell-${i}`">{{ header }}</Label>
+                                    <Input
+                                        :id="`edit-cell-${i}`"
+                                        v-model="editCells[i]"
+                                        class="w-full"
+                                    />
+                                </div>
+                            </div>
+                            <DialogFooter class="gap-2">
+                                <DialogClose as-child>
+                                    <Button variant="secondary" @click="closeEditRow">
+                                        Cancel
+                                    </Button>
+                                </DialogClose>
+                                <Button
+                                    :disabled="editSaving"
+                                    @click="saveEditRow"
+                                >
+                                    {{ editSaving ? 'Saving…' : 'Save' }}
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+
+                    <!-- Delete row confirmation -->
+                    <Dialog :open="deleteRowOpen" @update:open="deleteRowOpen = $event">
+                        <DialogContent class="sm:max-w-md">
+                            <DialogHeader>
+                                <DialogTitle>Delete row?</DialogTitle>
+                            </DialogHeader>
+                            <p class="text-sm text-muted-foreground">
+                                This row will be permanently removed. This cannot be undone.
+                            </p>
+                            <DialogFooter class="gap-2">
+                                <DialogClose as-child>
+                                    <Button variant="secondary" @click="closeDeleteRow">
+                                        Cancel
+                                    </Button>
+                                </DialogClose>
+                                <Button
+                                    variant="destructive"
+                                    :disabled="deleteConfirming"
+                                    @click="confirmDeleteRow"
+                                >
+                                    {{ deleteConfirming ? 'Deleting…' : 'Delete' }}
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
                 </div>
             </div>
 

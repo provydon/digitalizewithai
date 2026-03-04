@@ -60,10 +60,24 @@ class DigitalizeFileCommand extends Command
             attachments: [$attachment],
         );
 
+        $type = $response['type'] ?? 'doc';
+        $content = $response['content'] ?? '';
         $digitalData = [
-            'type' => $response['type'],
-            'content' => $response['content'],
+            'type' => $type,
+            'content' => $content,
         ];
+        if ($type === 'table' && isset($response['table_row_count'])) {
+            $digitalData['table_row_count'] = (int) $response['table_row_count'];
+        }
+        if ($type === 'doc') {
+            $docPages = $response['doc_pages'] ?? null;
+            $docPageCount = isset($response['doc_page_count']) ? (int) $response['doc_page_count'] : 1;
+            $digitalData['doc_page_count'] = $docPageCount;
+            if (is_array($docPages) && $docPageCount > 1) {
+                $digitalData['doc_pages'] = array_values($docPages);
+                $digitalData['content'] = implode("\n\n", $digitalData['doc_pages']);
+            }
+        }
 
         $name = pathinfo($path, PATHINFO_FILENAME);
         $data = Data::create([

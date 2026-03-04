@@ -31,14 +31,65 @@ class DataViewController extends Controller
             abort(404);
         }
 
+        $digitalData = $data->digital_data;
+        if (is_array($digitalData) && ($digitalData['type'] ?? '') === 'doc') {
+            $pageCount = (int) ($digitalData['doc_page_count'] ?? 1);
+            if ($pageCount > 1) {
+                $digitalData = array_diff_key($digitalData, array_flip(['content', 'doc_pages']));
+            }
+        }
+
         return response()->json([
             'id' => $data->id,
             'name' => $data->name,
             'raw_data' => $data->raw_data,
-            'digital_data' => $data->digital_data,
+            'digital_data' => $digitalData,
             'created_at' => $data->created_at?->toIso8601String(),
             'updated_at' => $data->updated_at?->toIso8601String(),
         ]);
+    }
+
+    /** One page of doc content (backend-powered pagination). GET ?page=1 */
+    public function docPage(Request $request, Data $data): JsonResponse
+    {
+        if ($data->user_id !== auth()->id()) {
+            abort(404);
+        }
+        $digital = $data->digital_data;
+        if (! is_array($digital) || ($digital['type'] ?? '') !== 'doc') {
+            abort(404);
+        }
+        $pageCount = (int) ($digital['doc_page_count'] ?? 1);
+        $docPages = $digital['doc_pages'] ?? null;
+        $page = max(1, min($pageCount, (int) $request->input('page', 1)));
+        $content = '';
+        if (is_array($docPages) && isset($docPages[$page - 1])) {
+            $content = (string) $docPages[$page - 1];
+        } else {
+            $content = (string) ($digital['content'] ?? '');
+        }
+        return response()->json([
+            'page' => $page,
+            'total_pages' => $pageCount,
+            'content' => $content,
+        ]);
+    }
+
+    /** Full doc content (e.g. for export). Only for type doc. */
+    public function docContent(Data $data): JsonResponse
+    {
+        if ($data->user_id !== auth()->id()) {
+            abort(404);
+        }
+        $digital = $data->digital_data;
+        if (! is_array($digital) || ($digital['type'] ?? '') !== 'doc') {
+            abort(404);
+        }
+        $content = $digital['content'] ?? '';
+        if ($content === '' && ! empty($digital['doc_pages'])) {
+            $content = implode("\n\n", $digital['doc_pages']);
+        }
+        return response()->json(['content' => $content]);
     }
 
     /**

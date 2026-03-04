@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { computed, onMounted, ref } from 'vue';
-import { FileText, Table as TableIcon, Trash2, Upload } from 'lucide-vue-next';
+import { computed, onMounted, ref, watch } from 'vue';
+import { FileText, Search, Table as TableIcon, Trash2, Upload } from 'lucide-vue-next';
 import AppLayout from '@/layouts/AppLayout.vue';
 import api from '@/lib/api';
 import { dashboard } from '@/routes';
@@ -35,6 +35,15 @@ const breadcrumbs: BreadcrumbItem[] = [
 const items = ref<DigitalizedItem[]>([]);
 const loading = ref(true);
 const error = ref<string | null>(null);
+const listPage = ref(1);
+const listSearch = ref('');
+const listMeta = ref<{
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+} | null>(null);
+let listSearchDebounce: ReturnType<typeof setTimeout> | null = null;
 const uploadLoading = ref(false);
 const uploadProgress = ref(0);
 const uploadPhase = ref<'uploading' | 'extracting'>('uploading');
@@ -59,8 +68,17 @@ async function loadList() {
     loading.value = true;
     error.value = null;
     try {
-        const { data } = await api.get<{ data: DigitalizedItem[] }>('/dashboard/api/data');
+        const params = new URLSearchParams({
+            page: String(listPage.value),
+            per_page: '15',
+        });
+        if (listSearch.value.trim()) params.set('search', listSearch.value.trim());
+        const { data } = await api.get<{
+            data: DigitalizedItem[];
+            meta: { current_page: number; last_page: number; per_page: number; total: number };
+        }>(`/dashboard/api/data?${params}`);
         items.value = Array.isArray(data?.data) ? data.data : [];
+        listMeta.value = data?.meta ?? null;
     } catch (e: unknown) {
         const err = e as { response?: { data?: { message?: string } }; message?: string };
         error.value =
@@ -71,6 +89,19 @@ async function loadList() {
         loading.value = false;
     }
 }
+
+function goToListPage(page: number) {
+    listPage.value = Math.max(1, Math.min(listMeta.value?.last_page ?? 1, page));
+}
+
+watch(listPage, () => loadList());
+watch(listSearch, () => {
+    if (listSearchDebounce) clearTimeout(listSearchDebounce);
+    listSearchDebounce = setTimeout(() => {
+        listPage.value = 1;
+        loadList();
+    }, 300);
+});
 
 onMounted(loadList);
 
@@ -182,15 +213,8 @@ async function upload(_input: HTMLInputElement | null, file: File, nameOverride?
         uploadProgress.value = 100;
         uploadPhase.value = 'extracting';
         uploadSuccess.value = true;
-        items.value = [
-            {
-                id: data.id,
-                name: data.name,
-                type: data.digital_data?.type ?? null,
-                created_at: new Date().toISOString(),
-            },
-            ...items.value,
-        ];
+        listPage.value = 1;
+        await loadList();
         setTimeout(() => { uploadSuccess.value = false; }, 3000);
     } catch (e: unknown) {
         const err = e as { response?: { data?: { message?: string } }; message?: string };
@@ -232,7 +256,7 @@ async function confirmDelete() {
     deleteError.value = null;
     try {
         await api.delete(`/dashboard/api/data/${item.id}`);
-        items.value = items.value.filter((i: DigitalizedItem) => i.id !== item.id);
+        await loadList();
         closeDeleteModal();
     } catch (e: unknown) {
         const err = e as { response?: { data?: { message?: string } }; message?: string };
@@ -315,11 +339,30 @@ async function confirmDelete() {
                 </div>
             </div>
 
-            <!-- List -->
+            <!-- List: backend pagination + search -->
             <div class="rounded-xl border border-sidebar-border/70 bg-card p-3 shadow-sm dark:border-sidebar-border sm:p-4">
-                <h2 class="mb-4 text-lg font-semibold text-foreground">
+                <h2 class="mb-3 text-lg font-semibold text-foreground">
                     Digitalized data
                 </h2>
+                <div class="mb-3 flex flex-wrap items-center gap-2">
+                    <div class="relative min-w-0 flex-1 basis-full sm:max-w-xs">
+                        <Search
+                            class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 shrink-0 text-muted-foreground"
+                        />
+                        <input
+                            v-model="listSearch"
+                            type="search"
+                            placeholder="Search by name..."
+                            class="w-full rounded-lg border border-sidebar-border/70 bg-background py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring dark:border-sidebar-border"
+                        />
+                    </div>
+                    <span
+                        v-if="listMeta && !loading"
+                        class="text-sm text-muted-foreground"
+                    >
+                        {{ listMeta.total.toLocaleString() }} item{{ listMeta.total !== 1 ? 's' : '' }}
+                    </span>
+                </div>
                 <div
                     v-if="loading"
                     class="rounded-lg border border-dashed border-sidebar-border/70 py-12 text-center text-muted-foreground dark:border-sidebar-border"
@@ -336,7 +379,7 @@ async function confirmDelete() {
                     v-else-if="items.length === 0"
                     class="rounded-lg border border-dashed border-sidebar-border/70 py-12 text-center text-muted-foreground dark:border-sidebar-border"
                 >
-                    No digitalized items yet. Upload a file above or use the API.
+                    {{ listSearch.trim() ? 'No items match your search.' : 'No digitalized items yet. Upload a file above or use the API.' }}
                 </div>
                 <div v-else class="-mx-1 overflow-x-auto overscroll-x-contain sm:mx-0">
                     <table class="w-full min-w-[320px] text-left text-sm sm:min-w-[400px]">
@@ -407,6 +450,30 @@ async function confirmDelete() {
                             </tr>
                         </tbody>
                     </table>
+                </div>
+                <div
+                    v-if="listMeta && listMeta.last_page > 1 && !loading && items.length > 0"
+                    class="mt-3 flex flex-wrap items-center gap-2 text-sm"
+                >
+                    <button
+                        type="button"
+                        class="rounded-lg border border-sidebar-border/70 px-3 py-1.5 text-foreground hover:bg-muted/60 disabled:opacity-50 dark:border-sidebar-border"
+                        :disabled="listPage <= 1"
+                        @click="goToListPage(listPage - 1)"
+                    >
+                        Previous
+                    </button>
+                    <span class="text-muted-foreground">
+                        Page {{ listMeta.current_page }} of {{ listMeta.last_page }}
+                    </span>
+                    <button
+                        type="button"
+                        class="rounded-lg border border-sidebar-border/70 px-3 py-1.5 text-foreground hover:bg-muted/60 disabled:opacity-50 dark:border-sidebar-border"
+                        :disabled="listPage >= listMeta.last_page"
+                        @click="goToListPage(listPage + 1)"
+                    >
+                        Next
+                    </button>
                 </div>
             </div>
         </div>

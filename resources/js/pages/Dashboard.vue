@@ -308,9 +308,17 @@ async function confirmDelete() {
                     v-show="uploadSectionOpen"
                     class="rounded-xl border border-sidebar-border/70 bg-card p-3 shadow-sm dark:border-sidebar-border sm:p-4"
                 >
-                    <p class="mb-4 text-sm text-muted-foreground">
+                    <p class="mb-4 text-sm">
                         Upload a photo or video of handwritten notes, sales figures, books, logs, records, or any table — we'll extract the content and add it below.
                     </p>
+                    <div class="mb-4 rounded-lg border border-sidebar-border/70 bg-muted/30 px-3 py-2.5 text-sm dark:border-sidebar-border">
+                        <p class="font-medium text-foreground">
+                            Flipping through multiple pages (e.g. sales,logs,school notes,books,etc)?
+                        </p>
+                        <p class="mt-1 text-muted-foreground">
+                            When recording video, <strong>pause 1–2 seconds on each page</strong> so we can detect and separate each page. For many pages, taking <strong>one photo per page</strong> often gives the clearest result.
+                        </p>
+                    </div>
                     <div class="mb-4 grid gap-2">
                         <Label for="upload-name-inline">Name for this data</Label>
                         <Input

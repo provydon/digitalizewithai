@@ -13,7 +13,7 @@ return [
     |
     */
 
-    'default' => 'openai',
+    'default' => 'nova',
     'default_for_images' => 'gemini',
     'default_for_audio' => 'openai',
     'default_for_transcription' => 'openai',
@@ -123,6 +123,24 @@ return [
         'xai' => [
             'driver' => 'xai',
             'key' => env('XAI_API_KEY'),
+        ],
+
+        /*
+        | Amazon Nova API (Chat Completions at api.nova.amazon.com)
+        | Uses API key from https://nova.amazon.com/dev/api. Custom driver required
+        | because Prism's OpenAI provider uses /v1/responses which Nova does not support.
+        */
+        'nova' => [
+            'driver' => 'nova',
+            'key' => env('NOVA_API_KEY'),
+            'url' => 'https://api.nova.amazon.com/v1',
+            'models' => [
+                'text' => [
+                    'default' => 'nova-2-lite-v1',
+                    'cheapest' => 'nova-micro-v1',
+                    'smartest' => 'nova-pro-v1',
+                ],
+            ],
         ],
     ],
 

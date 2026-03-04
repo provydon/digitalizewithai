@@ -15,6 +15,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::post('dashboard/digitalize', [ApiDigitalizeController::class, 'store'])->name('dashboard.digitalize');
     Route::get('dashboard/api/data', [DashboardController::class, 'dataIndex'])->name('dashboard.api.data.index');
+    Route::delete('dashboard/api/data/{data}', [DashboardController::class, 'destroyData'])->name('dashboard.api.data.destroy');
     Route::get('dashboard/api/data/{data}', [DataViewController::class, 'dataShow'])->name('dashboard.api.data.show');
     Route::get('dashboard/api/data/{data}/doc-page', [DataViewController::class, 'docPage'])->name('dashboard.api.data.doc-page');
     Route::get('dashboard/api/data/{data}/doc-content', [DataViewController::class, 'docContent'])->name('dashboard.api.data.doc-content');

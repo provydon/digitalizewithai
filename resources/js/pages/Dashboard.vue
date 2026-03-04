@@ -1,11 +1,22 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { onMounted, ref } from 'vue';
-import { FileText, Table as TableIcon, Upload } from 'lucide-vue-next';
+import { computed, onMounted, ref } from 'vue';
+import { FileText, Table as TableIcon, Trash2, Upload } from 'lucide-vue-next';
 import AppLayout from '@/layouts/AppLayout.vue';
 import api from '@/lib/api';
 import { dashboard } from '@/routes';
 import type { BreadcrumbItem } from '@/types';
+import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 type DigitalizedItem = {
     id: number;
@@ -30,6 +41,16 @@ const uploadPhase = ref<'uploading' | 'extracting'>('uploading');
 const uploadError = ref<string | null>(null);
 const uploadSuccess = ref(false);
 const fileInput = ref<HTMLInputElement | null>(null);
+
+const uploadModalOpen = ref(false);
+const pendingFile = ref<File | null>(null);
+const uploadName = ref('');
+
+const deleteModalOpen = ref(false);
+const itemToDelete = ref<DigitalizedItem | null>(null);
+const deleteConfirmName = ref('');
+const deleteLoading = ref(false);
+const deleteError = ref<string | null>(null);
 
 const ACCEPT =
     'image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm';
@@ -74,8 +95,8 @@ function onFileChange(e: Event) {
     const input = e.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
-    upload(input, file);
     input.value = '';
+    openUploadModal(file);
 }
 
 function onDrop(e: DragEvent) {
@@ -84,14 +105,35 @@ function onDrop(e: DragEvent) {
     if (!file) return;
     uploadError.value = null;
     uploadSuccess.value = false;
-    upload(null, file);
+    openUploadModal(file);
+}
+
+function openUploadModal(file: File) {
+    const baseName = file.name.replace(/\.[^.]+$/, '') || file.name;
+    uploadName.value = baseName;
+    pendingFile.value = file;
+    uploadModalOpen.value = true;
+}
+
+function closeUploadModal() {
+    uploadModalOpen.value = false;
+    pendingFile.value = null;
+    uploadName.value = '';
+}
+
+function startUpload() {
+    const file = pendingFile.value;
+    const name = uploadName.value?.trim();
+    if (!file || !name) return;
+    closeUploadModal();
+    upload(null, file, name);
 }
 
 function onDragOver(e: DragEvent) {
     e.preventDefault();
 }
 
-async function upload(_input: HTMLInputElement | null, file: File) {
+async function upload(_input: HTMLInputElement | null, file: File, nameOverride?: string) {
     const allowed = [
         'image/jpeg',
         'image/png',
@@ -115,9 +157,11 @@ async function upload(_input: HTMLInputElement | null, file: File) {
     uploadError.value = null;
     uploadSuccess.value = false;
 
+    const base = nameOverride ?? (file.name.replace(/\.[^.]+$/, '') || file.name);
+    const name = (base && base.trim()) ? base.trim() : file.name;
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('name', file.name.replace(/\.[^.]+$/, '') || file.name);
+    formData.append('name', name);
 
     try {
         const { data } = await api.post<{
@@ -158,6 +202,43 @@ async function upload(_input: HTMLInputElement | null, file: File) {
         uploadLoading.value = false;
         uploadProgress.value = 0;
         uploadPhase.value = 'uploading';
+    }
+}
+
+function openDeleteModal(item: DigitalizedItem) {
+    itemToDelete.value = item;
+    deleteConfirmName.value = '';
+    deleteError.value = null;
+    deleteModalOpen.value = true;
+}
+
+function closeDeleteModal() {
+    deleteModalOpen.value = false;
+    itemToDelete.value = null;
+    deleteConfirmName.value = '';
+    deleteError.value = null;
+}
+
+const canConfirmDelete = computed(() => {
+    const item = itemToDelete.value;
+    if (!item) return false;
+    return deleteConfirmName.value.trim() === item.name;
+});
+
+async function confirmDelete() {
+    const item = itemToDelete.value;
+    if (!item || !canConfirmDelete.value) return;
+    deleteLoading.value = true;
+    deleteError.value = null;
+    try {
+        await api.delete(`/dashboard/api/data/${item.id}`);
+        items.value = items.value.filter((i: DigitalizedItem) => i.id !== item.id);
+        closeDeleteModal();
+    } catch (e: unknown) {
+        const err = e as { response?: { data?: { message?: string } }; message?: string };
+        deleteError.value = err.response?.data?.message ?? err.message ?? 'Failed to delete';
+    } finally {
+        deleteLoading.value = false;
     }
 }
 </script>
@@ -264,7 +345,8 @@ async function upload(_input: HTMLInputElement | null, file: File) {
                                 <th class="pb-3 pr-4 font-medium text-muted-foreground">Name</th>
                                 <th class="pb-3 pr-4 font-medium text-muted-foreground">Type</th>
                                 <th class="pb-3 pr-4 font-medium text-muted-foreground">Created</th>
-                                <th class="pb-3 font-medium text-muted-foreground"> </th>
+                                <th class="pb-3 pr-2 font-medium text-muted-foreground"> </th>
+                                <th class="w-10 pb-3 pl-0 font-medium text-muted-foreground" aria-label="Actions"> </th>
                             </tr>
                         </thead>
                         <tbody>
@@ -303,7 +385,7 @@ async function upload(_input: HTMLInputElement | null, file: File) {
                                 <td class="py-3 pr-4 text-muted-foreground">
                                     {{ formatDate(item.created_at) }}
                                 </td>
-                                <td class="py-3">
+                                <td class="py-3 pr-2">
                                     <Link
                                         :href="viewUrl(item.id)"
                                         class="text-primary hover:underline"
@@ -312,11 +394,100 @@ async function upload(_input: HTMLInputElement | null, file: File) {
                                         View
                                     </Link>
                                 </td>
+                                <td class="w-10 py-3 pl-0">
+                                    <button
+                                        type="button"
+                                        class="rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                                        title="Delete"
+                                        @click.stop="openDeleteModal(item)"
+                                    >
+                                        <Trash2 class="h-4 w-4" />
+                                    </button>
+                                </td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
             </div>
         </div>
+
+        <!-- Upload: require name before starting -->
+        <Dialog :open="uploadModalOpen" @update:open="uploadModalOpen = $event">
+            <DialogContent class="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Name this data</DialogTitle>
+                </DialogHeader>
+                <p class="text-sm text-muted-foreground">
+                    Give a name for the uploaded file. Upload will start when you click Start.
+                </p>
+                <div class="grid gap-2 py-2">
+                    <Label for="upload-name">Name</Label>
+                    <Input
+                        id="upload-name"
+                        v-model="uploadName"
+                        placeholder="e.g. Sales log March 2024"
+                        @keydown.enter.prevent="startUpload()"
+                    />
+                    <p v-if="pendingFile" class="text-xs text-muted-foreground">
+                        File: {{ pendingFile.name }}
+                    </p>
+                </div>
+                <DialogFooter class="gap-2">
+                    <DialogClose as-child>
+                        <Button variant="secondary" @click="closeUploadModal">
+                            Cancel
+                        </Button>
+                    </DialogClose>
+                    <Button
+                        :disabled="!uploadName.trim()"
+                        @click="startUpload"
+                    >
+                        Start upload
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        <!-- Delete: require typing data name to confirm -->
+        <Dialog :open="deleteModalOpen" @update:open="deleteModalOpen = $event">
+            <DialogContent class="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Delete this data?</DialogTitle>
+                </DialogHeader>
+                <p class="text-sm text-muted-foreground">
+                    This cannot be undone. Type the data name below to confirm.
+                </p>
+                <p v-if="itemToDelete" class="text-sm font-medium text-foreground">
+                    Name: <span class="font-mono">{{ itemToDelete.name }}</span>
+                </p>
+                <div class="grid gap-2 py-2">
+                    <Label for="delete-confirm-name">Type the name to confirm</Label>
+                    <Input
+                        id="delete-confirm-name"
+                        v-model="deleteConfirmName"
+                        placeholder="Enter the exact name"
+                        class="font-mono"
+                        @keydown.enter.prevent="canConfirmDelete ? confirmDelete() : null"
+                    />
+                </div>
+                <p v-if="deleteError" class="text-sm text-destructive">
+                    {{ deleteError }}
+                </p>
+                <DialogFooter class="gap-2">
+                    <DialogClose as-child>
+                        <Button variant="secondary" @click="closeDeleteModal">
+                            Cancel
+                        </Button>
+                    </DialogClose>
+                    <Button
+                        variant="destructive"
+                        :disabled="!canConfirmDelete || deleteLoading"
+                        @click="confirmDelete"
+                    >
+                        {{ deleteLoading ? 'Deleting…' : 'Delete' }}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </AppLayout>
 </template>

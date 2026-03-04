@@ -30,4 +30,14 @@ class DashboardController extends Controller
 
         return response()->json(['data' => $items]);
     }
+
+    /** Delete a data record. Must belong to current user. */
+    public function destroyData(Data $data): JsonResponse
+    {
+        if ($data->user_id !== auth()->id()) {
+            abort(404);
+        }
+        $data->delete();
+        return response()->json(['deleted' => true]);
+    }
 }

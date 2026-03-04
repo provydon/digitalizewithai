@@ -302,7 +302,7 @@ async function confirmDelete() {
                     @click="uploadSectionOpen = !uploadSectionOpen"
                 >
                     <Plus class="mr-2 h-4 w-4" />
-                    Add data
+                    Add Raw Data
                 </Button>
                 <div
                     v-show="uploadSectionOpen"

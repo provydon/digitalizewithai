@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Ai\Agents\ChartSuggestionAgent;
 use App\Ai\Agents\DataInsightAgent;
 use App\Ai\Agents\DataInsightStreamingAgent;
 use App\Models\Data;
@@ -94,6 +95,67 @@ class DataViewController extends Controller
         $agent = new DataInsightStreamingAgent;
 
         return $agent->stream($prompt);
+    }
+
+    /**
+     * Ask AI to suggest chart type and columns for this table data. Returns JSON chart config.
+     * Optional body: { "request": "e.g. bar chart of sales by region" }.
+     */
+    public function chartSuggestion(Request $request, Data $data): JsonResponse
+    {
+        if ($data->user_id !== auth()->id()) {
+            abort(404);
+        }
+
+        $digitalData = $data->digital_data;
+        if (! $digitalData || ($digitalData['type'] ?? '') !== 'table') {
+            return response()->json(['message' => 'Table data is required for chart suggestion.'], 422);
+        }
+
+        $decoded = json_decode($digitalData['content'] ?? '', true);
+        if (! is_array($decoded)) {
+            return response()->json(['message' => 'Invalid table data.'], 422);
+        }
+
+        $headers = $decoded['headers'] ?? [];
+        $rows = $decoded['rows'] ?? [];
+        if (count($headers) < 2 || count($rows) < 1) {
+            return response()->json(['message' => 'Table needs at least 2 columns and 1 row.'], 422);
+        }
+
+        $context = 'Column headers (0-based index in brackets): '.implode(', ', array_map(fn ($h, $i) => "{$i}: {$h}", $headers, array_keys($headers)));
+        $sample = array_slice($rows, 0, 15);
+        foreach ($sample as $row) {
+            $context .= "\n".implode(' | ', array_map(fn ($c) => (string) $c, $row));
+        }
+
+        $userRequest = $request->input('request');
+        $userRequest = is_string($userRequest) ? trim($userRequest) : '';
+        $promptSuffix = $userRequest !== ''
+            ? "User wants this specific chart: \"{$userRequest}\". Suggest chart type and column indices that best match this request."
+            : 'Suggest the best chart type and which column indices to use for labels and values.';
+
+        $agent = new ChartSuggestionAgent;
+        $response = $agent->prompt("Table data:\n---\n{$context}\n---\n{$promptSuffix}");
+
+        $chartType = $response['chartType'] ?? 'bar';
+        $chartType = in_array($chartType, ['bar', 'line', 'pie'], true) ? $chartType : 'bar';
+        $labelCol = (int) ($response['labelColumn'] ?? 0);
+        $valueCol = (int) ($response['valueColumn'] ?? 1);
+        $maxCol = count($headers) - 1;
+        $labelCol = max(0, min($labelCol, $maxCol));
+        $valueCol = max(0, min($valueCol, $maxCol));
+        if ($labelCol === $valueCol) {
+            $valueCol = $labelCol === 0 ? 1 : 0;
+        }
+
+        $title = isset($response['title']) ? trim((string) $response['title']) : '';
+        return response()->json([
+            'chartType' => $chartType,
+            'labelColumn' => $labelCol,
+            'valueColumn' => $valueCol,
+            'title' => $title === '' ? null : $title,
+        ]);
     }
 
     private function buildDataContext(?array $digitalData): string

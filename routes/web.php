@@ -23,8 +23,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('dashboard/api/data/{data}/ask/stream', [DataViewController::class, 'askStream'])->name('dashboard.api.data.ask.stream');
     Route::post('dashboard/api/data/{data}/chart-suggestion', [DataViewController::class, 'chartSuggestion'])->name('dashboard.api.data.chart-suggestion');
     Route::get('dashboard/api/data/{data}/rows', [DataTableRowsController::class, 'index'])->name('dashboard.api.data.rows.index');
+    Route::post('dashboard/api/data/{data}/rows', [DataTableRowsController::class, 'store'])->name('dashboard.api.data.rows.store');
     Route::patch('dashboard/api/data/{data}/rows/{data_table_row}', [DataTableRowsController::class, 'update'])->name('dashboard.api.data.rows.update');
     Route::delete('dashboard/api/data/{data}/rows/{data_table_row}', [DataTableRowsController::class, 'destroy'])->name('dashboard.api.data.rows.destroy');
+    Route::patch('dashboard/api/data/{data}/doc-content', [DataViewController::class, 'updateDocContent'])->name('dashboard.api.data.doc-content.update');
     Route::get('dashboard/data/{data}', [DataViewController::class, 'show'])->name('dashboard.data.show');
 });
 

@@ -59,6 +59,42 @@ class DataTableRowsController extends Controller
     }
 
     /**
+     * Create a new row (manual add). Appends at end and rebuilds digital_data.
+     */
+    public function store(Request $request, Data $data): JsonResponse
+    {
+        $this->authorizeTableData($data);
+
+        if ($data->tableRows()->count() === 0) {
+            $data->syncTableRowsFromDigitalData();
+        }
+
+        $decoded = json_decode($data->digital_data['content'] ?? '{}', true) ?: [];
+        $headers = $decoded['headers'] ?? [];
+        $cellCount = count($headers);
+
+        $cells = $request->input('cells');
+        if (! is_array($cells)) {
+            return response()->json(['message' => 'cells array is required.'], 422);
+        }
+        $cells = array_slice(array_values($cells), 0, $cellCount);
+        while (count($cells) < $cellCount) {
+            $cells[] = '';
+        }
+
+        $maxIndex = (int) $data->tableRows()->max('row_index');
+        $searchContent = implode(' ', array_map(fn ($v) => (string) $v, $cells));
+        $row = $data->tableRows()->create([
+            'row_index' => $maxIndex + 1,
+            'search_content' => $searchContent,
+            'cells' => $cells,
+        ]);
+        $data->rebuildDigitalDataRowsFromTableRows();
+
+        return response()->json(['row' => $row]);
+    }
+
+    /**
      * Update one row (cells). Rebuilds digital_data after.
      */
     public function update(Request $request, Data $data, DataTableRow $data_table_row): JsonResponse

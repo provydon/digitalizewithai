@@ -184,6 +184,42 @@ const displayedDocContentFiltered = computed(() => {
     return matched.length ? matched.join('\n') : 'No matching lines.';
 });
 
+const docEditing = ref(false);
+const docEditContent = ref('');
+const docEditSaving = ref(false);
+const docEditError = ref<string | null>(null);
+
+function startDocEdit() {
+    docEditError.value = null;
+    docEditContent.value = displayedDocContent.value;
+    docEditing.value = true;
+}
+
+function cancelDocEdit() {
+    docEditing.value = false;
+    docEditContent.value = '';
+    docEditError.value = null;
+}
+
+async function saveDocEdit() {
+    if (!record.value || !isDocData.value) return;
+    docEditSaving.value = true;
+    docEditError.value = null;
+    try {
+        const body: { content: string; page?: number } = { content: docEditContent.value };
+        if (isMultiPageDoc.value) body.page = docPageCurrent.value;
+        await api.patch(`/dashboard/api/data/${record.value.id}/doc-content`, body);
+        await fetchRecord();
+        if (isMultiPageDoc.value) await fetchDocPage(docPageCurrent.value);
+        cancelDocEdit();
+    } catch (e: unknown) {
+        const err = e as { response?: { data?: { message?: string } }; message?: string };
+        docEditError.value = err.response?.data?.message ?? err.message ?? 'Failed to save';
+    } finally {
+        docEditSaving.value = false;
+    }
+}
+
 watch(
     () => [record.value?.id, isDocData.value, isMultiPageDoc.value] as const,
     ([id, isDoc, multi]: [number | undefined, boolean, boolean]) => {
@@ -221,6 +257,9 @@ const editSaving = ref(false);
 const deleteRowOpen = ref(false);
 const rowToDelete = ref<TableRowRecord | null>(null);
 const deleteConfirming = ref(false);
+const addRowOpen = ref(false);
+const addRowCells = ref<string[]>([]);
+const addRowSaving = ref(false);
 let searchDebounce: ReturnType<typeof setTimeout> | null = null;
 
 async function fetchRecord() {
@@ -309,6 +348,36 @@ async function confirmDeleteRow() {
         rowsError.value = err.response?.data?.message ?? err.message ?? 'Failed to delete';
     } finally {
         deleteConfirming.value = false;
+    }
+}
+
+function openAddRow() {
+    addRowCells.value = tableHeaders.value.map(() => '');
+    addRowOpen.value = true;
+}
+
+function closeAddRow() {
+    addRowOpen.value = false;
+    addRowCells.value = [];
+}
+
+async function saveAddRow() {
+    if (!record.value || !tableHeaders.value.length) return;
+    addRowSaving.value = true;
+    try {
+        await api.post(`/dashboard/api/data/${record.value.id}/rows`, {
+            cells: addRowCells.value,
+        });
+        await fetchRecord();
+        const lastPage = rowsMeta.value?.last_page ?? 1;
+        tablePage.value = lastPage;
+        await fetchTableRows();
+        closeAddRow();
+    } catch (e: unknown) {
+        const err = e as { response?: { data?: { message?: string } }; message?: string };
+        rowsError.value = err.response?.data?.message ?? err.message ?? 'Failed to add row';
+    } finally {
+        addRowSaving.value = false;
     }
 }
 
@@ -822,9 +891,48 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                         v-else
                                         class="min-w-0 prose prose-sm max-w-none dark:prose-invert"
                                     >
-                                        <pre
-                                            class="max-w-full overflow-x-auto whitespace-pre-wrap rounded-lg bg-muted/50 p-3 font-sans text-sm text-foreground sm:p-4 sm:text-base"
-                                        >{{ displayedDocContentFiltered || ' ' }}</pre>
+                                        <div v-if="docEditing" class="space-y-3">
+                                            <textarea
+                                                v-model="docEditContent"
+                                                class="min-h-[240px] w-full max-w-full resize-y rounded-lg border border-sidebar-border/70 bg-background p-3 font-sans text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring dark:border-sidebar-border sm:p-4 sm:text-base"
+                                                :placeholder="'Document content…'"
+                                                spellcheck="false"
+                                            />
+                                            <p v-if="docEditError" class="text-sm text-destructive">
+                                                {{ docEditError }}
+                                            </p>
+                                            <div class="flex flex-wrap gap-2">
+                                                <Button
+                                                    size="sm"
+                                                    :disabled="docEditSaving"
+                                                    @click="saveDocEdit"
+                                                >
+                                                    {{ docEditSaving ? 'Saving…' : 'Save' }}
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant="secondary"
+                                                    :disabled="docEditSaving"
+                                                    @click="cancelDocEdit"
+                                                >
+                                                    Cancel
+                                                </Button>
+                                            </div>
+                                        </div>
+                                        <template v-else>
+                                            <pre
+                                                class="max-w-full overflow-x-auto whitespace-pre-wrap rounded-lg bg-muted/50 p-3 font-sans text-sm text-foreground sm:p-4 sm:text-base"
+                                            >{{ displayedDocContentFiltered || ' ' }}</pre>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                class="mt-2 gap-1.5"
+                                                @click="startDocEdit"
+                                            >
+                                                <Pencil class="h-3.5 w-3.5" />
+                                                Edit
+                                            </Button>
+                                        </template>
                                     </div>
                                 </div>
 
@@ -848,7 +956,16 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                         >
                                             {{ rowsMeta.total.toLocaleString() }} row{{ rowsMeta.total !== 1 ? 's' : '' }}
                                         </span>
-                                        <div class="ml-auto">
+                                        <div class="ml-auto flex items-center gap-2">
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                class="gap-1.5"
+                                                @click="openAddRow"
+                                            >
+                                                <TableIcon class="h-3.5 w-3.5" />
+                                                Add row
+                                            </Button>
                                             <Tooltip
                                                 :open="copyTableTooltipOpen"
                                                 @update:open="(v) => { if (!copyTableFeedback) copyTableTooltipOpen = v }"
@@ -1185,6 +1302,45 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                     @click="saveEditRow"
                                 >
                                     {{ editSaving ? 'Saving…' : 'Save' }}
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+
+                    <!-- Add row dialog -->
+                    <Dialog :open="addRowOpen" @update:open="addRowOpen = $event">
+                        <DialogContent class="sm:max-w-lg">
+                            <DialogHeader>
+                                <DialogTitle>Add row</DialogTitle>
+                            </DialogHeader>
+                            <div
+                                v-if="tableHeaders.length"
+                                class="grid gap-3 py-2"
+                            >
+                                <div
+                                    v-for="(header, i) in tableHeaders"
+                                    :key="i"
+                                    class="grid gap-1.5"
+                                >
+                                    <Label :for="`add-cell-${i}`">{{ header }}</Label>
+                                    <Input
+                                        :id="`add-cell-${i}`"
+                                        v-model="addRowCells[i]"
+                                        class="w-full"
+                                    />
+                                </div>
+                            </div>
+                            <DialogFooter class="gap-2">
+                                <DialogClose as-child>
+                                    <Button variant="secondary" @click="closeAddRow">
+                                        Cancel
+                                    </Button>
+                                </DialogClose>
+                                <Button
+                                    :disabled="addRowSaving"
+                                    @click="saveAddRow"
+                                >
+                                    {{ addRowSaving ? 'Adding…' : 'Add row' }}
                                 </Button>
                             </DialogFooter>
                         </DialogContent>

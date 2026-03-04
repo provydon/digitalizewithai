@@ -92,6 +92,44 @@ class DataViewController extends Controller
         return response()->json(['content' => $content]);
     }
 
+    /** Update doc content (inline edit). PATCH body: { "content": "..." } or { "page": 1, "content": "..." } for multi-page. */
+    public function updateDocContent(Request $request, Data $data): JsonResponse
+    {
+        if ($data->user_id !== auth()->id()) {
+            abort(404);
+        }
+        $digital = $data->digital_data;
+        if (! is_array($digital) || ($digital['type'] ?? '') !== 'doc') {
+            abort(404);
+        }
+        $content = $request->input('content');
+        if (! is_string($content)) {
+            return response()->json(['message' => 'content string is required.'], 422);
+        }
+        $page = $request->input('page');
+        $pageCount = (int) ($digital['doc_page_count'] ?? 1);
+        if ($page !== null && $pageCount > 1) {
+            $pageNum = max(1, min($pageCount, (int) $page));
+            $docPages = $digital['doc_pages'] ?? [];
+            if (! is_array($docPages)) {
+                $docPages = [];
+            }
+            while (count($docPages) < $pageCount) {
+                $docPages[] = '';
+            }
+            $docPages[$pageNum - 1] = $content;
+            $digital['doc_pages'] = $docPages;
+            $digital['content'] = implode("\n\n", $docPages);
+        } else {
+            $digital['content'] = $content;
+            if (isset($digital['doc_pages'])) {
+                $digital['doc_pages'] = [$content];
+            }
+        }
+        $data->update(['digital_data' => $digital]);
+        return response()->json(['content' => $content]);
+    }
+
     /**
      * Ask AI about this data record (question, insights, chart suggestions). Expects JSON: { "question": "..." }.
      */

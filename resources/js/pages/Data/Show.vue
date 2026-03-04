@@ -334,6 +334,13 @@ const canExport = computed(() => !!tableData.value && !!record.value);
                                 <MessageSquare class="h-4 w-4" />
                                 Explore with AI
                             </TabsTrigger>
+                            <TabsTrigger
+                                value="export"
+                                class="inline-flex items-center justify-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+                            >
+                                <FileSpreadsheet class="h-4 w-4" />
+                                Export to Excel
+                            </TabsTrigger>
                         </TabsList>
 
                         <TabsContent value="data" class="mt-0 rounded-b-xl">
@@ -528,18 +535,29 @@ const canExport = computed(() => !!tableData.value && !!record.value);
                                         <Bar :data="chartData" :options="chartOptions" />
                                     </div>
                                 </div>
+                            </div>
+                        </TabsContent>
 
-                                <!-- Export to Excel -->
-                                <div v-if="canExport" class="flex items-center gap-2">
-                                    <button
-                                        type="button"
-                                        class="inline-flex items-center gap-2 rounded-lg border border-sidebar-border/70 bg-muted/30 px-3 py-2 text-sm font-medium text-foreground hover:bg-muted/60 dark:border-sidebar-border"
-                                        @click="exportToExcel"
-                                    >
-                                        <FileSpreadsheet class="h-4 w-4" />
-                                        Export to Excel
-                                    </button>
-                                </div>
+                        <TabsContent value="export" class="mt-0 rounded-b-xl">
+                            <div class="flex flex-col gap-4 p-6 pt-4">
+                                <p class="text-sm text-muted-foreground">
+                                    Download this data as an Excel (.xlsx) file. Available for table data only.
+                                </p>
+                                <button
+                                    type="button"
+                                    class="inline-flex w-fit items-center gap-2 rounded-lg border border-sidebar-border/70 bg-muted/30 px-3 py-2 text-sm font-medium text-foreground hover:bg-muted/60 dark:border-sidebar-border disabled:opacity-50"
+                                    :disabled="!canExport"
+                                    @click="exportToExcel"
+                                >
+                                    <FileSpreadsheet class="h-4 w-4" />
+                                    Export to Excel
+                                </button>
+                                <p
+                                    v-if="!canExport"
+                                    class="text-sm text-muted-foreground"
+                                >
+                                    No table data to export. Upload or digitalize a table to use this.
+                                </p>
                             </div>
                         </TabsContent>
                     </TabsRoot>

@@ -174,6 +174,16 @@ const displayedDocContent = computed(() => {
     return docContent.value ?? '';
 });
 
+const docSearch = ref('');
+const displayedDocContentFiltered = computed(() => {
+    const raw = displayedDocContent.value;
+    const q = docSearch.value.trim().toLowerCase();
+    if (!q) return raw;
+    const lines = raw.split('\n');
+    const matched = lines.filter((line) => line.toLowerCase().includes(q));
+    return matched.length ? matched.join('\n') : 'No matching lines.';
+});
+
 watch(
     () => [record.value?.id, isDocData.value, isMultiPageDoc.value] as const,
     ([id, isDoc, multi]: [number | undefined, boolean, boolean]) => {
@@ -744,6 +754,17 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                 <!-- Doc: single page from record, multi-page from API (one page at a time) -->
                                 <div v-if="isDocData" class="space-y-4">
                                     <div class="flex flex-wrap items-center justify-between gap-2">
+                                        <div class="relative min-w-0 flex-1 basis-full sm:basis-0 sm:max-w-sm">
+                                            <Search
+                                                class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                                            />
+                                            <input
+                                                v-model="docSearch"
+                                                type="search"
+                                                placeholder="Search for anything.."
+                                                class="w-full rounded-lg border border-sidebar-border/70 bg-background py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring dark:border-sidebar-border"
+                                            />
+                                        </div>
                                         <div
                                             v-if="isMultiPageDoc"
                                             class="flex flex-wrap items-center gap-2 text-sm"
@@ -803,7 +824,7 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                     >
                                         <pre
                                             class="max-w-full overflow-x-auto whitespace-pre-wrap rounded-lg bg-muted/50 p-3 font-sans text-sm text-foreground sm:p-4 sm:text-base"
-                                        >{{ displayedDocContent || ' ' }}</pre>
+                                        >{{ displayedDocContentFiltered || ' ' }}</pre>
                                     </div>
                                 </div>
 
@@ -817,7 +838,7 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                             <input
                                                 v-model="tableSearch"
                                                 type="search"
-                                                placeholder="Search rows..."
+                                                placeholder="Search for anything.."
                                                 class="w-full rounded-lg border border-sidebar-border/70 bg-background py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring dark:border-sidebar-border"
                                             />
                                         </div>

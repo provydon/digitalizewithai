@@ -13,830 +13,361 @@ withDefaults(
 </script>
 
 <template>
-    <Head title="Welcome">
+    <Head title="Digitalize with AI — Amazon Nova">
         <link rel="preconnect" href="https://rsms.me/" />
         <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
     </Head>
     <div
-        class="flex min-h-screen flex-col items-center bg-[#FDFDFC] p-6 text-[#1b1b18] lg:justify-center lg:p-8 dark:bg-[#0a0a0a]"
+        class="flex min-h-screen flex-col bg-white text-[#161d26] dark:bg-[#0f0f11] dark:text-[#e5e5e7]"
     >
         <header
-            class="mb-6 w-full max-w-[335px] text-sm not-has-[nav]:hidden lg:max-w-4xl"
+            class="sticky top-0 z-10 w-full border-b border-[#e5e5e7] bg-white/95 px-6 py-4 backdrop-blur-sm dark:border-[#2a2a2e] dark:bg-[#0f0f11]/95 lg:px-12"
         >
-            <nav class="flex items-center justify-end gap-4">
+            <nav class="mx-auto flex max-w-5xl items-center justify-between">
                 <Link
-                    v-if="$page.props.auth.user"
-                    :href="dashboard()"
-                    class="inline-block rounded-sm border border-[#19140035] px-5 py-1.5 text-sm leading-normal text-[#1b1b18] hover:border-[#1915014a] dark:border-[#3E3E3A] dark:text-[#EDEDEC] dark:hover:border-[#62605b]"
+                    :href="$page.props.auth.user ? dashboard() : '/'"
+                    class="flex items-center gap-3"
                 >
-                    Dashboard
+                    <!-- Amazon Nova logo -->
+                    <svg
+                        role="img"
+                        class="h-8 w-auto dark:[--logo-text:#e5e5e7]"
+                        viewBox="0 0 179 32"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                        aria-labelledby="logo-title"
+                    >
+                        <title id="logo-title">Amazon Nova</title>
+                        <path
+                            d="M41.1172 23.625C40.8609 23.625 40.7328 23.5264 40.7328 23.3293C40.7328 23.2534 40.7479 23.17 40.7781 23.079C40.8081 22.988 40.8383 22.897 40.8685 22.806L46.1587 8.4735C46.234 8.246 46.317 8.08675 46.4074 7.99575C46.4979 7.90475 46.6712 7.85925 46.9274 7.85925H48.3291C48.5852 7.85925 48.7587 7.90475 48.8491 7.99575C48.9395 8.08675 49.0224 8.246 49.0978 8.4735L54.388 22.806C54.4181 22.897 54.4483 22.988 54.4785 23.079C54.5085 23.17 54.5237 23.2534 54.5237 23.3293C54.5237 23.5264 54.3955 23.625 54.1393 23.625H52.8507C52.5944 23.625 52.4211 23.5795 52.3307 23.4885C52.2403 23.3975 52.1573 23.2383 52.082 23.0108L50.8386 19.439H44.3501L43.1519 23.0108C43.0765 23.2383 42.9936 23.3975 42.9032 23.4885C42.8128 23.5795 42.6394 23.625 42.3832 23.625H41.1172ZM44.9605 17.6873H50.2508L47.583 9.95225L44.9605 17.6873Z"
+                            fill="currentColor"
+                            class="text-[#161d26] dark:text-[#e5e5e7]"
+                        />
+                        <path
+                            d="M57.9963 23.625H56.6624C56.3609 23.625 56.2102 23.4734 56.2102 23.17V12.5458C56.2102 12.2424 56.3609 12.0908 56.6624 12.0908H57.6571C57.9586 12.0908 58.1319 12.2348 58.1771 12.523L58.3128 13.251C59.0362 12.7505 59.7446 12.3789 60.4379 12.1363C61.1312 11.8784 61.832 11.7495 62.5404 11.7495C63.9421 11.7495 64.8917 12.2879 65.3891 13.3648C66.8812 12.2879 68.3733 11.7495 69.8654 11.7495C70.9054 11.7495 71.7042 12.0453 72.2619 12.6368C72.8195 13.2283 73.0983 14.07 73.0983 15.162V23.17C73.0983 23.4734 72.9477 23.625 72.6462 23.625H71.3123C71.0108 23.625 70.8602 23.4734 70.8602 23.17V15.799C70.8602 15.0255 70.7169 14.4644 70.4306 14.1155C70.1443 13.7515 69.6921 13.5695 69.0741 13.5695C67.9739 13.5695 66.8661 13.9108 65.7508 14.5933C65.7658 14.6994 65.7734 14.8131 65.7734 14.9345C65.7734 15.0559 65.7734 15.1771 65.7734 15.2985V23.17C65.7734 23.4734 65.6227 23.625 65.3212 23.625H63.9874C63.6859 23.625 63.5352 23.4734 63.5352 23.17V15.799C63.5352 15.0255 63.392 14.4644 63.1056 14.1155C62.8193 13.7515 62.3672 13.5695 61.7492 13.5695C60.6037 13.5695 59.5034 13.9031 58.4484 14.5705V23.17C58.4484 23.4734 58.2977 23.625 57.9963 23.625Z"
+                            fill="currentColor"
+                            class="text-[#161d26] dark:text-[#e5e5e7]"
+                        />
+                        <path
+                            d="M78.8538 23.9208C77.7838 23.9208 76.9247 23.6099 76.2765 22.988C75.6435 22.3661 75.327 21.5471 75.327 20.531C75.327 19.4239 75.7189 18.5441 76.5026 17.892C77.2864 17.2246 78.3414 16.891 79.6677 16.891C80.5118 16.891 81.4613 17.0199 82.5163 17.2778V15.7763C82.5163 14.9573 82.328 14.3809 81.9511 14.0473C81.5894 13.7136 80.9639 13.5468 80.0746 13.5468C79.5924 13.5468 79.0799 13.5846 78.5373 13.6605C78.0099 13.7364 77.5049 13.8501 77.0226 14.0018C76.7965 14.0624 76.6382 14.1079 76.5478 14.1383C76.4725 14.1534 76.4121 14.161 76.3669 14.161C76.1861 14.161 76.0956 14.0245 76.0956 13.7515V13.1373C76.0956 12.9249 76.1258 12.7809 76.1861 12.705C76.2464 12.614 76.3669 12.5306 76.5478 12.4548C77.0301 12.2424 77.6255 12.0756 78.3338 11.9543C79.0573 11.8178 79.7657 11.7495 80.459 11.7495C81.8908 11.7495 82.9458 12.0453 83.6241 12.6368C84.3023 13.2283 84.6414 14.1459 84.6414 15.3895V23.17C84.6414 23.4734 84.4907 23.625 84.1893 23.625H83.2171C82.9308 23.625 82.765 23.4809 82.7197 23.1928L82.6067 22.442C82.0641 22.9121 81.4613 23.2761 80.7981 23.534C80.15 23.7919 79.502 23.9208 78.8538 23.9208ZM79.3964 22.2145C80.4515 22.2145 81.4915 21.8278 82.5163 21.0543V18.7338C82.1395 18.6428 81.7402 18.5745 81.3181 18.529C80.9111 18.4684 80.5118 18.438 80.1198 18.438C78.4168 18.438 77.5651 19.0978 77.5651 20.4173C77.5651 20.9784 77.7234 21.4183 78.0399 21.7368C78.3564 22.0553 78.8086 22.2145 79.3964 22.2145Z"
+                            fill="currentColor"
+                            class="text-[#161d26] dark:text-[#e5e5e7]"
+                        />
+                        <path
+                            d="M95.4558 23.6249H87.2265C86.9251 23.6249 86.7744 23.4733 86.7744 23.1699V22.3964C86.7744 22.1538 86.797 21.9793 86.8422 21.8732C86.9025 21.7671 87.008 21.6229 87.1587 21.4409L93.3533 13.8652H87.4526C87.1511 13.8652 87.0005 13.7136 87.0005 13.4102V12.5457C87.0005 12.2424 87.1511 12.0907 87.4526 12.0907H95.388C95.6895 12.0907 95.8402 12.2424 95.8402 12.5457V13.2964C95.8402 13.5088 95.8176 13.6756 95.7723 13.7969C95.7271 13.9031 95.6291 14.0472 95.4784 14.2292L89.1708 21.8504H95.4558C95.7573 21.8504 95.908 21.9946 95.908 22.2827V23.1699C95.908 23.4733 95.7573 23.6249 95.4558 23.6249Z"
+                            fill="currentColor"
+                            class="text-[#161d26] dark:text-[#e5e5e7]"
+                        />
+                        <path
+                            d="M102.709 23.9663C101.021 23.9663 99.687 23.4354 98.7072 22.3738C97.7276 21.2969 97.2377 19.7879 97.2377 17.8465C97.2377 15.9051 97.7276 14.4036 98.7072 13.342C99.687 12.2803 101.021 11.7495 102.709 11.7495C104.412 11.7495 105.746 12.2803 106.71 13.342C107.69 14.4036 108.18 15.9051 108.18 17.8465C108.18 19.7879 107.69 21.2969 106.71 22.3738C105.746 23.4354 104.412 23.9663 102.709 23.9663ZM102.709 22.1463C103.749 22.1463 104.54 21.7974 105.083 21.0998C105.625 20.4021 105.897 19.3176 105.897 17.8465C105.897 16.3905 105.625 15.3136 105.083 14.616C104.54 13.9184 103.749 13.5695 102.709 13.5695C101.669 13.5695 100.878 13.9184 100.335 14.616C99.7924 15.3136 99.5211 16.3905 99.5211 17.8465C99.5211 19.3176 99.7924 20.4021 100.335 21.0998C100.878 21.7974 101.669 22.1463 102.709 22.1463Z"
+                            fill="currentColor"
+                            class="text-[#161d26] dark:text-[#e5e5e7]"
+                        />
+                        <path
+                            d="M112.387 23.625H111.053C110.752 23.625 110.601 23.4734 110.601 23.17V12.5458C110.601 12.2424 110.752 12.0908 111.053 12.0908H112.048C112.349 12.0908 112.522 12.2348 112.568 12.523L112.703 13.3648C114.135 12.2879 115.642 11.7495 117.225 11.7495C118.325 11.7495 119.162 12.0453 119.734 12.6368C120.307 13.2131 120.593 14.0549 120.593 15.162V23.17C120.593 23.4734 120.443 23.625 120.141 23.625H118.807C118.506 23.625 118.355 23.4734 118.355 23.17V15.9128C118.355 15.1089 118.19 14.5174 117.858 14.1383C117.541 13.7591 117.037 13.5695 116.343 13.5695C115.74 13.5695 115.145 13.6681 114.557 13.8653C113.969 14.0624 113.397 14.3506 112.839 14.7298V23.17C112.839 23.4734 112.688 23.625 112.387 23.625Z"
+                            fill="currentColor"
+                            class="text-[#161d26] dark:text-[#e5e5e7]"
+                        />
+                        <path
+                            d="M131.029 23.625H129.809C129.507 23.625 129.357 23.4734 129.357 23.17V8.31425C129.357 8.01092 129.507 7.85925 129.809 7.85925H131.255C131.677 7.85925 131.964 7.99575 132.115 8.26875L139.575 20.4628V8.31425C139.575 8.01092 139.726 7.85925 140.027 7.85925H141.249C141.55 7.85925 141.701 8.01092 141.701 8.31425V23.17C141.701 23.4734 141.55 23.625 141.249 23.625H139.779C139.372 23.625 139.086 23.4885 138.919 23.2155L131.481 11.0898V23.17C131.481 23.4734 131.331 23.625 131.029 23.625Z"
+                            fill="currentColor"
+                            class="text-[#161d26] dark:text-[#e5e5e7]"
+                        />
+                        <path
+                            d="M149.813 23.9663C148.125 23.9663 146.791 23.4354 145.812 22.3738C144.832 21.2969 144.343 19.7879 144.343 17.8465C144.343 15.9051 144.832 14.4036 145.812 13.342C146.791 12.2803 148.125 11.7495 149.813 11.7495C151.517 11.7495 152.851 12.2803 153.816 13.342C154.795 14.4036 155.285 15.9051 155.285 17.8465C155.285 19.7879 154.795 21.2969 153.816 22.3738C152.851 23.4354 151.517 23.9663 149.813 23.9663ZM149.813 22.1463C150.853 22.1463 151.644 21.7974 152.187 21.0998C152.73 20.4021 153.001 19.3176 153.001 17.8465C153.001 16.3905 152.73 15.3136 152.187 14.616C151.644 13.9184 150.853 13.5695 149.813 13.5695C148.774 13.5695 147.982 13.9184 147.44 14.616C146.897 15.3136 146.626 16.3905 146.626 17.8465C146.626 19.3176 146.897 20.4021 147.44 21.0998C147.982 21.7974 148.774 22.1463 149.813 22.1463Z"
+                            fill="currentColor"
+                            class="text-[#161d26] dark:text-[#e5e5e7]"
+                        />
+                        <path
+                            d="M162.187 23.6249H161.034C160.778 23.6249 160.604 23.5794 160.515 23.4884C160.439 23.3974 160.356 23.2382 160.265 23.0107L156.264 12.9097C156.234 12.8187 156.196 12.7277 156.151 12.6367C156.121 12.5306 156.106 12.4471 156.106 12.3864C156.106 12.1893 156.219 12.0907 156.446 12.0907H157.778C158.036 12.0907 158.201 12.1362 158.277 12.2272C158.367 12.303 158.457 12.4623 158.547 12.7049L161.645 21.5774L164.742 12.7049C164.833 12.4623 164.915 12.303 164.991 12.2272C165.081 12.1362 165.254 12.0907 165.511 12.0907H166.754C166.981 12.0907 167.094 12.1893 167.094 12.3864C167.094 12.4471 167.071 12.5306 167.025 12.6367C166.995 12.7277 166.966 12.8187 166.935 12.9097L162.956 23.0107C162.865 23.2382 162.776 23.3974 162.685 23.4884C162.609 23.5794 162.444 23.6249 162.187 23.6249Z"
+                            fill="currentColor"
+                            class="text-[#161d26] dark:text-[#e5e5e7]"
+                        />
+                        <path
+                            d="M171.518 23.9208C170.448 23.9208 169.589 23.6099 168.941 22.988C168.307 22.3661 167.992 21.5471 167.992 20.531C167.992 19.4239 168.383 18.5441 169.167 17.892C169.951 17.2246 171.005 16.891 172.332 16.891C173.175 16.891 174.126 17.0199 175.18 17.2778V15.7763C175.18 14.9573 174.993 14.3809 174.615 14.0473C174.254 13.7136 173.628 13.5468 172.739 13.5468C172.256 13.5468 171.744 13.5846 171.202 13.6605C170.674 13.7364 170.169 13.8501 169.687 14.0018C169.461 14.0624 169.302 14.1079 169.212 14.1383C169.137 14.1534 169.076 14.161 169.031 14.161C168.85 14.161 168.759 14.0245 168.759 13.7515V13.1373C168.759 12.9249 168.79 12.7809 168.85 12.705C168.911 12.614 169.031 12.5306 169.212 12.4548C169.695 12.2424 170.29 12.0756 170.998 11.9543C171.722 11.8178 172.43 11.7495 173.123 11.7495C174.555 11.7495 175.61 12.0453 176.288 12.6368C176.967 13.2283 177.306 14.1459 177.306 15.3895V23.17C177.306 23.4734 177.155 23.625 176.853 23.625H175.881C175.595 23.625 175.429 23.4809 175.384 23.1928L175.271 22.442C174.728 22.9121 174.126 23.2761 173.462 23.534C172.814 23.7919 172.167 23.9208 171.518 23.9208ZM172.061 22.2145C173.116 22.2145 174.155 21.8278 175.18 21.0543V18.7338C174.804 18.6428 174.404 18.5745 173.983 18.529C173.575 18.4684 173.175 18.438 172.784 18.438C171.081 18.438 170.229 19.0978 170.229 20.4173C170.229 20.9784 170.388 21.4183 170.705 21.7368C171.02 22.0553 171.472 22.2145 172.061 22.2145Z"
+                            fill="currentColor"
+                            class="text-[#161d26] dark:text-[#e5e5e7]"
+                        />
+                        <mask id="nova-logo-mask0" maskUnits="userSpaceOnUse" x="0" y="0" width="32" height="32" style="mask-type: luminance;">
+                            <path d="M31.8001 0H0V32H31.8001V0Z" fill="white" />
+                        </mask>
+                        <g mask="url(#nova-logo-mask0)">
+                            <mask id="nova-logo-mask1" maskUnits="userSpaceOnUse" x="0" y="0" width="32" height="32" style="mask-type: alpha;">
+                                <path d="M17.8652 23.2806L19.3981 24.823C19.4676 24.893 19.49 24.998 19.4527 25.0905L17.0553 31.2075C16.869 31.685 16.4094 32 15.9001 32C15.3908 32 14.9312 31.685 14.7448 31.2075L11.294 22.4032L5.7116 28.0203C5.61471 28.1178 5.4582 28.1178 5.3613 28.0203L3.95514 26.6054C3.85825 26.5079 3.85825 26.3504 3.95514 26.2529L10.8443 19.3209C11.0679 19.096 11.3636 18.941 11.6791 18.9235C12.2306 18.8935 12.7176 19.2209 12.9114 19.7134L15.9026 27.3429L17.4603 23.3656C17.5249 23.1981 17.741 23.1531 17.8677 23.2806H17.8652ZM26.0885 3.97955L20.5061 9.59664L17.0553 0.792286C16.8342 0.229828 16.2404 -0.105148 15.6268 0.0298417C15.2119 0.122335 14.8815 0.437312 14.7274 0.834782L12.3474 6.90684C12.3101 6.99934 12.3325 7.10432 12.4021 7.17432L13.9349 8.7167C14.0616 8.8442 14.2753 8.7992 14.3424 8.63171L15.9001 4.6545L18.8913 12.2839C19.0453 12.6764 19.3832 12.9639 19.7931 13.0489C19.8776 13.0664 19.962 13.0739 20.0465 13.0739C20.372 13.0739 20.69 12.9439 20.926 12.7089L27.8475 5.74442C27.9444 5.64692 27.9444 5.48944 27.8475 5.39195L26.4413 3.97705C26.3444 3.87956 26.1879 3.87956 26.091 3.97705L26.0885 3.97955ZM8.57858 17.566L4.62593 15.9986L12.2083 12.9889C12.6977 12.7939 13.0231 12.3039 12.9933 11.749C12.9759 11.4315 12.8219 11.134 12.5983 10.909L5.7116 3.97955C5.61471 3.88206 5.4582 3.88206 5.3613 3.97955L3.95514 5.39445C3.85825 5.49194 3.85825 5.64943 3.95514 5.74692L9.53756 11.364L0.78755 14.8363C0.313033 15.0238 0 15.4862 0 15.9986C0 16.5111 0.313033 16.9736 0.78755 17.1611L6.86684 19.5734C6.95876 19.6109 7.06311 19.5884 7.13267 19.5184L8.66554 17.976C8.79224 17.8485 8.74752 17.6335 8.58107 17.566H8.57858ZM31.0126 14.8363L24.9333 12.4239C24.8414 12.3864 24.737 12.4089 24.6675 12.4789L23.1346 14.0214C23.0079 14.1487 23.0526 14.3637 23.2191 14.4312L27.1717 15.9986L19.5894 19.0085C19.1 19.2035 18.7745 19.6934 18.8043 20.2484C18.8217 20.5659 18.9757 20.8634 19.1993 21.0882L26.0885 28.0203C26.1854 28.1178 26.3419 28.1178 26.4388 28.0203L27.845 26.6054C27.9419 26.5079 27.9419 26.3504 27.845 26.2529L22.2626 20.6359L31.0126 17.1636C31.4871 16.9761 31.8001 16.5136 31.8001 16.0011C31.8001 15.4888 31.4871 15.0262 31.0126 14.8387V14.8363Z"
+                                    fill="white"
+                                />
+                            </mask>
+                            <g mask="url(#nova-logo-mask1)">
+                                <path
+                                    d="M-2.91543 34.125L34.533 34.125L34.533 -2.1095L-2.91543 -2.1095L-2.91543 34.125Z"
+                                    fill="url(#nova-logo-gradient)"
+                                />
+                            </g>
+                        </g>
+                        <defs>
+                            <linearGradient id="nova-logo-gradient" x1="33.6628" y1="33.633" x2="-2.08592" y2="-1.90102" gradientUnits="userSpaceOnUse">
+                                <stop stop-color="#ff6200" />
+                                <stop offset="0.398661" stop-color="#e433ff" />
+                                <stop offset="0.96" stop-color="#7c3aed" />
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                    <span class="text-sm font-medium text-[#6b6b6e] dark:text-[#9b9b9e]">
+                        Digitalize with AI
+                    </span>
                 </Link>
-                <template v-else>
+                <div class="flex items-center gap-3">
+                    <Link
+                        v-if="$page.props.auth.user"
+                        :href="dashboard()"
+                        class="rounded-xl border border-[#d1d1d6] px-4 py-2.5 text-sm font-medium text-[#161d26] transition-colors hover:bg-[#f5f5f7] dark:border-[#3a3a3e] dark:text-[#e5e5e7] dark:hover:bg-[#1c1c1e]"
+                    >
+                        Dashboard
+                    </Link>
+                    <template v-else>
+                        <Link
+                            :href="login()"
+                            class="rounded-xl px-4 py-2.5 text-sm font-medium text-[#161d26] transition-colors hover:bg-[#f5f5f7] dark:text-[#e5e5e7] dark:hover:bg-[#1c1c1e]"
+                        >
+                            Log in
+                        </Link>
+                        <Link
+                            v-if="canRegister"
+                            :href="register()"
+                            class="rounded-xl bg-[#7c3aed] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#6d28d9] dark:bg-[#8b5cf6] dark:hover:bg-[#7c3aed]"
+                        >
+                            Get started
+                        </Link>
+                    </template>
+                </div>
+            </nav>
+        </header>
+
+        <main class="flex-1 px-6 pb-20 lg:px-12">
+            <!-- Hero -->
+            <section class="mx-auto max-w-5xl pt-16 text-center lg:pt-24">
+                <p class="mb-3 text-sm font-medium uppercase tracking-wider text-[#7c3aed] dark:text-[#a78bfa]">
+                    Powered by Amazon Nova
+                </p>
+                <h1 class="mb-4 text-4xl font-bold tracking-tight text-[#161d26] dark:text-[#e5e5e7] sm:text-5xl lg:text-6xl">
+                    Digitalize with AI
+                </h1>
+                <p class="mx-auto max-w-2xl text-lg text-[#6b6b6e] dark:text-[#9b9b9e] lg:text-xl">
+                    Turn Physical books, notes, documents, logs, records and tables into
+                    editable and exportable digital content and get actionable insights with AI—using Amazon Nova.
+                </p>
+                <p class="mx-auto mt-3 max-w-xl text-sm text-[#6b6b6e] dark:text-[#9b9b9e]">
+                    Upload an image or record a video. Nova’s multimodal AI extracts the content and gives you
+                    clean text or structured tables you can view, edit, and build on.
+                </p>
+                <div v-if="!$page.props.auth.user" class="mt-10 flex flex-wrap justify-center gap-4">
+                    <Link
+                        :href="register()"
+                        class="inline-flex items-center rounded-xl bg-[#7c3aed] px-6 py-3 text-base font-medium text-white shadow-lg shadow-[#7c3aed]/25 transition-all hover:bg-[#6d28d9] hover:shadow-[#7c3aed]/30 dark:bg-[#8b5cf6] dark:hover:bg-[#7c3aed]"
+                    >
+                        Get started free
+                    </Link>
                     <Link
                         :href="login()"
-                        class="inline-block rounded-sm border border-transparent px-5 py-1.5 text-sm leading-normal text-[#1b1b18] hover:border-[#19140035] dark:text-[#EDEDEC] dark:hover:border-[#3E3E3A]"
+                        class="inline-flex items-center rounded-xl border border-[#d1d1d6] bg-white px-6 py-3 text-base font-medium text-[#161d26] transition-colors hover:bg-[#f5f5f7] dark:border-[#3a3a3e] dark:bg-[#1c1c1e] dark:text-[#e5e5e7] dark:hover:bg-[#2a2a2e]"
                     >
                         Log in
                     </Link>
+                </div>
+                <div v-else class="mt-10">
                     <Link
-                        v-if="canRegister"
-                        :href="register()"
-                        class="inline-block rounded-sm border border-[#19140035] px-5 py-1.5 text-sm leading-normal text-[#1b1b18] hover:border-[#1915014a] dark:border-[#3E3E3A] dark:text-[#EDEDEC] dark:hover:border-[#62605b]"
+                        :href="dashboard()"
+                        class="inline-flex items-center rounded-xl bg-[#7c3aed] px-6 py-3 text-base font-medium text-white shadow-lg shadow-[#7c3aed]/25 transition-all hover:bg-[#6d28d9] dark:bg-[#8b5cf6] dark:hover:bg-[#7c3aed]"
                     >
-                        Register
+                        Go to Dashboard
                     </Link>
-                </template>
-            </nav>
-        </header>
-        <div
-            class="flex w-full items-center justify-center opacity-100 transition-opacity duration-750 lg:grow starting:opacity-0"
-        >
-            <main
-                class="flex w-full max-w-[335px] flex-col-reverse overflow-hidden rounded-lg lg:max-w-4xl lg:flex-row"
-            >
+                </div>
+            </section>
+
+            <!-- What it does -->
+            <section class="mx-auto max-w-5xl pt-20 lg:pt-28">
+                <h2 class="mb-10 text-center text-2xl font-semibold text-[#161d26] dark:text-[#e5e5e7] lg:text-3xl">
+                    What you can do
+                </h2>
                 <div
-                    class="flex-1 rounded-br-lg rounded-bl-lg bg-white p-6 pb-12 text-[13px] leading-[20px] shadow-[inset_0px_0px_0px_1px_rgba(26,26,0,0.16)] lg:rounded-tl-lg lg:rounded-br-none lg:p-20 dark:bg-[#161615] dark:text-[#EDEDEC] dark:shadow-[inset_0px_0px_0px_1px_#fffaed2d]"
+                    class="grid gap-8 rounded-2xl border border-[#e5e5e7] bg-[#fafafa] p-8 dark:border-[#2a2a2e] dark:bg-[#1c1c1e] lg:grid-cols-2 lg:gap-12 lg:p-12"
                 >
-                    <h1 class="mb-1 font-medium">Let's get started</h1>
-                    <p class="mb-2 text-[#706f6c] dark:text-[#A1A09A]">
-                        Laravel has an incredibly rich ecosystem. <br />We
-                        suggest starting with the following.
+                    <div class="flex gap-4">
+                        <span
+                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#7c3aed]/10 text-[#7c3aed] dark:bg-[#8b5cf6]/20 dark:text-[#a78bfa]"
+                            aria-hidden
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                            </svg>
+                        </span>
+                        <div>
+                            <h3 class="mb-1 font-semibold text-[#161d26] dark:text-[#e5e5e7]">
+                                Upload & extract
+                            </h3>
+                            <p class="text-sm leading-relaxed text-[#6b6b6e] dark:text-[#9b9b9e]">
+                                Upload a photo or record a video from your device or camera. Amazon Nova detects whether the content is a document (prose, notes) or a table and returns structured text or rows you can use right away.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex gap-4">
+                        <span
+                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#7c3aed]/10 text-[#7c3aed] dark:bg-[#8b5cf6]/20 dark:text-[#a78bfa]"
+                            aria-hidden
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                            </svg>
+                        </span>
+                        <div>
+                            <h3 class="mb-1 font-semibold text-[#161d26] dark:text-[#e5e5e7]">
+                                Documents
+                            </h3>
+                            <p class="text-sm leading-relaxed text-[#6b6b6e] dark:text-[#9b9b9e]">
+                                View extracted text as clean, readable content. Edit inline, copy to clipboard, and ask Nova questions about your document. Multi-page docs are supported.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex gap-4">
+                        <span
+                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#7c3aed]/10 text-[#7c3aed] dark:bg-[#8b5cf6]/20 dark:text-[#a78bfa]"
+                            aria-hidden
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 01-1.125-1.125M3.375 19.5h7.5c.621 0 1.125-.504 1.125-1.125m-9.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-7.5A1.125 1.125 0 0112 18.375m9.75-12.75c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125m19.5 0v1.5c0 .621-.504 1.125-1.125 1.125M2.25 5.625v1.5c0 .621.504 1.125 1.125 1.125M12 18.375v-1.5m0 1.5c0 .621.504 1.125 1.125 1.125M12 12.375v-1.5m0 1.5c0 .621.504 1.125 1.125 1.125m0 0h7.5m-7.5 0c.621 0 1.125.504 1.125 1.125M12 21.375v-1.5m0 1.5c0 .621.504 1.125 1.125 1.125m0 0h7.5m-7.5 0c.621 0 1.125.504 1.125 1.125m0 0v-1.5m0 1.5v-1.5m0 1.5V21m0 0h7.5m-7.5 0h7.5" />
+                            </svg>
+                        </span>
+                        <div>
+                            <h3 class="mb-1 font-semibold text-[#161d26] dark:text-[#e5e5e7]">
+                                Tables
+                            </h3>
+                            <p class="text-sm leading-relaxed text-[#6b6b6e] dark:text-[#9b9b9e]">
+                                See extracted data as a proper table with headers and rows. Edit cells, add rows manually, or add rows by uploading another photo or video—new data is appended. Search and paginate large datasets.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex gap-4">
+                        <span
+                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#7c3aed]/10 text-[#7c3aed] dark:bg-[#8b5cf6]/20 dark:text-[#a78bfa]"
+                            aria-hidden
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
+                            </svg>
+                        </span>
+                        <div>
+                            <h3 class="mb-1 font-semibold text-[#161d26] dark:text-[#e5e5e7]">
+                                Powered by Amazon Nova
+                            </h3>
+                            <p class="text-sm leading-relaxed text-[#6b6b6e] dark:text-[#9b9b9e]">
+                                Extraction and understanding use Amazon Nova’s multimodal AI so you get accurate text and structured tables from handwritten or printed sources—including from video frames.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex gap-4">
+                        <span
+                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#7c3aed]/10 text-[#7c3aed] dark:bg-[#8b5cf6]/20 dark:text-[#a78bfa]"
+                            aria-hidden
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 001.5-.189m-1.5.189a6.01 6.01 0 01-1.5-.189m3.75 7.478a12.06 12.06 0 01-4.5 0m3.75 2.383a14.406 14.406 0 01-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 10-7.517 0c.85.493 1.509 1.333 1.509 2.316V18" />
+                            </svg>
+                        </span>
+                        <div>
+                            <h3 class="mb-1 font-semibold text-[#161d26] dark:text-[#e5e5e7]">
+                                Get insights with AI
+                            </h3>
+                            <p class="text-sm leading-relaxed text-[#6b6b6e] dark:text-[#9b9b9e]">
+                                Ask Nova questions about your documents and tables. Get summaries, key points, trends, and actionable insights from your digitalized content.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex gap-4">
+                        <span
+                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#7c3aed]/10 text-[#7c3aed] dark:bg-[#8b5cf6]/20 dark:text-[#a78bfa]"
+                            aria-hidden
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+                            </svg>
+                        </span>
+                        <div>
+                            <h3 class="mb-1 font-semibold text-[#161d26] dark:text-[#e5e5e7]">
+                                Generate charts
+                            </h3>
+                            <p class="text-sm leading-relaxed text-[#6b6b6e] dark:text-[#9b9b9e]">
+                                Turn table data into visual charts with AI. Nova suggests the best chart types and helps you visualize trends, comparisons, and distributions at a glance.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex gap-4">
+                        <span
+                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#7c3aed]/10 text-[#7c3aed] dark:bg-[#8b5cf6]/20 dark:text-[#a78bfa]"
+                            aria-hidden
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                            </svg>
+                        </span>
+                        <div>
+                            <h3 class="mb-1 font-semibold text-[#161d26] dark:text-[#e5e5e7]">
+                                Search with AI
+                            </h3>
+                            <p class="text-sm leading-relaxed text-[#6b6b6e] dark:text-[#9b9b9e]">
+                                Search across your documents and table rows. Use natural language or keywords—Nova helps you find exactly what you need in your digitalized content.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex gap-4">
+                        <span
+                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#7c3aed]/10 text-[#7c3aed] dark:bg-[#8b5cf6]/20 dark:text-[#a78bfa]"
+                            aria-hidden
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                            </svg>
+                        </span>
+                        <div>
+                            <h3 class="mb-1 font-semibold text-[#161d26] dark:text-[#e5e5e7]">
+                                Export anywhere
+                            </h3>
+                            <p class="text-sm leading-relaxed text-[#6b6b6e] dark:text-[#9b9b9e]">
+                                Export to Excel, docs, notes, or JSON. Turn physical table logs and records into clean JSON or spreadsheets—use your data in the tools you already use.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- CTA -->
+            <section class="mx-auto max-w-5xl pt-20 lg:pt-28">
+                <div
+                    class="rounded-2xl border border-[#e5e5e7] bg-[#f5f3ff] px-8 py-12 text-center dark:border-[#2a2a2e] dark:bg-[#2a2640] lg:py-16"
+                >
+                    <h2 class="mb-3 text-xl font-semibold text-[#161d26] dark:text-[#e5e5e7] lg:text-2xl">
+                        Ready to digitalize?
+                    </h2>
+                    <p class="mx-auto max-w-md text-sm text-[#6b6b6e] dark:text-[#9b9b9e]">
+                        Create an account, upload a photo or video, and get editable content in seconds with Amazon Nova.
                     </p>
-                    <ul class="mb-4 flex flex-col lg:mb-6">
-                        <li
-                            class="relative flex items-center gap-4 py-2 before:absolute before:top-1/2 before:bottom-0 before:left-[0.4rem] before:border-l before:border-[#e3e3e0] dark:before:border-[#3E3E3A]"
+                    <div v-if="!$page.props.auth.user" class="mt-6">
+                        <Link
+                            :href="register()"
+                            class="inline-flex rounded-xl bg-[#7c3aed] px-6 py-3 text-base font-medium text-white transition-colors hover:bg-[#6d28d9] dark:bg-[#8b5cf6] dark:hover:bg-[#7c3aed]"
                         >
-                            <span
-                                class="relative bg-white py-1 dark:bg-[#161615]"
-                            >
-                                <span
-                                    class="flex h-3.5 w-3.5 items-center justify-center rounded-full border border-[#e3e3e0] bg-[#FDFDFC] shadow-[0px_0px_1px_0px_rgba(0,0,0,0.03),0px_1px_2px_0px_rgba(0,0,0,0.06)] dark:border-[#3E3E3A] dark:bg-[#161615]"
-                                >
-                                    <span
-                                        class="h-1.5 w-1.5 rounded-full bg-[#dbdbd7] dark:bg-[#3E3E3A]"
-                                    />
-                                </span>
-                            </span>
-                            <span>
-                                Read the
-                                <a
-                                    href="https://laravel.com/docs"
-                                    target="_blank"
-                                    class="ml-1 inline-flex items-center space-x-1 font-medium text-[#f53003] underline underline-offset-4 dark:text-[#FF4433]"
-                                >
-                                    <span>Documentation</span>
-                                    <svg
-                                        width="10"
-                                        height="11"
-                                        viewBox="0 0 10 11"
-                                        fill="none"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        class="h-2.5 w-2.5"
-                                    >
-                                        <path
-                                            d="M7.70833 6.95834V2.79167H3.54167M2.5 8L7.5 3.00001"
-                                            stroke="currentColor"
-                                            stroke-linecap="square"
-                                        />
-                                    </svg>
-                                </a>
-                            </span>
-                        </li>
-                        <li
-                            class="relative flex items-center gap-4 py-2 before:absolute before:top-0 before:bottom-1/2 before:left-[0.4rem] before:border-l before:border-[#e3e3e0] dark:before:border-[#3E3E3A]"
+                            Create free account
+                        </Link>
+                    </div>
+                    <div v-else class="mt-6">
+                        <Link
+                            :href="dashboard()"
+                            class="inline-flex rounded-xl bg-[#7c3aed] px-6 py-3 text-base font-medium text-white transition-colors hover:bg-[#6d28d9] dark:bg-[#8b5cf6] dark:hover:bg-[#7c3aed]"
                         >
-                            <span
-                                class="relative bg-white py-1 dark:bg-[#161615]"
-                            >
-                                <span
-                                    class="flex h-3.5 w-3.5 items-center justify-center rounded-full border border-[#e3e3e0] bg-[#FDFDFC] shadow-[0px_0px_1px_0px_rgba(0,0,0,0.03),0px_1px_2px_0px_rgba(0,0,0,0.06)] dark:border-[#3E3E3A] dark:bg-[#161615]"
-                                >
-                                    <span
-                                        class="h-1.5 w-1.5 rounded-full bg-[#dbdbd7] dark:bg-[#3E3E3A]"
-                                    />
-                                </span>
-                            </span>
-                            <span>
-                                Watch video tutorials at
-                                <a
-                                    href="https://laracasts.com"
-                                    target="_blank"
-                                    class="ml-1 inline-flex items-center space-x-1 font-medium text-[#f53003] underline underline-offset-4 dark:text-[#FF4433]"
-                                >
-                                    <span>Laracasts</span>
-                                    <svg
-                                        width="10"
-                                        height="11"
-                                        viewBox="0 0 10 11"
-                                        fill="none"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        class="h-2.5 w-2.5"
-                                    >
-                                        <path
-                                            d="M7.70833 6.95834V2.79167H3.54167M2.5 8L7.5 3.00001"
-                                            stroke="currentColor"
-                                            stroke-linecap="square"
-                                        />
-                                    </svg>
-                                </a>
-                            </span>
-                        </li>
-                    </ul>
-                    <ul class="flex gap-3 text-sm leading-normal">
-                        <li>
-                            <a
-                                href="https://cloud.laravel.com"
-                                target="_blank"
-                                class="inline-block rounded-sm border border-black bg-[#1b1b18] px-5 py-1.5 text-sm leading-normal text-white hover:border-black hover:bg-black dark:border-[#eeeeec] dark:bg-[#eeeeec] dark:text-[#1C1C1A] dark:hover:border-white dark:hover:bg-white"
-                            >
-                                Deploy now
-                            </a>
-                        </li>
-                    </ul>
+                            Open Dashboard
+                        </Link>
+                    </div>
                 </div>
-                <div
-                    class="relative -mb-px aspect-335/376 w-full shrink-0 overflow-hidden rounded-t-lg bg-[#fff2f2] lg:mb-0 lg:-ml-px lg:aspect-auto lg:w-[438px] lg:rounded-t-none lg:rounded-r-lg dark:bg-[#1D0002]"
-                >
-                    <svg
-                        class="w-full max-w-none translate-y-0 text-[#F53003] opacity-100 transition-all duration-750 dark:text-[#F61500] starting:translate-y-6 starting:opacity-0"
-                        viewBox="0 0 438 104"
-                        fill="none"
-                        xmlns="http://www.w3.org/2000/svg"
-                    >
-                        <path
-                            d="M17.2036 -3H0V102.197H49.5189V86.7187H17.2036V-3Z"
-                            fill="currentColor"
-                        />
-                        <path
-                            d="M110.256 41.6337C108.061 38.1275 104.945 35.3731 100.905 33.3681C96.8667 31.3647 92.8016 30.3618 88.7131 30.3618C83.4247 30.3618 78.5885 31.3389 74.201 33.2923C69.8111 35.2456 66.0474 37.928 62.9059 41.3333C59.7643 44.7401 57.3198 48.6726 55.5754 53.1293C53.8287 57.589 52.9572 62.274 52.9572 67.1813C52.9572 72.1925 53.8287 76.8995 55.5754 81.3069C57.3191 85.7173 59.7636 89.6241 62.9059 93.0293C66.0474 96.4361 69.8119 99.1155 74.201 101.069C78.5885 103.022 83.4247 103.999 88.7131 103.999C92.8016 103.999 96.8667 102.997 100.905 100.994C104.945 98.9911 108.061 96.2359 110.256 92.7282V102.195H126.563V32.1642H110.256V41.6337ZM108.76 75.7472C107.762 78.4531 106.366 80.8078 104.572 82.8112C102.776 84.8161 100.606 86.4183 98.0637 87.6206C95.5202 88.823 92.7004 89.4238 89.6103 89.4238C86.5178 89.4238 83.7252 88.823 81.2324 87.6206C78.7388 86.4183 76.5949 84.8161 74.7998 82.8112C73.004 80.8078 71.6319 78.4531 70.6856 75.7472C69.7356 73.0421 69.2644 70.1868 69.2644 67.1821C69.2644 64.1758 69.7356 61.3205 70.6856 58.6154C71.6319 55.9102 73.004 53.5571 74.7998 51.5522C76.5949 49.5495 78.738 47.9451 81.2324 46.7427C83.7252 45.5404 86.5178 44.9396 89.6103 44.9396C92.7012 44.9396 95.5202 45.5404 98.0637 46.7427C100.606 47.9451 102.776 49.5487 104.572 51.5522C106.367 53.5571 107.762 55.9102 108.76 58.6154C109.756 61.3205 110.256 64.1758 110.256 67.1821C110.256 70.1868 109.756 73.0421 108.76 75.7472Z"
-                            fill="currentColor"
-                        />
-                        <path
-                            d="M242.805 41.6337C240.611 38.1275 237.494 35.3731 233.455 33.3681C229.416 31.3647 225.351 30.3618 221.262 30.3618C215.974 30.3618 211.138 31.3389 206.75 33.2923C202.36 35.2456 198.597 37.928 195.455 41.3333C192.314 44.7401 189.869 48.6726 188.125 53.1293C186.378 57.589 185.507 62.274 185.507 67.1813C185.507 72.1925 186.378 76.8995 188.125 81.3069C189.868 85.7173 192.313 89.6241 195.455 93.0293C198.597 96.4361 202.361 99.1155 206.75 101.069C211.138 103.022 215.974 103.999 221.262 103.999C225.351 103.999 229.416 102.997 233.455 100.994C237.494 98.9911 240.611 96.2359 242.805 92.7282V102.195H259.112V32.1642H242.805V41.6337ZM241.31 75.7472C240.312 78.4531 238.916 80.8078 237.122 82.8112C235.326 84.8161 233.156 86.4183 230.614 87.6206C228.07 88.823 225.251 89.4238 222.16 89.4238C219.068 89.4238 216.275 88.823 213.782 87.6206C211.289 86.4183 209.145 84.8161 207.35 82.8112C205.554 80.8078 204.182 78.4531 203.236 75.7472C202.286 73.0421 201.814 70.1868 201.814 67.1821C201.814 64.1758 202.286 61.3205 203.236 58.6154C204.182 55.9102 205.554 53.5571 207.35 51.5522C209.145 49.5495 211.288 47.9451 213.782 46.7427C216.275 45.5404 219.068 44.9396 222.16 44.9396C225.251 44.9396 228.07 45.5404 230.614 46.7427C233.156 47.9451 235.326 49.5487 237.122 51.5522C238.917 53.5571 240.312 55.9102 241.31 58.6154C242.306 61.3205 242.806 64.1758 242.806 67.1821C242.805 70.1868 242.305 73.0421 241.31 75.7472Z"
-                            fill="currentColor"
-                        />
-                        <path
-                            d="M438 -3H421.694V102.197H438V-3Z"
-                            fill="currentColor"
-                        />
-                        <path
-                            d="M139.43 102.197H155.735V48.2834H183.712V32.1665H139.43V102.197Z"
-                            fill="currentColor"
-                        />
-                        <path
-                            d="M324.49 32.1665L303.995 85.794L283.498 32.1665H266.983L293.748 102.197H314.242L341.006 32.1665H324.49Z"
-                            fill="currentColor"
-                        />
-                        <path
-                            d="M376.571 30.3656C356.603 30.3656 340.797 46.8497 340.797 67.1828C340.797 89.6597 356.094 104 378.661 104C391.29 104 399.354 99.1488 409.206 88.5848L398.189 80.0226C398.183 80.031 389.874 90.9895 377.468 90.9895C363.048 90.9895 356.977 79.3111 356.977 73.269H411.075C413.917 50.1328 398.775 30.3656 376.571 30.3656ZM357.02 61.0967C357.145 59.7487 359.023 43.3761 376.442 43.3761C393.861 43.3761 395.978 59.7464 396.099 61.0967H357.02Z"
-                            fill="currentColor"
-                        />
-                    </svg>
-                    <svg
-                        class="relative -mt-[4.9rem] -ml-8 w-[448px] max-w-none lg:-mt-[6.6rem] lg:ml-0 dark:hidden"
-                        viewBox="0 0 440 376"
-                        fill="none"
-                        xmlns="http://www.w3.org/2000/svg"
-                    >
-                        <g
-                            class="translate-y-0 opacity-100 transition-all delay-300 duration-750 starting:translate-y-4 starting:opacity-0"
-                        >
-                            <path
-                                d="M188.263 355.73L188.595 355.73C195.441 348.845 205.766 339.761 219.569 328.477C232.93 317.193 242.978 308.205 249.714 301.511C256.34 294.626 260.867 287.358 263.296 279.708C265.725 272.058 264.565 264.121 259.816 255.896C254.516 246.716 247.062 239.352 237.454 233.805C227.957 228.067 217.908 225.198 207.307 225.198C196.927 225.197 190.136 227.97 186.934 233.516C183.621 238.872 184.726 246.331 190.247 255.894L125.647 255.891C116.371 239.825 112.395 225.481 113.72 212.858C115.265 200.235 121.559 190.481 132.602 183.596C143.754 176.52 158.607 172.982 177.159 172.983C196.594 172.984 215.863 176.523 234.968 183.6C253.961 190.486 271.299 200.241 286.98 212.864C302.661 225.488 315.14 239.833 324.416 255.899C333.03 270.817 336.841 283.918 335.847 295.203C335.075 306.487 331.376 316.336 324.75 324.751C318.346 333.167 308.408 343.494 294.936 355.734L377.094 355.737L405.917 405.656L217.087 405.649L188.263 355.73Z"
-                                fill="black"
-                            />
-                            <path
-                                d="M9.11884 226.339L-13.7396 226.338L-42.7286 176.132L43.0733 176.135L175.595 405.649L112.651 405.647L9.11884 226.339Z"
-                                fill="black"
-                            />
-                            <path
-                                d="M188.263 355.73L188.595 355.73C195.441 348.845 205.766 339.761 219.569 328.477C232.93 317.193 242.978 308.205 249.714 301.511C256.34 294.626 260.867 287.358 263.296 279.708C265.725 272.058 264.565 264.121 259.816 255.896C254.516 246.716 247.062 239.352 237.454 233.805C227.957 228.067 217.908 225.198 207.307 225.198C196.927 225.197 190.136 227.97 186.934 233.516C183.621 238.872 184.726 246.331 190.247 255.894L125.647 255.891C116.371 239.825 112.395 225.481 113.72 212.858C115.265 200.235 121.559 190.481 132.602 183.596C143.754 176.52 158.607 172.982 177.159 172.983C196.594 172.984 215.863 176.523 234.968 183.6C253.961 190.486 271.299 200.241 286.98 212.864C302.661 225.488 315.14 239.833 324.416 255.899C333.03 270.817 336.841 283.918 335.847 295.203C335.075 306.487 331.376 316.336 324.75 324.751C318.346 333.167 308.408 343.494 294.936 355.734L377.094 355.737L405.917 405.656L217.087 405.649L188.263 355.73Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                            />
-                            <path
-                                d="M9.11884 226.339L-13.7396 226.338L-42.7286 176.132L43.0733 176.135L175.595 405.649L112.651 405.647L9.11884 226.339Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                            />
-                            <path
-                                d="M204.592 327.449L204.923 327.449C211.769 320.564 222.094 311.479 235.897 300.196C249.258 288.912 259.306 279.923 266.042 273.23C272.668 266.345 277.195 259.077 279.624 251.427C282.053 243.777 280.893 235.839 276.145 227.615C270.844 218.435 263.39 211.071 253.782 205.524C244.285 199.786 234.236 196.917 223.635 196.916C213.255 196.916 206.464 199.689 203.262 205.235C199.949 210.59 201.054 218.049 206.575 227.612L141.975 227.61C132.699 211.544 128.723 197.2 130.048 184.577C131.593 171.954 137.887 162.2 148.93 155.315C160.083 148.239 174.935 144.701 193.487 144.702C212.922 144.703 232.192 148.242 251.296 155.319C270.289 162.205 287.627 171.96 303.308 184.583C318.989 197.207 331.468 211.552 340.745 227.618C349.358 242.536 353.169 255.637 352.175 266.921C351.403 278.205 347.704 288.055 341.078 296.47C334.674 304.885 324.736 315.213 311.264 327.453L393.422 327.456L422.246 377.375L233.415 377.368L204.592 327.449Z"
-                                fill="#F8B803"
-                            />
-                            <path
-                                d="M25.447 198.058L2.58852 198.057L-26.4005 147.851L59.4015 147.854L191.923 377.368L128.979 377.365L25.447 198.058Z"
-                                fill="#F8B803"
-                            />
-                            <path
-                                d="M204.592 327.449L204.923 327.449C211.769 320.564 222.094 311.479 235.897 300.196C249.258 288.912 259.306 279.923 266.042 273.23C272.668 266.345 277.195 259.077 279.624 251.427C282.053 243.777 280.893 235.839 276.145 227.615C270.844 218.435 263.39 211.071 253.782 205.524C244.285 199.786 234.236 196.917 223.635 196.916C213.255 196.916 206.464 199.689 203.262 205.235C199.949 210.59 201.054 218.049 206.575 227.612L141.975 227.61C132.699 211.544 128.723 197.2 130.048 184.577C131.593 171.954 137.887 162.2 148.93 155.315C160.083 148.239 174.935 144.701 193.487 144.702C212.922 144.703 232.192 148.242 251.296 155.319C270.289 162.205 287.627 171.96 303.308 184.583C318.989 197.207 331.468 211.552 340.745 227.618C349.358 242.536 353.169 255.637 352.175 266.921C351.403 278.205 347.704 288.055 341.078 296.47C334.674 304.885 324.736 315.213 311.264 327.453L393.422 327.456L422.246 377.375L233.415 377.368L204.592 327.449Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                            />
-                            <path
-                                d="M25.447 198.058L2.58852 198.057L-26.4005 147.851L59.4015 147.854L191.923 377.368L128.979 377.365L25.447 198.058Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                            />
-                        </g>
-                        <g
-                            :style="{ mixBlendMode: 'hard-light' }"
-                            class="translate-y-0 opacity-100 transition-all delay-300 duration-750 starting:translate-y-4 starting:opacity-0"
-                        >
-                            <path
-                                d="M217.342 305.363L217.673 305.363C224.519 298.478 234.844 289.393 248.647 278.11C262.008 266.826 272.056 257.837 278.792 251.144C285.418 244.259 289.945 236.991 292.374 229.341C294.803 221.691 293.643 213.753 288.895 205.529C283.594 196.349 276.14 188.985 266.532 183.438C257.035 177.7 246.986 174.831 236.385 174.83C226.005 174.83 219.214 177.603 216.012 183.149C212.699 188.504 213.804 195.963 219.325 205.527L154.725 205.524C145.449 189.458 141.473 175.114 142.798 162.491C144.343 149.868 150.637 140.114 161.68 133.229C172.833 126.153 187.685 122.615 206.237 122.616C225.672 122.617 244.942 126.156 264.046 133.233C283.039 140.119 300.377 149.874 316.058 162.497C331.739 175.121 344.218 189.466 353.495 205.532C362.108 220.45 365.919 233.551 364.925 244.835C364.153 256.12 360.454 265.969 353.828 274.384C347.424 282.799 337.486 293.127 324.014 305.367L406.172 305.37L434.996 355.289L246.165 355.282L217.342 305.363Z"
-                                fill="#F0ACB8"
-                            />
-                            <path
-                                d="M38.197 175.972L15.3385 175.971L-13.6505 125.765L72.1515 125.768L204.673 355.282L141.729 355.279L38.197 175.972Z"
-                                fill="#F0ACB8"
-                            />
-                            <path
-                                d="M217.342 305.363L217.673 305.363C224.519 298.478 234.844 289.393 248.647 278.11C262.008 266.826 272.056 257.837 278.792 251.144C285.418 244.259 289.945 236.991 292.374 229.341C294.803 221.691 293.643 213.753 288.895 205.529C283.594 196.349 276.14 188.985 266.532 183.438C257.035 177.7 246.986 174.831 236.385 174.83C226.005 174.83 219.214 177.603 216.012 183.149C212.699 188.504 213.804 195.963 219.325 205.527L154.725 205.524C145.449 189.458 141.473 175.114 142.798 162.491C144.343 149.868 150.637 140.114 161.68 133.229C172.833 126.153 187.685 122.615 206.237 122.616C225.672 122.617 244.942 126.156 264.046 133.233C283.039 140.119 300.377 149.874 316.058 162.497C331.739 175.121 344.218 189.466 353.495 205.532C362.108 220.45 365.919 233.551 364.925 244.835C364.153 256.12 360.454 265.969 353.828 274.384C347.424 282.799 337.486 293.127 324.014 305.367L406.172 305.37L434.996 355.289L246.165 355.282L217.342 305.363Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                            />
-                            <path
-                                d="M38.197 175.972L15.3385 175.971L-13.6505 125.765L72.1515 125.768L204.673 355.282L141.729 355.279L38.197 175.972Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                            />
-                        </g>
-                        <g
-                            :style="`mixBlendMode: 'plus-darker'`"
-                            class="translate-y-0 opacity-100 transition-all delay-300 duration-750 starting:translate-y-4 starting:opacity-0"
-                        >
-                            <path
-                                d="M230.951 281.792L231.282 281.793C238.128 274.907 248.453 265.823 262.256 254.539C275.617 243.256 285.666 234.267 292.402 227.573C299.027 220.688 303.554 213.421 305.983 205.771C308.412 198.12 307.253 190.183 302.504 181.959C297.203 172.778 289.749 165.415 280.142 159.868C270.645 154.13 260.596 151.26 249.995 151.26C239.615 151.26 232.823 154.033 229.621 159.579C226.309 164.934 227.413 172.393 232.935 181.956L168.335 181.954C159.058 165.888 155.082 151.543 156.407 138.92C157.953 126.298 164.247 116.544 175.289 109.659C186.442 102.583 201.294 99.045 219.846 99.0457C239.281 99.0464 258.551 102.585 277.655 109.663C296.649 116.549 313.986 126.303 329.667 138.927C345.349 151.551 357.827 165.895 367.104 181.961C375.718 196.88 379.528 209.981 378.535 221.265C377.762 232.549 374.063 242.399 367.438 250.814C361.033 259.229 351.095 269.557 337.624 281.796L419.782 281.8L448.605 331.719L259.774 331.712L230.951 281.792Z"
-                                fill="#F3BEC7"
-                            />
-                            <path
-                                d="M51.8063 152.402L28.9479 152.401L-0.0411453 102.195L85.7608 102.198L218.282 331.711L155.339 331.709L51.8063 152.402Z"
-                                fill="#F3BEC7"
-                            />
-                            <path
-                                d="M230.951 281.792L231.282 281.793C238.128 274.907 248.453 265.823 262.256 254.539C275.617 243.256 285.666 234.267 292.402 227.573C299.027 220.688 303.554 213.421 305.983 205.771C308.412 198.12 307.253 190.183 302.504 181.959C297.203 172.778 289.749 165.415 280.142 159.868C270.645 154.13 260.596 151.26 249.995 151.26C239.615 151.26 232.823 154.033 229.621 159.579C226.309 164.934 227.413 172.393 232.935 181.956L168.335 181.954C159.058 165.888 155.082 151.543 156.407 138.92C157.953 126.298 164.247 116.544 175.289 109.659C186.442 102.583 201.294 99.045 219.846 99.0457C239.281 99.0464 258.551 102.585 277.655 109.663C296.649 116.549 313.986 126.303 329.667 138.927C345.349 151.551 357.827 165.895 367.104 181.961C375.718 196.88 379.528 209.981 378.535 221.265C377.762 232.549 374.063 242.399 367.438 250.814C361.033 259.229 351.095 269.557 337.624 281.796L419.782 281.8L448.605 331.719L259.774 331.712L230.951 281.792Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                            />
-                            <path
-                                d="M51.8063 152.402L28.9479 152.401L-0.0411453 102.195L85.7608 102.198L218.282 331.711L155.339 331.709L51.8063 152.402Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                            />
-                        </g>
-                        <g
-                            class="translate-y-0 opacity-100 transition-all delay-300 duration-750 starting:translate-y-4 starting:opacity-0"
-                        >
-                            <path
-                                d="M188.467 355.363L188.798 355.363C195.644 348.478 205.969 339.393 219.772 328.11C233.133 316.826 243.181 307.837 249.917 301.144C253.696 297.217 256.792 293.166 259.205 288.991C261.024 285.845 262.455 282.628 263.499 279.341C265.928 271.691 264.768 263.753 260.02 255.529C254.719 246.349 247.265 238.985 237.657 233.438C228.16 227.7 218.111 224.831 207.51 224.83C197.13 224.83 190.339 227.603 187.137 233.149C183.824 238.504 184.929 245.963 190.45 255.527L125.851 255.524C116.574 239.458 112.598 225.114 113.923 212.491C114.615 206.836 116.261 201.756 118.859 197.253C122.061 191.704 126.709 187.03 132.805 183.229C143.958 176.153 158.81 172.615 177.362 172.616C196.797 172.617 216.067 176.156 235.171 183.233C254.164 190.119 271.502 199.874 287.183 212.497C302.864 225.121 315.343 239.466 324.62 255.532C333.233 270.45 337.044 283.551 336.05 294.835C335.46 303.459 333.16 311.245 329.151 318.194C327.915 320.337 326.515 322.4 324.953 324.384C318.549 332.799 308.611 343.127 295.139 355.367L377.297 355.37L406.121 405.289L217.29 405.282L188.467 355.363Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M9.32197 225.972L-13.5365 225.971L-42.5255 175.765L43.2765 175.768L175.798 405.282L112.854 405.279L9.32197 225.972Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M345.247 111.915C329.566 99.2919 312.229 89.5371 293.235 82.6512L235.167 183.228C254.161 190.114 271.498 199.869 287.179 212.492L345.247 111.915Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M382.686 154.964C373.41 138.898 360.931 124.553 345.25 111.93L287.182 212.506C302.863 225.13 315.342 239.475 324.618 255.541L382.686 154.964Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M293.243 82.6472C274.139 75.57 254.869 72.031 235.434 72.0303L177.366 172.607C196.801 172.608 216.071 176.147 235.175 183.224L293.243 82.6472Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M394.118 194.257C395.112 182.973 391.301 169.872 382.688 154.953L324.619 255.53C333.233 270.448 337.044 283.55 336.05 294.834L394.118 194.257Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M235.432 72.0311C216.88 72.0304 202.027 75.5681 190.875 82.6442L132.806 183.221C143.959 176.145 158.812 172.607 177.363 172.608L235.432 72.0311Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M265.59 124.25C276.191 124.251 286.24 127.12 295.737 132.858L237.669 233.435C228.172 227.697 218.123 224.828 207.522 224.827L265.59 124.25Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M295.719 132.859C305.326 138.406 312.78 145.77 318.081 154.95L260.013 255.527C254.712 246.347 247.258 238.983 237.651 233.436L295.719 132.859Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M387.218 217.608C391.227 210.66 393.527 202.874 394.117 194.25L336.049 294.827C335.459 303.451 333.159 311.237 329.15 318.185L387.218 217.608Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M245.211 132.577C248.413 127.03 255.204 124.257 265.584 124.258L207.516 224.835C197.136 224.834 190.345 227.607 187.143 233.154L245.211 132.577Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M318.094 154.945C322.842 163.17 324.002 171.107 321.573 178.757L263.505 279.334C265.934 271.684 264.774 263.746 260.026 255.522L318.094 154.945Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M176.925 96.6737C180.127 91.1249 184.776 86.4503 190.871 82.6499L132.803 183.227C126.708 187.027 122.059 191.702 118.857 197.25L176.925 96.6737Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M387.226 217.606C385.989 219.749 384.59 221.813 383.028 223.797L324.96 324.373C326.522 322.39 327.921 320.326 329.157 318.183L387.226 217.606Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M317.269 188.408C319.087 185.262 320.519 182.045 321.562 178.758L263.494 279.335C262.451 282.622 261.019 285.839 259.201 288.985L317.269 188.408Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M245.208 132.573C241.895 137.928 243 145.387 248.522 154.95L190.454 255.527C184.932 245.964 183.827 238.505 187.14 233.15L245.208 132.573Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M176.93 96.6719C174.331 101.175 172.686 106.255 171.993 111.91L113.925 212.487C114.618 206.831 116.263 201.752 118.862 197.249L176.93 96.6719Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M317.266 188.413C314.853 192.589 311.757 196.64 307.978 200.566L249.91 301.143C253.689 297.216 256.785 293.166 259.198 288.99L317.266 188.413Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M464.198 304.708L435.375 254.789L377.307 355.366L406.13 405.285L464.198 304.708Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M353.209 254.787C366.68 242.548 376.618 232.22 383.023 223.805L324.955 324.382C318.55 332.797 308.612 343.124 295.141 355.364L353.209 254.787Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M435.37 254.787L353.212 254.784L295.144 355.361L377.302 355.364L435.37 254.787Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M183.921 154.947L248.521 154.95L190.453 255.527L125.853 255.524L183.921 154.947Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M171.992 111.914C170.668 124.537 174.643 138.881 183.92 154.947L125.852 255.524C116.575 239.458 112.599 225.114 113.924 212.491L171.992 111.914Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M307.987 200.562C301.251 207.256 291.203 216.244 277.842 227.528L219.774 328.105C233.135 316.821 243.183 307.832 249.919 301.139L307.987 200.562Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M15.5469 75.1797L44.5359 125.386L-13.5321 225.963L-42.5212 175.756L15.5469 75.1797Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M277.836 227.536C264.033 238.82 253.708 247.904 246.862 254.789L188.794 355.366C195.64 348.481 205.965 339.397 219.768 328.113L277.836 227.536Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M275.358 304.706L464.189 304.713L406.12 405.29L217.29 405.283L275.358 304.706Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M44.5279 125.39L67.3864 125.39L9.31834 225.967L-13.5401 225.966L44.5279 125.39Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M101.341 75.1911L233.863 304.705L175.795 405.282L43.2733 175.768L101.341 75.1911ZM15.5431 75.19L-42.525 175.767L43.277 175.77L101.345 75.1932L15.5431 75.19Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M246.866 254.784L246.534 254.784L188.466 355.361L188.798 355.361L246.866 254.784Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M246.539 254.781L275.362 304.701L217.294 405.277L188.471 355.358L246.539 254.781Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M67.3906 125.391L170.923 304.698L112.855 405.275L9.32257 225.967L67.3906 125.391Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M170.921 304.699L233.865 304.701L175.797 405.278L112.853 405.276L170.921 304.699Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                        </g>
-                        <g
-                            :style="{ mixBlendMode: 'hard-light' }"
-                            class="translate-y-0 opacity-100 transition-all delay-300 duration-750 starting:translate-y-4 starting:opacity-0"
-                        >
-                            <path
-                                d="M246.544 254.79L246.875 254.79C253.722 247.905 264.046 238.82 277.849 227.537C291.21 216.253 301.259 207.264 307.995 200.57C314.62 193.685 319.147 186.418 321.577 178.768C324.006 171.117 322.846 163.18 318.097 154.956C312.796 145.775 305.342 138.412 295.735 132.865C286.238 127.127 276.189 124.258 265.588 124.257C255.208 124.257 248.416 127.03 245.214 132.576C241.902 137.931 243.006 145.39 248.528 154.953L183.928 154.951C174.652 138.885 170.676 124.541 172 111.918C173.546 99.2946 179.84 89.5408 190.882 82.6559C202.035 75.5798 216.887 72.0421 235.439 72.0428C254.874 72.0435 274.144 75.5825 293.248 82.6598C312.242 89.5457 329.579 99.3005 345.261 111.924C360.942 124.548 373.421 138.892 382.697 154.958C391.311 169.877 395.121 182.978 394.128 194.262C393.355 205.546 389.656 215.396 383.031 223.811C376.627 232.226 366.688 242.554 353.217 254.794L435.375 254.797L464.198 304.716L275.367 304.709L246.544 254.79Z"
-                                fill="#F0ACB8"
-                            />
-                            <path
-                                d="M246.544 254.79L246.875 254.79C253.722 247.905 264.046 238.82 277.849 227.537C291.21 216.253 301.259 207.264 307.995 200.57C314.62 193.685 319.147 186.418 321.577 178.768C324.006 171.117 322.846 163.18 318.097 154.956C312.796 145.775 305.342 138.412 295.735 132.865C286.238 127.127 276.189 124.258 265.588 124.257C255.208 124.257 248.416 127.03 245.214 132.576C241.902 137.931 243.006 145.39 248.528 154.953L183.928 154.951C174.652 138.885 170.676 124.541 172 111.918C173.546 99.2946 179.84 89.5408 190.882 82.6559C202.035 75.5798 216.887 72.0421 235.439 72.0428C254.874 72.0435 274.144 75.5825 293.248 82.6598C312.242 89.5457 329.579 99.3005 345.261 111.924C360.942 124.548 373.421 138.892 382.697 154.958C391.311 169.877 395.121 182.978 394.128 194.262C393.355 205.546 389.656 215.396 383.031 223.811C376.627 232.226 366.688 242.554 353.217 254.794L435.375 254.797L464.198 304.716L275.367 304.709L246.544 254.79Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                                stroke-linejoin="round"
-                            />
-                        </g>
-                        <g
-                            :style="{ mixBlendMode: 'hard-light' }"
-                            class="translate-y-0 opacity-100 transition-all delay-300 duration-750 starting:translate-y-4 starting:opacity-0"
-                        >
-                            <path
-                                d="M67.41 125.402L44.5515 125.401L15.5625 75.1953L101.364 75.1985L233.886 304.712L170.942 304.71L67.41 125.402Z"
-                                fill="#F0ACB8"
-                            />
-                            <path
-                                d="M67.41 125.402L44.5515 125.401L15.5625 75.1953L101.364 75.1985L233.886 304.712L170.942 304.71L67.41 125.402Z"
-                                stroke="#1B1B18"
-                                stroke-width="1"
-                            />
-                        </g>
-                    </svg>
-                    <svg
-                        class="relative -mt-[4.9rem] -ml-8 hidden w-[448px] max-w-none lg:-mt-[6.6rem] lg:ml-0 dark:block"
-                        viewBox="0 0 440 376"
-                        fill="none"
-                        xmlns="http://www.w3.org/2000/svg"
-                    >
-                        <g
-                            class="translate-y-0 opacity-100 transition-all delay-300 duration-750 starting:translate-y-4 starting:opacity-0"
-                        >
-                            <path
-                                d="M188.263 355.73L188.595 355.73C195.441 348.845 205.766 339.761 219.569 328.477C232.93 317.193 242.978 308.205 249.714 301.511C256.34 294.626 260.867 287.358 263.296 279.708C265.725 272.058 264.565 264.121 259.816 255.896C254.516 246.716 247.062 239.352 237.454 233.805C227.957 228.067 217.908 225.198 207.307 225.198C196.927 225.197 190.136 227.97 186.934 233.516C183.621 238.872 184.726 246.331 190.247 255.894L125.647 255.891C116.371 239.825 112.395 225.481 113.72 212.858C115.265 200.235 121.559 190.481 132.602 183.596C143.754 176.52 158.607 172.982 177.159 172.983C196.594 172.984 215.863 176.523 234.968 183.6C253.961 190.486 271.299 200.241 286.98 212.864C302.661 225.488 315.14 239.833 324.416 255.899C333.03 270.817 336.841 283.918 335.847 295.203C335.075 306.487 331.376 316.336 324.75 324.751C318.346 333.167 308.408 343.494 294.936 355.734L377.094 355.737L405.917 405.656L217.087 405.649L188.263 355.73Z"
-                                fill="black"
-                            />
-                            <path
-                                d="M9.11884 226.339L-13.7396 226.338L-42.7286 176.132L43.0733 176.135L175.595 405.649L112.651 405.647L9.11884 226.339Z"
-                                fill="black"
-                            />
-                            <path
-                                d="M188.263 355.73L188.595 355.73C195.441 348.845 205.766 339.761 219.569 328.477C232.93 317.193 242.978 308.205 249.714 301.511C256.34 294.626 260.867 287.358 263.296 279.708C265.725 272.058 264.565 264.121 259.816 255.896C254.516 246.716 247.062 239.352 237.454 233.805C227.957 228.067 217.908 225.198 207.307 225.198C196.927 225.197 190.136 227.97 186.934 233.516C183.621 238.872 184.726 246.331 190.247 255.894L125.647 255.891C116.371 239.825 112.395 225.481 113.72 212.858C115.265 200.235 121.559 190.481 132.602 183.596C143.754 176.52 158.607 172.982 177.159 172.983C196.594 172.984 215.863 176.523 234.968 183.6C253.961 190.486 271.299 200.241 286.98 212.864C302.661 225.488 315.14 239.833 324.416 255.899C333.03 270.817 336.841 283.918 335.847 295.203C335.075 306.487 331.376 316.336 324.75 324.751C318.346 333.167 308.408 343.494 294.936 355.734L377.094 355.737L405.917 405.656L217.087 405.649L188.263 355.73Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                            />
-                            <path
-                                d="M9.11884 226.339L-13.7396 226.338L-42.7286 176.132L43.0733 176.135L175.595 405.649L112.651 405.647L9.11884 226.339Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                            />
-                            <path
-                                d="M204.592 327.449L204.923 327.449C211.769 320.564 222.094 311.479 235.897 300.196C249.258 288.912 259.306 279.923 266.042 273.23C272.668 266.345 277.195 259.077 279.624 251.427C282.053 243.777 280.893 235.839 276.145 227.615C270.844 218.435 263.39 211.071 253.782 205.524C244.285 199.786 234.236 196.917 223.635 196.916C213.255 196.916 206.464 199.689 203.262 205.235C199.949 210.59 201.054 218.049 206.575 227.612L141.975 227.61C132.699 211.544 128.723 197.2 130.048 184.577C131.593 171.954 137.887 162.2 148.93 155.315C160.083 148.239 174.935 144.701 193.487 144.702C212.922 144.703 232.192 148.242 251.296 155.319C270.289 162.205 287.627 171.96 303.308 184.583C318.989 197.207 331.468 211.552 340.745 227.618C349.358 242.536 353.169 255.637 352.175 266.921C351.403 278.205 347.704 288.055 341.078 296.47C334.674 304.885 324.736 315.213 311.264 327.453L393.422 327.456L422.246 377.375L233.415 377.368L204.592 327.449Z"
-                                fill="#391800"
-                            />
-                            <path
-                                d="M25.447 198.058L2.58852 198.057L-26.4005 147.851L59.4015 147.854L191.923 377.368L128.979 377.365L25.447 198.058Z"
-                                fill="#391800"
-                            />
-                            <path
-                                d="M204.592 327.449L204.923 327.449C211.769 320.564 222.094 311.479 235.897 300.196C249.258 288.912 259.306 279.923 266.042 273.23C272.668 266.345 277.195 259.077 279.624 251.427C282.053 243.777 280.893 235.839 276.145 227.615C270.844 218.435 263.39 211.071 253.782 205.524C244.285 199.786 234.236 196.917 223.635 196.916C213.255 196.916 206.464 199.689 203.262 205.235C199.949 210.59 201.054 218.049 206.575 227.612L141.975 227.61C132.699 211.544 128.723 197.2 130.048 184.577C131.593 171.954 137.887 162.2 148.93 155.315C160.083 148.239 174.935 144.701 193.487 144.702C212.922 144.703 232.192 148.242 251.296 155.319C270.289 162.205 287.627 171.96 303.308 184.583C318.989 197.207 331.468 211.552 340.745 227.618C349.358 242.536 353.169 255.637 352.175 266.921C351.403 278.205 347.704 288.055 341.078 296.47C334.674 304.885 324.736 315.213 311.264 327.453L393.422 327.456L422.246 377.375L233.415 377.368L204.592 327.449Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                            />
-                            <path
-                                d="M25.447 198.058L2.58852 198.057L-26.4005 147.851L59.4015 147.854L191.923 377.368L128.979 377.365L25.447 198.058Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                            />
-                        </g>
-                        <g
-                            class="translate-y-0 opacity-100 transition-all delay-300 duration-750 starting:translate-y-4 starting:opacity-0"
-                            :style="{ mixBlendMode: 'hard-light' }"
-                        >
-                            <path
-                                d="M217.342 305.363L217.673 305.363C224.519 298.478 234.844 289.393 248.647 278.11C262.008 266.826 272.056 257.837 278.792 251.144C285.418 244.259 289.945 236.991 292.374 229.341C294.803 221.691 293.643 213.753 288.895 205.529C283.594 196.349 276.14 188.985 266.532 183.438C257.035 177.7 246.986 174.831 236.385 174.83C226.005 174.83 219.214 177.603 216.012 183.149C212.699 188.504 213.804 195.963 219.325 205.527L154.725 205.524C145.449 189.458 141.473 175.114 142.798 162.491C144.343 149.868 150.637 140.114 161.68 133.229C172.833 126.153 187.685 122.615 206.237 122.616C225.672 122.617 244.942 126.156 264.046 133.233C283.039 140.119 300.377 149.874 316.058 162.497C331.739 175.121 344.218 189.466 353.495 205.532C362.108 220.45 365.919 233.551 364.925 244.835C364.153 256.12 360.454 265.969 353.828 274.384C347.424 282.799 337.486 293.127 324.014 305.367L406.172 305.37L434.996 355.289L246.165 355.282L217.342 305.363Z"
-                                fill="#733000"
-                            />
-                            <path
-                                d="M38.197 175.972L15.3385 175.971L-13.6505 125.765L72.1515 125.768L204.673 355.282L141.729 355.279L38.197 175.972Z"
-                                fill="#733000"
-                            />
-                            <path
-                                d="M217.342 305.363L217.673 305.363C224.519 298.478 234.844 289.393 248.647 278.11C262.008 266.826 272.056 257.837 278.792 251.144C285.418 244.259 289.945 236.991 292.374 229.341C294.803 221.691 293.643 213.753 288.895 205.529C283.594 196.349 276.14 188.985 266.532 183.438C257.035 177.7 246.986 174.831 236.385 174.83C226.005 174.83 219.214 177.603 216.012 183.149C212.699 188.504 213.804 195.963 219.325 205.527L154.725 205.524C145.449 189.458 141.473 175.114 142.798 162.491C144.343 149.868 150.637 140.114 161.68 133.229C172.833 126.153 187.685 122.615 206.237 122.616C225.672 122.617 244.942 126.156 264.046 133.233C283.039 140.119 300.377 149.874 316.058 162.497C331.739 175.121 344.218 189.466 353.495 205.532C362.108 220.45 365.919 233.551 364.925 244.835C364.153 256.12 360.454 265.969 353.828 274.384C347.424 282.799 337.486 293.127 324.014 305.367L406.172 305.37L434.996 355.289L246.165 355.282L217.342 305.363Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                            />
-                            <path
-                                d="M38.197 175.972L15.3385 175.971L-13.6505 125.765L72.1515 125.768L204.673 355.282L141.729 355.279L38.197 175.972Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                            />
-                        </g>
-                        <g
-                            class="translate-y-0 opacity-100 transition-all delay-300 duration-750 starting:translate-y-4 starting:opacity-0"
-                        >
-                            <path
-                                d="M217.342 305.363L217.673 305.363C224.519 298.478 234.844 289.393 248.647 278.11C262.008 266.826 272.056 257.837 278.792 251.144C285.418 244.259 289.945 236.991 292.374 229.341C294.803 221.691 293.643 213.753 288.895 205.529C283.594 196.349 276.14 188.985 266.532 183.438C257.035 177.7 246.986 174.831 236.385 174.83C226.005 174.83 219.214 177.603 216.012 183.149C212.699 188.504 213.804 195.963 219.325 205.527L154.726 205.524C145.449 189.458 141.473 175.114 142.798 162.491C144.343 149.868 150.637 140.114 161.68 133.229C172.833 126.153 187.685 122.615 206.237 122.616C225.672 122.617 244.942 126.156 264.046 133.233C283.039 140.119 300.377 149.874 316.058 162.497C331.739 175.121 344.218 189.466 353.495 205.532C362.108 220.45 365.919 233.551 364.925 244.835C364.153 256.12 360.454 265.969 353.828 274.384C347.424 282.799 337.486 293.127 324.014 305.367L406.172 305.37L434.996 355.289L246.165 355.282L217.342 305.363Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                            />
-                            <path
-                                d="M38.197 175.972L15.3385 175.971L-13.6505 125.765L72.1515 125.768L204.673 355.282L141.729 355.279L38.197 175.972Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                            />
-                        </g>
-                        <g
-                            class="translate-y-0 opacity-100 transition-all delay-300 duration-750 starting:translate-y-4 starting:opacity-0"
-                        >
-                            <path
-                                d="M188.467 355.363L188.798 355.363C195.644 348.478 205.969 339.393 219.772 328.11C233.133 316.826 243.181 307.837 249.917 301.144C253.696 297.217 256.792 293.166 259.205 288.991C261.024 285.845 262.455 282.628 263.499 279.341C265.928 271.691 264.768 263.753 260.02 255.529C254.719 246.349 247.265 238.985 237.657 233.438C228.16 227.7 218.111 224.831 207.51 224.83C197.13 224.83 190.339 227.603 187.137 233.149C183.824 238.504 184.929 245.963 190.45 255.527L125.851 255.524C116.574 239.458 112.598 225.114 113.923 212.491C114.615 206.836 116.261 201.756 118.859 197.253C122.061 191.704 126.709 187.03 132.805 183.229C143.958 176.153 158.81 172.615 177.362 172.616C196.797 172.617 216.067 176.156 235.171 183.233C254.164 190.119 271.502 199.874 287.183 212.497C302.864 225.121 315.343 239.466 324.62 255.532C333.233 270.45 337.044 283.551 336.05 294.835C335.46 303.459 333.16 311.245 329.151 318.194C327.915 320.337 326.515 322.4 324.953 324.384C318.549 332.799 308.611 343.127 295.139 355.367L377.297 355.37L406.121 405.289L217.29 405.282L188.467 355.363Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M9.32197 225.972L-13.5365 225.971L-42.5255 175.765L43.2765 175.768L175.798 405.282L112.854 405.279L9.32197 225.972Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M345.247 111.915C329.566 99.2919 312.229 89.5371 293.235 82.6512L235.167 183.228C254.161 190.114 271.498 199.869 287.179 212.492L345.247 111.915Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M382.686 154.964C373.41 138.898 360.931 124.553 345.25 111.93L287.182 212.506C302.863 225.13 315.342 239.475 324.618 255.541L382.686 154.964Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M293.243 82.6472C274.139 75.57 254.869 72.031 235.434 72.0303L177.366 172.607C196.801 172.608 216.071 176.147 235.175 183.224L293.243 82.6472Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M394.118 194.257C395.112 182.973 391.301 169.872 382.688 154.953L324.619 255.53C333.233 270.448 337.044 283.55 336.05 294.834L394.118 194.257Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M235.432 72.0311C216.88 72.0304 202.027 75.5681 190.875 82.6442L132.806 183.221C143.959 176.145 158.812 172.607 177.363 172.608L235.432 72.0311Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M265.59 124.25C276.191 124.251 286.24 127.12 295.737 132.858L237.669 233.435C228.172 227.697 218.123 224.828 207.522 224.827L265.59 124.25Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M295.719 132.859C305.326 138.406 312.78 145.77 318.081 154.95L260.013 255.527C254.712 246.347 247.258 238.983 237.651 233.436L295.719 132.859Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M387.218 217.608C391.227 210.66 393.527 202.874 394.117 194.25L336.049 294.827C335.459 303.451 333.159 311.237 329.15 318.185L387.218 217.608Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M245.211 132.577C248.413 127.03 255.204 124.257 265.584 124.258L207.516 224.835C197.136 224.834 190.345 227.607 187.143 233.154L245.211 132.577Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M318.094 154.945C322.842 163.17 324.002 171.107 321.573 178.757L263.505 279.334C265.934 271.684 264.774 263.746 260.026 255.522L318.094 154.945Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M176.925 96.6737C180.127 91.1249 184.776 86.4503 190.871 82.6499L132.803 183.227C126.708 187.027 122.059 191.702 118.857 197.25L176.925 96.6737Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M387.226 217.606C385.989 219.749 384.59 221.813 383.028 223.797L324.96 324.373C326.522 322.39 327.921 320.326 329.157 318.183L387.226 217.606Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M317.269 188.408C319.087 185.262 320.519 182.045 321.562 178.758L263.494 279.335C262.451 282.622 261.019 285.839 259.201 288.985L317.269 188.408Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M245.208 132.573C241.895 137.928 243 145.387 248.522 154.95L190.454 255.527C184.932 245.964 183.827 238.505 187.14 233.15L245.208 132.573Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M176.93 96.6719C174.331 101.175 172.686 106.255 171.993 111.91L113.925 212.487C114.618 206.831 116.263 201.752 118.862 197.249L176.93 96.6719Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M317.266 188.413C314.853 192.589 311.757 196.64 307.978 200.566L249.91 301.143C253.689 297.216 256.785 293.166 259.198 288.99L317.266 188.413Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M464.198 304.708L435.375 254.789L377.307 355.366L406.13 405.285L464.198 304.708Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M353.209 254.787C366.68 242.548 376.618 232.22 383.023 223.805L324.955 324.382C318.55 332.797 308.612 343.124 295.141 355.364L353.209 254.787Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M435.37 254.787L353.212 254.784L295.144 355.361L377.302 355.364L435.37 254.787Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M183.921 154.947L248.521 154.95L190.453 255.527L125.853 255.524L183.921 154.947Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M171.992 111.914C170.668 124.537 174.643 138.881 183.92 154.947L125.852 255.524C116.575 239.458 112.599 225.114 113.924 212.491L171.992 111.914Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M307.987 200.562C301.251 207.256 291.203 216.244 277.842 227.528L219.774 328.105C233.135 316.821 243.183 307.832 249.919 301.139L307.987 200.562Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M15.5469 75.1797L44.5359 125.386L-13.5321 225.963L-42.5212 175.756L15.5469 75.1797Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M277.836 227.536C264.033 238.82 253.708 247.904 246.862 254.789L188.794 355.366C195.64 348.481 205.965 339.397 219.768 328.113L277.836 227.536Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M275.358 304.706L464.189 304.713L406.12 405.29L217.29 405.283L275.358 304.706Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M44.5279 125.39L67.3864 125.39L9.31834 225.967L-13.5401 225.966L44.5279 125.39Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M101.341 75.1911L233.863 304.705L175.795 405.282L43.2733 175.768L101.341 75.1911ZM15.5431 75.19L-42.525 175.767L43.277 175.77L101.345 75.1932L15.5431 75.19Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M246.866 254.784L246.534 254.784L188.466 355.361L188.798 355.361L246.866 254.784Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M246.539 254.781L275.362 304.701L217.294 405.277L188.471 355.358L246.539 254.781Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M67.3906 125.391L170.923 304.698L112.855 405.275L9.32257 225.967L67.3906 125.391Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                            <path
-                                d="M170.921 304.699L233.865 304.701L175.797 405.278L112.853 405.276L170.921 304.699Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                                stroke-linejoin="bevel"
-                            />
-                        </g>
-                        <g
-                            class="translate-y-0 opacity-100 transition-all delay-300 duration-750 starting:translate-y-4 starting:opacity-0"
-                            :style="{ mixBlendMode: 'hard-light' }"
-                        >
-                            <path
-                                d="M246.544 254.79L246.875 254.79C253.722 247.905 264.046 238.82 277.849 227.537C291.21 216.253 301.259 207.264 307.995 200.57C314.62 193.685 319.147 186.418 321.577 178.768C324.006 171.117 322.846 163.18 318.097 154.956C312.796 145.775 305.342 138.412 295.735 132.865C286.238 127.127 276.189 124.258 265.588 124.257C255.208 124.257 248.416 127.03 245.214 132.576C241.902 137.931 243.006 145.39 248.528 154.953L183.928 154.951C174.652 138.885 170.676 124.541 172 111.918C173.546 99.2946 179.84 89.5408 190.882 82.6559C202.035 75.5798 216.887 72.0421 235.439 72.0428C254.874 72.0435 274.144 75.5825 293.248 82.6598C312.242 89.5457 329.579 99.3005 345.261 111.924C360.942 124.548 373.421 138.892 382.697 154.958C391.311 169.877 395.121 182.978 394.128 194.262C393.355 205.546 389.656 215.396 383.031 223.811C376.627 232.226 366.688 242.554 353.217 254.794L435.375 254.797L464.198 304.716L275.367 304.709L246.544 254.79Z"
-                                fill="#4B0600"
-                            />
-                            <path
-                                d="M246.544 254.79L246.875 254.79C253.722 247.905 264.046 238.82 277.849 227.537C291.21 216.253 301.259 207.264 307.995 200.57C314.62 193.685 319.147 186.418 321.577 178.768C324.006 171.117 322.846 163.18 318.097 154.956C312.796 145.775 305.342 138.412 295.735 132.865C286.238 127.127 276.189 124.258 265.588 124.257C255.208 124.257 248.416 127.03 245.214 132.576C241.902 137.931 243.006 145.39 248.528 154.953L183.928 154.951C174.652 138.885 170.676 124.541 172 111.918C173.546 99.2946 179.84 89.5408 190.882 82.6559C202.035 75.5798 216.887 72.0421 235.439 72.0428C254.874 72.0435 274.144 75.5825 293.248 82.6598C312.242 89.5457 329.579 99.3005 345.261 111.924C360.942 124.548 373.421 138.892 382.697 154.958C391.311 169.877 395.121 182.978 394.128 194.262C393.355 205.546 389.656 215.396 383.031 223.811C376.627 232.226 366.688 242.554 353.217 254.794L435.375 254.797L464.198 304.716L275.367 304.709L246.544 254.79Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                                stroke-linejoin="round"
-                            />
-                        </g>
-                        <g
-                            class="translate-y-0 opacity-100 transition-all delay-300 duration-750 starting:translate-y-4 starting:opacity-0"
-                            :style="{ mixBlendMode: 'hard-light' }"
-                        >
-                            <path
-                                d="M67.41 125.402L44.5515 125.401L15.5625 75.1953L101.364 75.1985L233.886 304.712L170.942 304.71L67.41 125.402Z"
-                                fill="#4B0600"
-                            />
-                            <path
-                                d="M67.41 125.402L44.5515 125.401L15.5625 75.1953L101.364 75.1985L233.886 304.712L170.942 304.71L67.41 125.402Z"
-                                stroke="#FF750F"
-                                stroke-width="1"
-                            />
-                        </g>
-                    </svg>
-                    <div
-                        class="absolute inset-0 rounded-t-lg shadow-[inset_0px_0px_0px_1px_rgba(26,26,0,0.16)] lg:overflow-hidden lg:rounded-t-none lg:rounded-r-lg dark:shadow-[inset_0px_0px_0px_1px_#fffaed2d]"
-                    />
-                </div>
-            </main>
-        </div>
-        <div class="hidden h-14.5 lg:block"></div>
+            </section>
+        </main>
     </div>
 </template>

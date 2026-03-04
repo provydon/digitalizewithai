@@ -1,12 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, onMounted, ref, watch } from 'vue';
-import { ChevronDown, FileText, Plus, Search, Table as TableIcon, Trash2, Upload } from 'lucide-vue-next';
-import {
-    Collapsible,
-    CollapsibleContent,
-    CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+import { FileText, Plus, Search, Table as TableIcon, Trash2, Upload } from 'lucide-vue-next';
 import AppLayout from '@/layouts/AppLayout.vue';
 import api from '@/lib/api';
 import { dashboard } from '@/routes';
@@ -56,7 +51,6 @@ const uploadError = ref<string | null>(null);
 const uploadSuccess = ref(false);
 const fileInput = ref<HTMLInputElement | null>(null);
 
-const uploadModalOpen = ref(false);
 const pendingFile = ref<File | null>(null);
 const uploadName = ref('');
 
@@ -137,8 +131,10 @@ function onFileChange(e: Event) {
     const input = e.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
-    input.value = '';
-    openUploadModal(file);
+    pendingFile.value = file;
+    if (!uploadName.value?.trim()) {
+        uploadName.value = file.name.replace(/\.[^.]+$/, '') || file.name;
+    }
 }
 
 function onDrop(e: DragEvent) {
@@ -147,27 +143,23 @@ function onDrop(e: DragEvent) {
     if (!file) return;
     uploadError.value = null;
     uploadSuccess.value = false;
-    openUploadModal(file);
-}
-
-function openUploadModal(file: File) {
-    const baseName = file.name.replace(/\.[^.]+$/, '') || file.name;
-    uploadName.value = baseName;
     pendingFile.value = file;
-    uploadModalOpen.value = true;
+    if (!uploadName.value?.trim()) {
+        uploadName.value = file.name.replace(/\.[^.]+$/, '') || file.name;
+    }
 }
 
-function closeUploadModal() {
-    uploadModalOpen.value = false;
+function resetUploadForm() {
     pendingFile.value = null;
     uploadName.value = '';
+    const input = fileInput.value;
+    if (input) input.value = '';
 }
 
 function startUpload() {
     const file = pendingFile.value;
     const name = uploadName.value?.trim();
     if (!file || !name) return;
-    closeUploadModal();
     upload(null, file, name);
 }
 
@@ -226,6 +218,7 @@ async function upload(_input: HTMLInputElement | null, file: File, nameOverride?
         uploadSuccess.value = true;
         listPage.value = 1;
         await loadList();
+        resetUploadForm();
         setTimeout(() => { uploadSuccess.value = false; }, 3000);
     } catch (e: unknown) {
         const err = e as { response?: { data?: { message?: string } }; message?: string };
@@ -285,82 +278,99 @@ async function confirmDelete() {
         <div
             class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl px-3 py-4 sm:p-4"
         >
-            <!-- Upload: accordion, open by default for new users -->
-            <Collapsible
-                v-model:open="uploadSectionOpen"
-                class="rounded-xl border border-sidebar-border/70 bg-card shadow-sm dark:border-sidebar-border"
-            >
-                <div class="p-3 sm:p-4">
-                    <CollapsibleTrigger
-                        class="flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg text-left font-semibold text-foreground outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 [&[data-state=open]>svg]:rotate-180"
-                    >
-                        <span class="flex items-center gap-2 text-sm">
-                            <Plus class="h-5 w-5 shrink-0 text-muted-foreground" />
-Add Data                        </span>
-                        <ChevronDown class="h-5 w-5 shrink-0 text-muted-foreground transition-transform duration-200" />
-                    </CollapsibleTrigger>
-                </div>
-                <CollapsibleContent>
-                    <div class="border-t border-sidebar-border/70 px-3 pb-3 pt-0 dark:border-sidebar-border sm:px-4 sm:pb-4 sm:pt-0">
-                        <p class="mb-3 text-sm text-muted-foreground">
-                            Upload a photo or video of handwritten notes, sales figures, books, logs, records, or any table — we'll extract the content and add it below.
-                        </p>
-                        <input
-                            ref="fileInput"
-                            type="file"
-                            :accept="ACCEPT"
-                            class="hidden"
-                            @change="onFileChange"
+            <!-- Upload: button toggles form; name first, then file, no modal -->
+            <div class="space-y-3">
+                <Button
+                    type="button"
+                    variant="outline"
+                    class="cursor-pointer"
+                    @click="uploadSectionOpen = !uploadSectionOpen"
+                >
+                    <Plus class="mr-2 h-4 w-4" />
+                    Add data
+                </Button>
+                <div
+                    v-show="uploadSectionOpen"
+                    class="rounded-xl border border-sidebar-border/70 bg-card p-3 shadow-sm dark:border-sidebar-border sm:p-4"
+                >
+                    <p class="mb-4 text-sm text-muted-foreground">
+                        Upload a photo or video of handwritten notes, sales figures, books, logs, records, or any table — we'll extract the content and add it below.
+                    </p>
+                    <div class="mb-4 grid gap-2">
+                        <Label for="upload-name-inline">Name for this data</Label>
+                        <Input
+                            id="upload-name-inline"
+                            v-model="uploadName"
+                            placeholder="e.g. Sales log March 2024"
+                            :disabled="uploadLoading"
+                            @keydown.enter.prevent="uploadName.trim() && pendingFile && startUpload()"
                         />
-                        <div
-                            class="cursor-pointer rounded-lg border-2 border-dashed border-sidebar-border/70 bg-muted/30 p-6 text-center transition-colors dark:border-sidebar-border"
-                            :class="{ 'border-primary/50 bg-primary/5': uploadLoading }"
-                            role="button"
-                            tabindex="0"
-                            @click="openFilePicker"
-                            @drop="onDrop"
-                            @dragover="onDragOver"
-                            @keydown.enter="openFilePicker"
-                            @keydown.space.prevent="openFilePicker"
-                        >
-                            <Upload class="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
-                            <p class="mb-3 text-sm text-muted-foreground">
-                                Add a handwritten note or table of sales, logs, records, etc.
-                                Drag a file here or
-                                <button
-                                    type="button"
-                                    class="font-medium text-primary underline-offset-4 hover:underline"
-                                    :disabled="uploadLoading"
-                                    @click.stop="openFilePicker"
-                                >
-                                    choose a file
-                                </button>
-                            </p>
-                            <p class="mb-3 text-xs text-muted-foreground">
-                                Images: JPEG, PNG, GIF, WebP. Video: MP4, WebM. Max 20 MB.
-                            </p>
-                            <div v-if="uploadLoading" class="mt-2 space-y-2">
-                                <div class="flex items-center justify-between text-sm text-muted-foreground">
-                                    <span>{{ uploadPhase === 'uploading' ? `Uploading… ${uploadProgress}%` : 'Extracting content…' }}</span>
-                                    <span v-if="uploadPhase === 'uploading'" class="tabular-nums">{{ uploadProgress }}%</span>
-                                </div>
-                                <div class="h-2 w-full overflow-hidden rounded-full bg-muted">
-                                    <div
-                                        class="h-full rounded-full bg-primary transition-[width] duration-300 ease-out"
-                                        :style="{ width: uploadPhase === 'extracting' ? '100%' : `${uploadProgress}%` }"
-                                    />
-                                </div>
-                            </div>
-                            <p v-else-if="uploadError" class="text-sm text-destructive">
-                                {{ uploadError }}
-                            </p>
-                            <p v-else-if="uploadSuccess" class="text-sm text-green-600 dark:text-green-400">
-                                Added. It appears in the list below.
-                            </p>
-                        </div>
                     </div>
-                </CollapsibleContent>
-            </Collapsible>
+                    <input
+                        ref="fileInput"
+                        type="file"
+                        :accept="ACCEPT"
+                        class="hidden"
+                        @change="onFileChange"
+                    />
+                    <div
+                        class="cursor-pointer rounded-lg border-2 border-dashed border-sidebar-border/70 bg-muted/30 p-6 text-center transition-colors dark:border-sidebar-border"
+                        :class="{ 'border-primary/50 bg-primary/5': uploadLoading }"
+                        role="button"
+                        tabindex="0"
+                        @click="openFilePicker"
+                        @drop="onDrop"
+                        @dragover="onDragOver"
+                        @keydown.enter="openFilePicker"
+                        @keydown.space.prevent="openFilePicker"
+                    >
+                        <Upload class="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
+                        <p class="mb-3 text-sm text-muted-foreground">
+                            Drag a file here or
+                            <button
+                                type="button"
+                                class="font-medium text-primary underline-offset-4 hover:underline"
+                                :disabled="uploadLoading"
+                                @click.stop="openFilePicker"
+                            >
+                                choose a file
+                            </button>
+                        </p>
+                        <p v-if="pendingFile" class="mb-2 text-sm font-medium text-foreground">
+                            {{ pendingFile.name }}
+                        </p>
+                        <p class="mb-3 text-xs text-muted-foreground">
+                            Images: JPEG, PNG, GIF, WebP. Video: MP4, WebM. Max 20 MB.
+                        </p>
+                        <div v-if="uploadLoading" class="mt-2 space-y-2">
+                            <div class="flex items-center justify-between text-sm text-muted-foreground">
+                                <span>{{ uploadPhase === 'uploading' ? `Uploading… ${uploadProgress}%` : 'Extracting content…' }}</span>
+                                <span v-if="uploadPhase === 'uploading'" class="tabular-nums">{{ uploadProgress }}%</span>
+                            </div>
+                            <div class="h-2 w-full overflow-hidden rounded-full bg-muted">
+                                <div
+                                    class="h-full rounded-full bg-primary transition-[width] duration-300 ease-out"
+                                    :style="{ width: uploadPhase === 'extracting' ? '100%' : `${uploadProgress}%` }"
+                                />
+                            </div>
+                        </div>
+                        <p v-else-if="uploadError" class="text-sm text-destructive">
+                            {{ uploadError }}
+                        </p>
+                        <p v-else-if="uploadSuccess" class="text-sm text-green-600 dark:text-green-400">
+                            Added. It appears in the list below.
+                        </p>
+                    </div>
+                    <Button
+                        type="button"
+                        class="mt-4"
+                        :disabled="!uploadName.trim() || !pendingFile || uploadLoading"
+                        @click="startUpload"
+                    >
+                        Upload
+                    </Button>
+                </div>
+            </div>
 
             <!-- List: backend pagination + search -->
             <div class="rounded-xl border border-sidebar-border/70 bg-card p-3 shadow-sm dark:border-sidebar-border sm:p-4">
@@ -500,43 +510,6 @@ Add Data                        </span>
                 </div>
             </div>
         </div>
-
-        <!-- Upload: require name before starting -->
-        <Dialog :open="uploadModalOpen" @update:open="uploadModalOpen = $event">
-            <DialogContent class="sm:max-w-md">
-                <DialogHeader>
-                    <DialogTitle>Name this data</DialogTitle>
-                </DialogHeader>
-                <p class="text-sm text-muted-foreground">
-                    Give a name for the uploaded file. Upload will start when you click Start.
-                </p>
-                <div class="grid gap-2 py-2">
-                    <Label for="upload-name">Name</Label>
-                    <Input
-                        id="upload-name"
-                        v-model="uploadName"
-                        placeholder="e.g. Sales log March 2024"
-                        @keydown.enter.prevent="startUpload()"
-                    />
-                    <p v-if="pendingFile" class="text-xs text-muted-foreground">
-                        File: {{ pendingFile.name }}
-                    </p>
-                </div>
-                <DialogFooter class="gap-2">
-                    <DialogClose as-child>
-                        <Button variant="secondary" @click="closeUploadModal">
-                            Cancel
-                        </Button>
-                    </DialogClose>
-                    <Button
-                        :disabled="!uploadName.trim()"
-                        @click="startUpload"
-                    >
-                        Start upload
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
 
         <!-- Delete: require typing data name to confirm -->
         <Dialog :open="deleteModalOpen" @update:open="deleteModalOpen = $event">

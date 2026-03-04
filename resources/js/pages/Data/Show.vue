@@ -858,7 +858,16 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                                 Next
                                             </button>
                                         </div>
-                                        <div class="ml-auto flex items-center">
+                                        <div class="ml-auto flex items-center gap-2">
+                                            <button
+                                                v-if="!docEditing"
+                                                type="button"
+                                                class="rounded p-1.5 text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                                                title="Edit"
+                                                @click="startDocEdit"
+                                            >
+                                                <Pencil class="h-3.5 w-3.5" />
+                                            </button>
                                             <Tooltip
                                                 :open="copyDocTooltipOpen"
                                                 @update:open="(v) => { if (!copyDocFeedback) copyDocTooltipOpen = v === false ? undefined : v }"
@@ -923,15 +932,6 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                             <pre
                                                 class="max-w-full overflow-x-auto whitespace-pre-wrap rounded-lg bg-muted/50 p-3 font-sans text-sm text-foreground sm:p-4 sm:text-base"
                                             >{{ displayedDocContentFiltered || ' ' }}</pre>
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                class="mt-2 gap-1.5"
-                                                @click="startDocEdit"
-                                            >
-                                                <Pencil class="h-3.5 w-3.5" />
-                                                Edit
-                                            </Button>
                                         </template>
                                     </div>
                                 </div>

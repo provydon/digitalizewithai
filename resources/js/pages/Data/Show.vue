@@ -15,12 +15,13 @@ import {
 import { Head, Link } from '@inertiajs/vue3';
 import {
     BarChart3,
+    FileJson,
     FileSpreadsheet,
     FileText,
     MessageSquare,
     Table as TableIcon,
 } from 'lucide-vue-next';
-import { Pencil, Search, Trash2 } from 'lucide-vue-next';
+import { Copy, Pencil, Search, Trash2 } from 'lucide-vue-next';
 import {
     TabsContent,
     TabsList,
@@ -459,6 +460,50 @@ async function exportToDoc() {
 
 const canExportDoc = computed(() => isDocData.value && !!record.value);
 
+// —— Copy to clipboard ——
+const copyDocFeedback = ref(false);
+const copyTableFeedback = ref(false);
+
+async function copyDocToClipboard() {
+    if (!record.value || !isDocData.value) return;
+    let text: string;
+    if (isMultiPageDoc.value) {
+        const { data } = await api.get<{ content: string }>(
+            `/dashboard/api/data/${record.value.id}/doc-content`,
+        );
+        text = data.content ?? '';
+    } else {
+        text = docContent.value ?? '';
+    }
+    await navigator.clipboard.writeText(text);
+    copyDocFeedback.value = true;
+    setTimeout(() => { copyDocFeedback.value = false; }, 2000);
+}
+
+function copyTableToClipboard() {
+    const t = tableData.value;
+    if (!t?.headers?.length) return;
+    const payload = { headers: t.headers, rows: t.rows ?? [] };
+    const text = JSON.stringify(payload, null, 2);
+    navigator.clipboard.writeText(text).then(() => {
+        copyTableFeedback.value = true;
+        setTimeout(() => { copyTableFeedback.value = false; }, 2000);
+    });
+}
+
+function exportToJson() {
+    const t = tableData.value;
+    if (!t?.headers?.length || !record.value) return;
+    const payload = { headers: t.headers, rows: t.rows ?? [] };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${record.value.name || 'export'}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
 // —— Charts (AI-suggested, table only) ——
 const chartRequest = ref('');
 const showSpecificChartRequest = ref(false);
@@ -655,29 +700,42 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                             <div class="p-6 pt-4">
                                 <!-- Doc: single page from record, multi-page from API (one page at a time) -->
                                 <div v-if="isDocData" class="space-y-4">
-                                    <div
-                                        v-if="isMultiPageDoc"
-                                        class="flex flex-wrap items-center gap-2 text-sm"
-                                    >
-                                        <span class="text-muted-foreground">
-                                            Page {{ docPageCurrent }} of {{ docPageCount }}
-                                        </span>
-                                        <button
-                                            type="button"
-                                            class="rounded-lg border border-sidebar-border/70 px-3 py-1.5 text-foreground hover:bg-muted/60 disabled:opacity-50 dark:border-sidebar-border"
-                                            :disabled="docPageCurrent <= 1"
-                                            @click="goToDocPage(docPageCurrent - 1)"
+                                    <div class="flex flex-wrap items-center justify-between gap-2">
+                                        <div
+                                            v-if="isMultiPageDoc"
+                                            class="flex flex-wrap items-center gap-2 text-sm"
                                         >
-                                            Previous
-                                        </button>
-                                        <button
-                                            type="button"
-                                            class="rounded-lg border border-sidebar-border/70 px-3 py-1.5 text-foreground hover:bg-muted/60 disabled:opacity-50 dark:border-sidebar-border"
-                                            :disabled="docPageCurrent >= docPageCount"
-                                            @click="goToDocPage(docPageCurrent + 1)"
-                                        >
-                                            Next
-                                        </button>
+                                            <span class="text-muted-foreground">
+                                                Page {{ docPageCurrent }} of {{ docPageCount }}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                class="rounded-lg border border-sidebar-border/70 px-3 py-1.5 text-foreground hover:bg-muted/60 disabled:opacity-50 dark:border-sidebar-border"
+                                                :disabled="docPageCurrent <= 1"
+                                                @click="goToDocPage(docPageCurrent - 1)"
+                                            >
+                                                Previous
+                                            </button>
+                                            <button
+                                                type="button"
+                                                class="rounded-lg border border-sidebar-border/70 px-3 py-1.5 text-foreground hover:bg-muted/60 disabled:opacity-50 dark:border-sidebar-border"
+                                                :disabled="docPageCurrent >= docPageCount"
+                                                @click="goToDocPage(docPageCurrent + 1)"
+                                            >
+                                                Next
+                                            </button>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <button
+                                                type="button"
+                                                class="inline-flex items-center gap-1.5 rounded-lg border border-sidebar-border/70 px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted/60 dark:border-sidebar-border"
+                                                title="Copy all to clipboard"
+                                                @click="copyDocToClipboard"
+                                            >
+                                                <Copy class="h-4 w-4" />
+                                                {{ copyDocFeedback ? 'Copied!' : 'Copy' }}
+                                            </button>
+                                        </div>
                                     </div>
                                     <p v-if="docPageError" class="text-sm text-destructive">
                                         {{ docPageError }}
@@ -718,6 +776,15 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                         >
                                             {{ rowsMeta.total.toLocaleString() }} row{{ rowsMeta.total !== 1 ? 's' : '' }}
                                         </span>
+                                        <button
+                                            type="button"
+                                            class="inline-flex items-center gap-1.5 rounded-lg border border-sidebar-border/70 px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted/60 dark:border-sidebar-border"
+                                            title="Copy full table (JSON) to clipboard"
+                                            @click="copyTableToClipboard"
+                                        >
+                                            <Copy class="h-4 w-4" />
+                                            {{ copyTableFeedback ? 'Copied!' : 'Copy' }}
+                                        </button>
                                     </div>
                                     <p v-if="rowsError" class="text-sm text-destructive">
                                         {{ rowsError }}
@@ -978,6 +1045,16 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                     >
                                         <FileSpreadsheet class="h-4 w-4" />
                                         Export to Excel
+                                    </button>
+                                    <button
+                                        v-if="isTableData"
+                                        type="button"
+                                        class="inline-flex items-center gap-2 rounded-lg border border-sidebar-border/70 bg-muted/30 px-3 py-2 text-sm font-medium text-foreground hover:bg-muted/60 dark:border-sidebar-border disabled:opacity-50"
+                                        :disabled="!canExportExcel"
+                                        @click="exportToJson"
+                                    >
+                                        <FileJson class="h-4 w-4" />
+                                        Export to JSON
                                     </button>
                                     <button
                                         v-if="isDocData"

@@ -21,7 +21,7 @@ import {
     MessageSquare,
     Table as TableIcon,
 } from 'lucide-vue-next';
-import { Copy, Pencil, Search, Trash2 } from 'lucide-vue-next';
+import { Camera, Copy, Pencil, Search, Trash2, Upload, Video } from 'lucide-vue-next';
 import {
     TabsContent,
     TabsList,
@@ -260,6 +260,17 @@ const deleteConfirming = ref(false);
 const addRowOpen = ref(false);
 const addRowCells = ref<string[]>([]);
 const addRowSaving = ref(false);
+const addRowsTab = ref<'manual' | 'upload'>('manual');
+const appendFile = ref<File | null>(null);
+const appendLoading = ref(false);
+const appendProgress = ref(0);
+const appendPhase = ref<'uploading' | 'extracting'>('uploading');
+const appendError = ref<string | null>(null);
+const appendSuccess = ref(false);
+const appendFileInput = ref<HTMLInputElement | null>(null);
+const appendCameraPhoto = ref<HTMLInputElement | null>(null);
+const appendCameraVideo = ref<HTMLInputElement | null>(null);
+const ACCEPT_TABLE_UPLOAD = 'image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm';
 let searchDebounce: ReturnType<typeof setTimeout> | null = null;
 
 async function fetchRecord() {
@@ -353,12 +364,109 @@ async function confirmDeleteRow() {
 
 function openAddRow() {
     addRowCells.value = tableHeaders.value.map(() => '');
+    addRowsTab.value = 'manual';
+    appendFile.value = null;
+    appendError.value = null;
+    appendSuccess.value = false;
     addRowOpen.value = true;
 }
 
 function closeAddRow() {
     addRowOpen.value = false;
     addRowCells.value = [];
+    appendFile.value = null;
+    appendError.value = null;
+    appendSuccess.value = false;
+}
+
+function onAppendFileChange(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (file) appendFile.value = file;
+}
+
+function onAppendDrop(e: DragEvent) {
+    e.preventDefault();
+    const file = e.dataTransfer?.files?.[0];
+    if (file) appendFile.value = file;
+}
+
+function openAppendFilePicker() {
+    appendError.value = null;
+    appendSuccess.value = false;
+    appendFileInput.value?.click();
+}
+
+function openAppendCameraPhoto() {
+    appendError.value = null;
+    appendSuccess.value = false;
+    appendCameraPhoto.value?.click();
+}
+
+function openAppendCameraVideo() {
+    appendError.value = null;
+    appendSuccess.value = false;
+    appendCameraVideo.value?.click();
+}
+
+async function submitAppendUpload() {
+    const file = appendFile.value;
+    if (!file || !record.value) return;
+    const allowed = [
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'image/webp',
+        'video/mp4',
+        'video/webm',
+    ];
+    if (!allowed.includes(file.type)) {
+        appendError.value = 'Allowed: images (JPEG, PNG, GIF, WebP) or video (MP4, WebM).';
+        return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+        appendError.value = 'File must be under 20 MB.';
+        return;
+    }
+    appendLoading.value = true;
+    appendProgress.value = 0;
+    appendPhase.value = 'uploading';
+    appendError.value = null;
+    appendSuccess.value = false;
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+        const { data } = await api.post<{ added: number; message?: string }>(
+            `/dashboard/api/data/${record.value.id}/append-rows`,
+            formData,
+            {
+                timeout: 300000,
+                onUploadProgress(ev: { loaded: number; total?: number }) {
+                    if (ev.total && ev.total > 0) {
+                        appendProgress.value = Math.round((ev.loaded / ev.total) * 100);
+                        if (appendProgress.value >= 100) appendPhase.value = 'extracting';
+                    }
+                },
+            },
+        );
+        appendProgress.value = 100;
+        appendPhase.value = 'extracting';
+        appendSuccess.value = true;
+        appendFile.value = null;
+        if (appendFileInput.value) appendFileInput.value.value = '';
+        if (appendCameraPhoto.value) appendCameraPhoto.value.value = '';
+        if (appendCameraVideo.value) appendCameraVideo.value.value = '';
+        await fetchRecord();
+        const lastPage = rowsMeta.value?.last_page ?? 1;
+        tablePage.value = lastPage;
+        await fetchTableRows();
+        setTimeout(() => { appendSuccess.value = false; }, 3000);
+    } catch (e: unknown) {
+        const err = e as { response?: { data?: { message?: string } }; message?: string };
+        appendError.value = err.response?.data?.message ?? err.message ?? 'Failed to add rows';
+    } finally {
+        appendLoading.value = false;
+    }
 }
 
 async function saveAddRow() {
@@ -964,7 +1072,7 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                                 @click="openAddRow"
                                             >
                                                 <TableIcon class="h-3.5 w-3.5" />
-                                                Add row
+                                                Add rows
                                             </Button>
                                             <Tooltip
                                                 :open="copyTableTooltipOpen"
@@ -1307,42 +1415,165 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                         </DialogContent>
                     </Dialog>
 
-                    <!-- Add row dialog -->
+                    <!-- Add rows dialog: Manual or From photo/video -->
                     <Dialog :open="addRowOpen" @update:open="addRowOpen = $event">
                         <DialogContent class="sm:max-w-lg">
                             <DialogHeader>
-                                <DialogTitle>Add row</DialogTitle>
+                                <DialogTitle>Add rows</DialogTitle>
                             </DialogHeader>
-                            <div
-                                v-if="tableHeaders.length"
-                                class="grid gap-3 py-2"
-                            >
-                                <div
-                                    v-for="(header, i) in tableHeaders"
-                                    :key="i"
-                                    class="grid gap-1.5"
-                                >
-                                    <Label :for="`add-cell-${i}`">{{ header }}</Label>
-                                    <Input
-                                        :id="`add-cell-${i}`"
-                                        v-model="addRowCells[i]"
-                                        class="w-full"
+                            <TabsRoot v-model="addRowsTab" class="w-full">
+                                <TabsList class="grid w-full grid-cols-2">
+                                    <TabsTrigger value="manual">Manual</TabsTrigger>
+                                    <TabsTrigger value="upload">From photo or video</TabsTrigger>
+                                </TabsList>
+                                <TabsContent value="manual" class="mt-3">
+                                    <div
+                                        v-if="tableHeaders.length"
+                                        class="grid gap-3 py-2"
+                                    >
+                                        <div
+                                            v-for="(header, i) in tableHeaders"
+                                            :key="i"
+                                            class="grid gap-1.5"
+                                        >
+                                            <Label :for="`add-cell-${i}`">{{ header }}</Label>
+                                            <Input
+                                                :id="`add-cell-${i}`"
+                                                v-model="addRowCells[i]"
+                                                class="w-full"
+                                            />
+                                        </div>
+                                    </div>
+                                    <DialogFooter class="mt-4 gap-2">
+                                        <DialogClose as-child>
+                                            <Button variant="secondary" @click="closeAddRow">
+                                                Cancel
+                                            </Button>
+                                        </DialogClose>
+                                        <Button
+                                            :disabled="addRowSaving"
+                                            @click="saveAddRow"
+                                        >
+                                            {{ addRowSaving ? 'Adding…' : 'Add row' }}
+                                        </Button>
+                                    </DialogFooter>
+                                </TabsContent>
+                                <TabsContent value="upload" class="mt-3">
+                                    <p class="mb-3 text-sm text-muted-foreground">
+                                        Upload a photo or video of a table — we'll extract the rows and append them to this table.
+                                    </p>
+                                    <input
+                                        ref="appendFileInput"
+                                        type="file"
+                                        :accept="ACCEPT_TABLE_UPLOAD"
+                                        class="hidden"
+                                        @change="onAppendFileChange"
                                     />
-                                </div>
-                            </div>
-                            <DialogFooter class="gap-2">
-                                <DialogClose as-child>
-                                    <Button variant="secondary" @click="closeAddRow">
-                                        Cancel
-                                    </Button>
-                                </DialogClose>
-                                <Button
-                                    :disabled="addRowSaving"
-                                    @click="saveAddRow"
-                                >
-                                    {{ addRowSaving ? 'Adding…' : 'Add row' }}
-                                </Button>
-                            </DialogFooter>
+                                    <input
+                                        ref="appendCameraPhoto"
+                                        type="file"
+                                        accept="image/*"
+                                        capture="environment"
+                                        class="hidden"
+                                        aria-label="Take a picture"
+                                        @change="onAppendFileChange"
+                                    />
+                                    <input
+                                        ref="appendCameraVideo"
+                                        type="file"
+                                        accept="video/*"
+                                        capture="environment"
+                                        class="hidden"
+                                        aria-label="Record video"
+                                        @change="onAppendFileChange"
+                                    />
+                                    <div class="mb-3 flex flex-wrap gap-2">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            :disabled="appendLoading"
+                                            @click="openAppendCameraPhoto"
+                                        >
+                                            <Camera class="mr-1.5 h-4 w-4" />
+                                            Take a picture
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            :disabled="appendLoading"
+                                            @click="openAppendCameraVideo"
+                                        >
+                                            <Video class="mr-1.5 h-4 w-4" />
+                                            Record video
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            :disabled="appendLoading"
+                                            @click="openAppendFilePicker"
+                                        >
+                                            <Upload class="mr-1.5 h-4 w-4" />
+                                            Choose a file
+                                        </Button>
+                                    </div>
+                                    <div
+                                        class="cursor-pointer rounded-lg border-2 border-dashed border-sidebar-border/70 bg-muted/30 p-4 text-center transition-colors dark:border-sidebar-border"
+                                        :class="{ 'border-primary/50 bg-primary/5': appendLoading }"
+                                        role="button"
+                                        tabindex="0"
+                                        @click="openAppendFilePicker"
+                                        @drop.prevent="onAppendDrop"
+                                        @dragover.prevent
+                                        @keydown.enter="openAppendFilePicker"
+                                        @keydown.space.prevent="openAppendFilePicker"
+                                    >
+                                        <Upload class="mx-auto mb-2 h-6 w-6 text-muted-foreground" />
+                                        <p class="mb-1 text-sm text-muted-foreground">
+                                            Or drag a file here
+                                        </p>
+                                        <p v-if="appendFile" class="mb-2 text-sm font-medium text-foreground">
+                                            {{ appendFile.name }}
+                                        </p>
+                                        <p class="mb-2 text-xs text-muted-foreground">
+                                            Images: JPEG, PNG, GIF, WebP. Video: MP4, WebM. Max 20 MB.
+                                        </p>
+                                        <div v-if="appendLoading" class="mt-2 space-y-2">
+                                            <div class="flex justify-between text-sm text-muted-foreground">
+                                                <span>{{ appendPhase === 'uploading' ? `Uploading… ${appendProgress}%` : 'Extracting…' }}</span>
+                                                <span v-if="appendPhase === 'uploading'" class="tabular-nums">{{ appendProgress }}%</span>
+                                            </div>
+                                            <div class="h-2 w-full overflow-hidden rounded-full bg-muted">
+                                                <div
+                                                    class="h-full rounded-full bg-primary transition-[width] duration-300"
+                                                    :style="{ width: appendPhase === 'extracting' ? '100%' : `${appendProgress}%` }"
+                                                />
+                                            </div>
+                                        </div>
+                                        <p v-else-if="appendError" class="text-sm text-destructive">
+                                            {{ appendError }}
+                                        </p>
+                                        <p v-else-if="appendSuccess" class="text-sm text-green-600 dark:text-green-400">
+                                            Rows appended. They appear in the table.
+                                        </p>
+                                    </div>
+                                    <DialogFooter class="mt-2 gap-2">
+                                        <DialogClose as-child>
+                                            <Button variant="secondary" @click="closeAddRow">
+                                                Close
+                                            </Button>
+                                        </DialogClose>
+                                        <Button
+                                            :disabled="!appendFile || appendLoading"
+                                            @click="submitAppendUpload"
+                                        >
+                                            {{ appendLoading ? 'Adding…' : 'Add rows from file' }}
+                                        </Button>
+                                    </DialogFooter>
+                                </TabsContent>
+                            </TabsRoot>
                         </DialogContent>
                     </Dialog>
 

@@ -135,6 +135,93 @@ class DigitalizeController extends Controller
     }
 
     /**
+     * Append rows to an existing table from an uploaded photo or video.
+     * Same allowed types as store(). Extracted data must be type "table"; rows are appended to match existing headers.
+     */
+    public function appendToTable(Request $request, Data $data): JsonResponse
+    {
+        if ($data->user_id !== $request->user()->id) {
+            abort(404);
+        }
+        $digital = $data->digital_data;
+        if (! is_array($digital) || ($digital['type'] ?? null) !== 'table') {
+            return response()->json(['message' => 'This record is not a table. Appending is only supported for tables.'], 422);
+        }
+
+        $allowedMimes = array_merge(self::IMAGE_MIMES, self::VIDEO_MIMES);
+        $request->validate([
+            'file' => ['required', 'file', 'mimetypes:'.implode(',', $allowedMimes), 'max:20480'],
+        ]);
+        $uploaded = $request->file('file');
+        $mimeType = $uploaded->getMimeType();
+        if (! in_array($mimeType, $allowedMimes, true)) {
+            return response()->json(['message' => 'Allowed: images (JPEG, PNG, GIF, WebP) or video (MP4, WebM).'], 422);
+        }
+
+        $base64 = base64_encode($uploaded->get());
+        $isImage = in_array($mimeType, self::IMAGE_MIMES, true);
+        $attachment = $isImage
+            ? Image::fromBase64($base64, $mimeType)
+            : Document::fromBase64($base64, $mimeType);
+
+        $agent = new DigitalizeAgent;
+        $response = $agent->prompt(
+            'Extract all content from this image or video (e.g. handwritten or printed text, tables). Return structured JSON with type (doc or table) and content as described in your instructions.',
+            attachments: [$attachment],
+        );
+
+        $type = $response['type'] ?? 'doc';
+        if ($type !== 'table') {
+            return response()->json(['message' => 'The upload did not contain table data. Use a photo or video of a table to add rows.'], 422);
+        }
+
+        $content = $response['content'] ?? '';
+        $decoded = is_string($content) ? json_decode($content, true) : $content;
+        if (! is_array($decoded)) {
+            return response()->json(['message' => 'Could not parse extracted table data.'], 422);
+        }
+        $newRows = $decoded['rows'] ?? [];
+        if (! is_array($newRows)) {
+            $newRows = [];
+        }
+
+        $existingDecoded = json_decode($digital['content'] ?? '{}', true) ?: [];
+        $existingHeaders = $existingDecoded['headers'] ?? [];
+        $headerCount = count($existingHeaders);
+        if ($headerCount === 0) {
+            return response()->json(['message' => 'This table has no columns. Add columns first or add rows manually.'], 422);
+        }
+
+        if ($data->tableRows()->count() === 0) {
+            $data->syncTableRowsFromDigitalData();
+        }
+        $maxIndex = (int) $data->tableRows()->max('row_index');
+
+        $added = 0;
+        foreach ($newRows as $row) {
+            $cells = is_array($row) ? array_values($row) : [];
+            $cells = array_slice($cells, 0, $headerCount);
+            while (count($cells) < $headerCount) {
+                $cells[] = '';
+            }
+            $searchContent = implode(' ', array_map(fn ($v) => (string) $v, $cells));
+            $data->tableRows()->create([
+                'row_index' => ++$maxIndex,
+                'search_content' => $searchContent,
+                'cells' => $cells,
+            ]);
+            $added++;
+        }
+
+        $data->rebuildDigitalDataRowsFromTableRows();
+
+        return response()->json([
+            'added' => $added,
+            'message' => $added === 1 ? '1 row added.' : "{$added} rows added.",
+        ], 201);
+    }
+
+    /**
      * List all Data records for the authenticated user.
      */
     public function index(Request $request): JsonResponse

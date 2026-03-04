@@ -14,6 +14,7 @@ Route::inertia('/', 'Welcome', [
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::post('dashboard/digitalize', [ApiDigitalizeController::class, 'store'])->name('dashboard.digitalize');
+    Route::post('dashboard/api/data/{data}/append-rows', [ApiDigitalizeController::class, 'appendToTable'])->name('dashboard.api.data.append-rows');
     Route::get('dashboard/api/data', [DashboardController::class, 'dataIndex'])->name('dashboard.api.data.index');
     Route::delete('dashboard/api/data/{data}', [DashboardController::class, 'destroyData'])->name('dashboard.api.data.destroy');
     Route::get('dashboard/api/data/{data}', [DataViewController::class, 'dataShow'])->name('dashboard.api.data.show');

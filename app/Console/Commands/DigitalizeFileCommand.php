@@ -26,6 +26,7 @@ class DigitalizeFileCommand extends Command
 
         if (! is_readable($path) || ! is_file($path)) {
             $this->error("File not found or not readable: {$path}");
+
             return self::FAILURE;
         }
 
@@ -33,6 +34,7 @@ class DigitalizeFileCommand extends Command
         $allowed = array_merge(self::IMAGE_MIMES, self::VIDEO_MIMES);
         if (! in_array($mime, $allowed, true)) {
             $this->error('Allowed mime types: '.implode(', ', $allowed));
+
             return self::FAILURE;
         }
 
@@ -81,6 +83,7 @@ class DigitalizeFileCommand extends Command
         $finfo = finfo_open(FILEINFO_MIME_TYPE);
         $mime = finfo_file($finfo, $path);
         finfo_close($finfo);
+
         return $mime ?: 'application/octet-stream';
     }
 

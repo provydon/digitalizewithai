@@ -150,6 +150,7 @@ class DataViewController extends Controller
         }
 
         $title = isset($response['title']) ? trim((string) $response['title']) : '';
+
         return response()->json([
             'chartType' => $chartType,
             'labelColumn' => $labelCol,
@@ -176,8 +177,10 @@ class DataViewController extends Controller
             foreach ($rows as $row) {
                 $lines[] = implode(' | ', array_map(fn ($c) => (string) $c, $row));
             }
+
             return implode("\n", $lines);
         }
+
         return $content;
     }
 }

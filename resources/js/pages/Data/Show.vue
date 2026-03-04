@@ -635,11 +635,11 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
     <Head :title="record?.name ?? 'Data'" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
+        <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl px-3 py-4 sm:p-4">
             <div class="flex items-center gap-4">
                 <Link
                     :href="dashboard()"
-                    class="text-sm text-muted-foreground underline-offset-4 hover:underline"
+                    class="min-h-[44px] shrink-0 py-2 text-sm text-muted-foreground underline-offset-4 hover:underline sm:min-h-0"
                 >
                     ← Back to dashboard
                 </Link>
@@ -647,10 +647,10 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
 
             <div
                 v-if="!loading && !error && record"
-                class="rounded-xl border border-sidebar-border/70 bg-card shadow-sm dark:border-sidebar-border"
+                class="min-w-0 rounded-xl border border-sidebar-border/70 bg-card shadow-sm dark:border-sidebar-border"
             >
-                <div class="border-b border-sidebar-border/70 px-4 pt-4 dark:border-sidebar-border">
-                    <h1 class="mb-2 text-xl font-semibold text-foreground">
+                <div class="border-b border-sidebar-border/70 px-3 pt-4 dark:border-sidebar-border sm:px-4">
+                    <h1 class="mb-2 truncate text-lg font-semibold text-foreground sm:text-xl">
                         {{ record.name }}
                     </h1>
                     <p
@@ -662,19 +662,19 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
 
                     <TabsRoot v-model="activeTab" class="w-full">
                         <TabsList
-                            class="inline-flex h-10 w-full items-center justify-start gap-1 rounded-lg bg-muted/50 p-1 text-muted-foreground"
+                            class="flex h-10 w-full items-center justify-start gap-1 overflow-x-auto overflow-y-hidden rounded-lg bg-muted/50 p-1 text-muted-foreground [-webkit-overflow-scrolling:touch]"
                             aria-label="Data view tabs"
                         >
                             <TabsTrigger
                                 value="data"
-                                class="inline-flex items-center justify-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+                                class="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm sm:gap-2 sm:px-3"
                             >
                                 <TableIcon class="h-4 w-4" />
                                 Data
                             </TabsTrigger>
                             <TabsTrigger
                                 value="ask"
-                                class="inline-flex items-center justify-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+                                class="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm sm:gap-2 sm:px-3"
                             >
                                 <MessageSquare class="h-4 w-4" />
                                 Ask AI
@@ -682,14 +682,14 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                             <TabsTrigger
                                 v-if="isTableData"
                                 value="charts"
-                                class="inline-flex items-center justify-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+                                class="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm sm:gap-2 sm:px-3"
                             >
                                 <BarChart3 class="h-4 w-4" />
                                 Charts
                             </TabsTrigger>
                             <TabsTrigger
                                 value="export"
-                                class="inline-flex items-center justify-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+                                class="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm sm:gap-2 sm:px-3"
                             >
                                 <FileSpreadsheet class="h-4 w-4" />
                                 Export
@@ -697,7 +697,7 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                         </TabsList>
 
                         <TabsContent value="data" class="mt-0 rounded-b-xl">
-                            <div class="p-6 pt-4">
+                            <div class="p-3 pt-4 sm:p-6">
                                 <!-- Doc: single page from record, multi-page from API (one page at a time) -->
                                 <div v-if="isDocData" class="space-y-4">
                                     <div class="flex flex-wrap items-center justify-between gap-2">
@@ -728,12 +728,12 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                         <div class="flex items-center gap-2">
                                             <button
                                                 type="button"
-                                                class="inline-flex items-center gap-1.5 rounded-lg border border-sidebar-border/70 px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted/60 dark:border-sidebar-border"
+                                                class="inline-flex min-h-[44px] min-w-[44px] items-center justify-center gap-1.5 rounded-lg border border-sidebar-border/70 px-3 py-2 text-sm font-medium text-foreground hover:bg-muted/60 dark:border-sidebar-border sm:min-h-0 sm:min-w-0 sm:py-1.5"
                                                 title="Copy all to clipboard"
                                                 @click="copyDocToClipboard"
                                             >
-                                                <Copy class="h-4 w-4" />
-                                                {{ copyDocFeedback ? 'Copied!' : 'Copy' }}
+                                                <Copy class="h-4 w-4 shrink-0" />
+                                                <span>{{ copyDocFeedback ? 'Copied!' : 'Copy' }}</span>
                                             </button>
                                         </div>
                                     </div>
@@ -748,18 +748,18 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                     </div>
                                     <div
                                         v-else
-                                        class="prose prose-sm max-w-none dark:prose-invert"
+                                        class="min-w-0 prose prose-sm max-w-none dark:prose-invert"
                                     >
                                         <pre
-                                            class="whitespace-pre-wrap rounded-lg bg-muted/50 p-4 font-sans text-foreground"
+                                            class="max-w-full overflow-x-auto whitespace-pre-wrap rounded-lg bg-muted/50 p-3 font-sans text-sm text-foreground sm:p-4 sm:text-base"
                                         >{{ displayedDocContent || ' ' }}</pre>
                                     </div>
                                 </div>
 
                                 <!-- Table: paginated, searchable, editable -->
                                 <div v-else-if="tableData" class="space-y-4">
-                                    <div class="flex flex-wrap items-center gap-3">
-                                        <div class="relative flex-1 min-w-[200px] max-w-sm">
+                                    <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+                                        <div class="relative min-w-0 flex-1 basis-full sm:basis-0 sm:max-w-sm">
                                             <Search
                                                 class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
                                             />
@@ -778,11 +778,11 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                         </span>
                                         <button
                                             type="button"
-                                            class="inline-flex items-center gap-1.5 rounded-lg border border-sidebar-border/70 px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted/60 dark:border-sidebar-border"
+                                            class="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-sidebar-border/70 px-3 py-2 text-sm font-medium text-foreground hover:bg-muted/60 dark:border-sidebar-border sm:min-h-0 sm:py-1.5"
                                             title="Copy full table (JSON) to clipboard"
                                             @click="copyTableToClipboard"
                                         >
-                                            <Copy class="h-4 w-4" />
+                                            <Copy class="h-4 w-4 shrink-0" />
                                             {{ copyTableFeedback ? 'Copied!' : 'Copy' }}
                                         </button>
                                     </div>
@@ -792,9 +792,9 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                     <div v-if="rowsLoading" class="py-8 text-center text-sm text-muted-foreground">
                                         Loading rows…
                                     </div>
-                                    <div v-else class="overflow-x-auto">
+                                    <div class="-mx-3 overflow-x-auto overscroll-x-contain sm:mx-0">
                                         <table
-                                            class="w-full min-w-[300px] border-collapse text-left text-sm"
+                                            class="w-full min-w-[280px] border-collapse text-left text-sm sm:min-w-[300px]"
                                         >
                                             <thead>
                                                 <tr
@@ -803,12 +803,12 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                                     <th
                                                         v-for="(h, i) in tableHeaders"
                                                         :key="i"
-                                                        class="px-4 py-3 font-medium text-foreground"
+                                                        class="px-2 py-2 font-medium text-foreground sm:px-4 sm:py-3"
                                                     >
                                                         {{ h }}
                                                     </th>
                                                     <th
-                                                        class="w-24 px-4 py-3 font-medium text-foreground"
+                                                        class="w-20 px-2 py-2 font-medium text-foreground sm:w-24 sm:px-4 sm:py-3"
                                                     >
                                                         Actions
                                                     </th>
@@ -823,15 +823,16 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                                     <td
                                                         v-for="(cell, ci) in (row.cells ?? [])"
                                                         :key="ci"
-                                                        class="px-4 py-3 text-muted-foreground"
+                                                        class="max-w-[120px] truncate px-2 py-2 text-muted-foreground sm:max-w-none sm:px-4 sm:py-3"
+                                                        :title="cell != null ? String(cell) : undefined"
                                                     >
                                                         {{ cell == null ? '—' : cell }}
                                                     </td>
-                                                    <td class="px-4 py-2">
-                                                        <div class="flex items-center gap-1">
+                                                    <td class="px-2 py-2 sm:px-4">
+                                                        <div class="flex items-center gap-0.5 sm:gap-1">
                                                             <button
                                                                 type="button"
-                                                                class="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                                                                class="min-h-[44px] min-w-[44px] rounded p-2 text-muted-foreground hover:bg-muted hover:text-foreground sm:min-h-0 sm:min-w-0 sm:p-1.5"
                                                                 title="Edit row"
                                                                 @click="openEditRow(row)"
                                                             >
@@ -839,7 +840,7 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                                             </button>
                                                             <button
                                                                 type="button"
-                                                                class="rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                                                                class="min-h-[44px] min-w-[44px] rounded p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive sm:min-h-0 sm:min-w-0 sm:p-1.5"
                                                                 title="Delete row"
                                                                 @click="openDeleteRow(row)"
                                                             >
@@ -885,7 +886,7 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
 
                         <!-- Ask AI: ChatGPT-style (chat up, input down), table only -->
                         <TabsContent value="ask" class="mt-0 rounded-b-xl">
-                            <div class="flex min-h-[420px] flex-col p-4">
+                            <div class="flex min-h-[320px] flex-col p-3 sm:min-h-[420px] sm:p-4">
                                 <div
                                     ref="chatScrollRef"
                                     class="flex flex-1 flex-col gap-3 overflow-y-auto rounded-lg py-2"
@@ -933,7 +934,7 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                     </template>
                                 </div>
                                 <div class="mt-3 shrink-0 space-y-1">
-                                    <div class="flex gap-2">
+                                    <div class="flex flex-col gap-2 sm:flex-row">
                                         <textarea
                                             v-model="question"
                                             class="min-h-[44px] w-full flex-1 rounded-lg border border-sidebar-border/70 bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring dark:border-sidebar-border"
@@ -943,7 +944,7 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                         />
                                         <button
                                             type="button"
-                                            class="h-fit self-end rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                                            class="min-h-[44px] w-full shrink-0 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 sm:h-fit sm:w-auto sm:self-end sm:py-2"
                                             :disabled="askLoading || !question.trim()"
                                             @click="askAi()"
                                         >
@@ -959,11 +960,11 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
 
                         <!-- Charts: dynamic chart builder, table only -->
                         <TabsContent value="charts" class="mt-0 rounded-b-xl">
-                            <div class="flex flex-col gap-4 p-6 pt-4">
+                            <div class="flex flex-col gap-4 p-3 pt-4 sm:p-6">
                                 <div class="flex flex-wrap items-center gap-2">
                                     <button
                                         type="button"
-                                        class="inline-flex items-center gap-2 rounded-lg border border-sidebar-border/70 px-3 py-2 text-sm font-medium text-foreground hover:bg-muted/60 dark:border-sidebar-border"
+                                        class="inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-sidebar-border/70 px-3 py-2 text-sm font-medium text-foreground hover:bg-muted/60 dark:border-sidebar-border sm:min-h-0"
                                         :class="showSpecificChartRequest ? 'bg-muted/50' : 'bg-transparent'"
                                         @click="showSpecificChartRequest = !showSpecificChartRequest"
                                     >
@@ -971,7 +972,7 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                     </button>
                                     <button
                                         type="button"
-                                        class="inline-flex w-fit items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                                        class="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 sm:w-fit"
                                         :disabled="!canChart || chartSuggestionLoading"
                                         @click="suggestChartFromAi"
                                     >
@@ -981,18 +982,18 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                 </div>
                                 <div
                                     v-show="showSpecificChartRequest"
-                                    class="flex flex-wrap items-end gap-2"
+                                    class="flex flex-col gap-2 sm:flex-row sm:items-end"
                                 >
                                     <input
                                         v-model="chartRequest"
                                         type="text"
-                                        class="w-full min-w-[200px] max-w-md rounded-lg border border-sidebar-border/70 bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring dark:border-sidebar-border md:max-w-sm"
+                                        class="min-h-[44px] w-full flex-1 rounded-lg border border-sidebar-border/70 bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring dark:border-sidebar-border sm:max-w-md"
                                         placeholder="e.g. bar chart of sales by region, pie chart of market share"
                                         @keydown.enter.prevent="suggestChartFromAi()"
                                     />
                                     <button
                                         type="button"
-                                        class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                                        class="min-h-[44px] w-full rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 sm:h-fit sm:w-auto"
                                         :disabled="!canChart || chartSuggestionLoading"
                                         @click="suggestChartFromAi"
                                     >
@@ -1009,7 +1010,7 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                     >
                                         {{ effectiveChartConfig.title }}
                                     </p>
-                                    <div class="h-[280px] w-full">
+                                    <div class="h-[240px] w-full min-w-0 sm:h-[280px]">
                                         <Bar
                                             v-if="effectiveChartConfig?.chartType === 'bar'"
                                             :data="chartData"
@@ -1031,39 +1032,39 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                         </TabsContent>
 
                         <TabsContent value="export" class="mt-0 rounded-b-xl">
-                            <div class="flex flex-col gap-4 p-6 pt-4">
+                            <div class="flex flex-col gap-4 p-3 pt-4 sm:p-6">
                                 <p class="text-sm text-muted-foreground">
                                     Download this data to your device.
                                 </p>
-                                <div class="flex flex-wrap gap-3">
+                                <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-3">
                                     <button
                                         v-if="isTableData"
                                         type="button"
-                                        class="inline-flex items-center gap-2 rounded-lg border border-sidebar-border/70 bg-muted/30 px-3 py-2 text-sm font-medium text-foreground hover:bg-muted/60 dark:border-sidebar-border disabled:opacity-50"
+                                        class="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg border border-sidebar-border/70 bg-muted/30 px-3 py-2.5 text-sm font-medium text-foreground hover:bg-muted/60 dark:border-sidebar-border disabled:opacity-50 sm:w-auto sm:py-2"
                                         :disabled="!canExportExcel"
                                         @click="exportToExcel"
                                     >
-                                        <FileSpreadsheet class="h-4 w-4" />
+                                        <FileSpreadsheet class="h-4 w-4 shrink-0" />
                                         Export to Excel
                                     </button>
                                     <button
                                         v-if="isTableData"
                                         type="button"
-                                        class="inline-flex items-center gap-2 rounded-lg border border-sidebar-border/70 bg-muted/30 px-3 py-2 text-sm font-medium text-foreground hover:bg-muted/60 dark:border-sidebar-border disabled:opacity-50"
+                                        class="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg border border-sidebar-border/70 bg-muted/30 px-3 py-2.5 text-sm font-medium text-foreground hover:bg-muted/60 dark:border-sidebar-border disabled:opacity-50 sm:w-auto sm:py-2"
                                         :disabled="!canExportExcel"
                                         @click="exportToJson"
                                     >
-                                        <FileJson class="h-4 w-4" />
+                                        <FileJson class="h-4 w-4 shrink-0" />
                                         Export to JSON
                                     </button>
                                     <button
                                         v-if="isDocData"
                                         type="button"
-                                        class="inline-flex items-center gap-2 rounded-lg border border-sidebar-border/70 bg-muted/30 px-3 py-2 text-sm font-medium text-foreground hover:bg-muted/60 dark:border-sidebar-border disabled:opacity-50"
+                                        class="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg border border-sidebar-border/70 bg-muted/30 px-3 py-2.5 text-sm font-medium text-foreground hover:bg-muted/60 dark:border-sidebar-border disabled:opacity-50 sm:w-auto sm:py-2"
                                         :disabled="!canExportDoc"
                                         @click="exportToDoc"
                                     >
-                                        <FileText class="h-4 w-4" />
+                                        <FileText class="h-4 w-4 shrink-0" />
                                         Export to Doc
                                     </button>
                                 </div>

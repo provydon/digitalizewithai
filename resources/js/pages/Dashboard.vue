@@ -248,11 +248,11 @@ async function confirmDelete() {
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div
-            class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4"
+            class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl px-3 py-4 sm:p-4"
         >
             <!-- Upload: digitalize from UI (uses same API flow via POST /dashboard/digitalize) -->
             <div
-                class="rounded-xl border border-sidebar-border/70 bg-card p-4 shadow-sm dark:border-sidebar-border"
+                class="rounded-xl border border-sidebar-border/70 bg-card p-3 shadow-sm dark:border-sidebar-border sm:p-4"
             >
                 <h2 class="mb-3 text-lg font-semibold text-foreground">
                     Add a handwritten note or table
@@ -316,7 +316,7 @@ async function confirmDelete() {
             </div>
 
             <!-- List -->
-            <div class="rounded-xl border border-sidebar-border/70 bg-card p-4 shadow-sm dark:border-sidebar-border">
+            <div class="rounded-xl border border-sidebar-border/70 bg-card p-3 shadow-sm dark:border-sidebar-border sm:p-4">
                 <h2 class="mb-4 text-lg font-semibold text-foreground">
                     Digitalized data
                 </h2>
@@ -338,14 +338,14 @@ async function confirmDelete() {
                 >
                     No digitalized items yet. Upload a file above or use the API.
                 </div>
-                <div v-else class="overflow-x-auto">
-                    <table class="w-full min-w-[400px] text-left text-sm">
+                <div v-else class="-mx-1 overflow-x-auto overscroll-x-contain sm:mx-0">
+                    <table class="w-full min-w-[320px] text-left text-sm sm:min-w-[400px]">
                         <thead>
                             <tr class="border-b border-sidebar-border/70 dark:border-sidebar-border">
-                                <th class="pb-3 pr-4 font-medium text-muted-foreground">Name</th>
-                                <th class="pb-3 pr-4 font-medium text-muted-foreground">Type</th>
-                                <th class="pb-3 pr-4 font-medium text-muted-foreground">Created</th>
-                                <th class="pb-3 pr-2 font-medium text-muted-foreground"> </th>
+                                <th class="pb-3 pr-2 font-medium text-muted-foreground sm:pr-4">Name</th>
+                                <th class="pb-3 pr-2 font-medium text-muted-foreground sm:pr-4">Type</th>
+                                <th class="hidden pb-3 pr-2 font-medium text-muted-foreground sm:table-cell sm:pr-4">Created</th>
+                                <th class="pb-3 pr-2 font-medium text-muted-foreground sm:pr-4"> </th>
                                 <th class="w-10 pb-3 pl-0 font-medium text-muted-foreground" aria-label="Actions"> </th>
                             </tr>
                         </thead>
@@ -356,7 +356,7 @@ async function confirmDelete() {
                                 class="cursor-pointer border-b border-sidebar-border/70 transition-colors hover:bg-muted/50 dark:border-sidebar-border"
                                 @click="router.visit(viewUrl(item.id))"
                             >
-                                <td class="py-3 pr-4">
+                                <td class="py-2.5 pr-2 sm:py-3 sm:pr-4">
                                     <Link
                                         :href="viewUrl(item.id)"
                                         class="font-medium text-foreground underline-offset-4 hover:underline"
@@ -365,7 +365,7 @@ async function confirmDelete() {
                                         {{ item.name }}
                                     </Link>
                                 </td>
-                                <td class="py-3 pr-4">
+                                <td class="py-2.5 pr-2 sm:py-3 sm:pr-4">
                                     <span
                                         v-if="item.type === 'doc'"
                                         class="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-muted-foreground"
@@ -382,10 +382,10 @@ async function confirmDelete() {
                                     </span>
                                     <span v-else class="text-muted-foreground">—</span>
                                 </td>
-                                <td class="py-3 pr-4 text-muted-foreground">
+                                <td class="hidden py-2.5 pr-2 text-muted-foreground sm:table-cell sm:py-3 sm:pr-4">
                                     {{ formatDate(item.created_at) }}
                                 </td>
-                                <td class="py-3 pr-2">
+                                <td class="py-2.5 pr-2 sm:py-3 sm:pr-2">
                                     <Link
                                         :href="viewUrl(item.id)"
                                         class="text-primary hover:underline"
@@ -394,7 +394,7 @@ async function confirmDelete() {
                                         View
                                     </Link>
                                 </td>
-                                <td class="w-10 py-3 pl-0">
+                                <td class="w-10 py-2.5 pl-0 sm:py-3">
                                     <button
                                         type="button"
                                         class="rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"

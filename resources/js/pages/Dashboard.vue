@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, onMounted, ref, watch } from 'vue';
-import { FileText, Search, Table as TableIcon, Trash2, Upload } from 'lucide-vue-next';
+import { ChevronDown, FileText, Plus, Search, Table as TableIcon, Trash2, Upload } from 'lucide-vue-next';
+import {
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import AppLayout from '@/layouts/AppLayout.vue';
 import api from '@/lib/api';
 import { dashboard } from '@/routes';
@@ -61,6 +66,9 @@ const deleteConfirmName = ref('');
 const deleteLoading = ref(false);
 const deleteError = ref<string | null>(null);
 
+const UPLOAD_SEEN_KEY = 'dashboard_upload_seen';
+const uploadSectionOpen = ref(!localStorage.getItem(UPLOAD_SEEN_KEY));
+
 const ACCEPT =
     'image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm';
 
@@ -103,7 +111,10 @@ watch(listSearch, () => {
     }, 300);
 });
 
-onMounted(loadList);
+onMounted(() => {
+    loadList();
+    localStorage.setItem(UPLOAD_SEEN_KEY, '1');
+});
 
 function formatDate(iso: string | null): string {
     if (!iso) return '—';
@@ -274,70 +285,82 @@ async function confirmDelete() {
         <div
             class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl px-3 py-4 sm:p-4"
         >
-            <!-- Upload: digitalize from UI (uses same API flow via POST /dashboard/digitalize) -->
-            <div
-                class="rounded-xl border border-sidebar-border/70 bg-card p-3 shadow-sm dark:border-sidebar-border sm:p-4"
+            <!-- Upload: accordion, open by default for new users -->
+            <Collapsible
+                v-model:open="uploadSectionOpen"
+                class="rounded-xl border border-sidebar-border/70 bg-card shadow-sm dark:border-sidebar-border"
             >
-                <h2 class="mb-3 text-lg font-semibold text-foreground">
-                    Add a handwritten note or table
-                </h2>
-                <p class="mb-3 text-sm text-muted-foreground">
-                    Upload a photo or video of handwritten notes, sales figures, logs, records, or any table — we'll extract the content and add it below.
-                </p>
-                <input
-                    ref="fileInput"
-                    type="file"
-                    :accept="ACCEPT"
-                    class="hidden"
-                    @change="onFileChange"
-                />
-                <div
-                    class="cursor-pointer rounded-lg border-2 border-dashed border-sidebar-border/70 bg-muted/30 p-6 text-center transition-colors dark:border-sidebar-border"
-                    :class="{ 'border-primary/50 bg-primary/5': uploadLoading }"
-                    role="button"
-                    tabindex="0"
-                    @click="openFilePicker"
-                    @drop="onDrop"
-                    @dragover="onDragOver"
-                    @keydown.enter="openFilePicker"
-                    @keydown.space.prevent="openFilePicker"
-                >
-                    <Upload class="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
-                    <p class="mb-3 text-sm text-muted-foreground">
-                        Add a handwritten note or table of sales, logs, records, etc.
-                        Drag a file here or
-                        <button
-                            type="button"
-                            class="font-medium text-primary underline-offset-4 hover:underline"
-                            :disabled="uploadLoading"
+                <div class="p-3 sm:p-4">
+                    <CollapsibleTrigger
+                        class="flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg text-left font-semibold text-foreground outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 [&[data-state=open]>svg]:rotate-180"
+                    >
+                        <span class="flex items-center gap-2 text-sm">
+                            <Plus class="h-5 w-5 shrink-0 text-muted-foreground" />
+Add Data                        </span>
+                        <ChevronDown class="h-5 w-5 shrink-0 text-muted-foreground transition-transform duration-200" />
+                    </CollapsibleTrigger>
+                </div>
+                <CollapsibleContent>
+                    <div class="border-t border-sidebar-border/70 px-3 pb-3 pt-0 dark:border-sidebar-border sm:px-4 sm:pb-4 sm:pt-0">
+                        <p class="mb-3 text-sm text-muted-foreground">
+                            Upload a photo or video of handwritten notes, sales figures, books, logs, records, or any table — we'll extract the content and add it below.
+                        </p>
+                        <input
+                            ref="fileInput"
+                            type="file"
+                            :accept="ACCEPT"
+                            class="hidden"
+                            @change="onFileChange"
+                        />
+                        <div
+                            class="cursor-pointer rounded-lg border-2 border-dashed border-sidebar-border/70 bg-muted/30 p-6 text-center transition-colors dark:border-sidebar-border"
+                            :class="{ 'border-primary/50 bg-primary/5': uploadLoading }"
+                            role="button"
+                            tabindex="0"
                             @click="openFilePicker"
+                            @drop="onDrop"
+                            @dragover="onDragOver"
+                            @keydown.enter="openFilePicker"
+                            @keydown.space.prevent="openFilePicker"
                         >
-                            choose a file
-                        </button>
-                    </p>
-                    <p class="mb-3 text-xs text-muted-foreground">
-                        Images: JPEG, PNG, GIF, WebP. Video: MP4, WebM. Max 20 MB.
-                    </p>
-                    <div v-if="uploadLoading" class="mt-2 space-y-2">
-                        <div class="flex items-center justify-between text-sm text-muted-foreground">
-                            <span>{{ uploadPhase === 'uploading' ? `Uploading… ${uploadProgress}%` : 'Extracting content…' }}</span>
-                            <span v-if="uploadPhase === 'uploading'" class="tabular-nums">{{ uploadProgress }}%</span>
-                        </div>
-                        <div class="h-2 w-full overflow-hidden rounded-full bg-muted">
-                            <div
-                                class="h-full rounded-full bg-primary transition-[width] duration-300 ease-out"
-                                :style="{ width: uploadPhase === 'extracting' ? '100%' : `${uploadProgress}%` }"
-                            />
+                            <Upload class="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
+                            <p class="mb-3 text-sm text-muted-foreground">
+                                Add a handwritten note or table of sales, logs, records, etc.
+                                Drag a file here or
+                                <button
+                                    type="button"
+                                    class="font-medium text-primary underline-offset-4 hover:underline"
+                                    :disabled="uploadLoading"
+                                    @click.stop="openFilePicker"
+                                >
+                                    choose a file
+                                </button>
+                            </p>
+                            <p class="mb-3 text-xs text-muted-foreground">
+                                Images: JPEG, PNG, GIF, WebP. Video: MP4, WebM. Max 20 MB.
+                            </p>
+                            <div v-if="uploadLoading" class="mt-2 space-y-2">
+                                <div class="flex items-center justify-between text-sm text-muted-foreground">
+                                    <span>{{ uploadPhase === 'uploading' ? `Uploading… ${uploadProgress}%` : 'Extracting content…' }}</span>
+                                    <span v-if="uploadPhase === 'uploading'" class="tabular-nums">{{ uploadProgress }}%</span>
+                                </div>
+                                <div class="h-2 w-full overflow-hidden rounded-full bg-muted">
+                                    <div
+                                        class="h-full rounded-full bg-primary transition-[width] duration-300 ease-out"
+                                        :style="{ width: uploadPhase === 'extracting' ? '100%' : `${uploadProgress}%` }"
+                                    />
+                                </div>
+                            </div>
+                            <p v-else-if="uploadError" class="text-sm text-destructive">
+                                {{ uploadError }}
+                            </p>
+                            <p v-else-if="uploadSuccess" class="text-sm text-green-600 dark:text-green-400">
+                                Added. It appears in the list below.
+                            </p>
                         </div>
                     </div>
-                    <p v-else-if="uploadError" class="text-sm text-destructive">
-                        {{ uploadError }}
-                    </p>
-                    <p v-else-if="uploadSuccess" class="text-sm text-green-600 dark:text-green-400">
-                        Added. It appears in the list below.
-                    </p>
-                </div>
-            </div>
+                </CollapsibleContent>
+            </Collapsible>
 
             <!-- List: backend pagination + search -->
             <div class="rounded-xl border border-sidebar-border/70 bg-card p-3 shadow-sm dark:border-sidebar-border sm:p-4">

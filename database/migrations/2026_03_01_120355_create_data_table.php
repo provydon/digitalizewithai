@@ -16,6 +16,8 @@ return new class extends Migration
             $table->string('name');
             $table->json('raw_data')->nullable();
             $table->json('digital_data')->nullable();
+            $table->string('ai_provider', 64)->nullable();
+            $table->string('ai_model', 128)->nullable();
             $table->timestamps();
         });
     }

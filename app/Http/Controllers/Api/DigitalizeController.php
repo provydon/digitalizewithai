@@ -7,6 +7,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Data;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Laravel\Ai\Files\Document;
 use Laravel\Ai\Files\Image;
@@ -75,16 +77,7 @@ class DigitalizeController extends Controller
             $nameFromRequest = $request->input('name');
         }
 
-        $disk = config('filesystems.default');
-        $ext = $this->mimeToExt($mimeType);
-        $path = 'digitalize/'.Str::uuid().'.'.$ext;
-        \Illuminate\Support\Facades\Storage::disk($disk)->put($path, $decoded);
-
-        $rawData = [
-            'disk' => $disk,
-            'path' => $path,
-        ];
-
+        // 1. Run AI extraction first (no persistence yet). If it fails, nothing is created.
         $isImage = in_array($mimeType, self::IMAGE_MIMES, true);
         $attachment = $isImage
             ? Image::fromBase64($base64, $mimeType)
@@ -114,24 +107,64 @@ class DigitalizeController extends Controller
                 $digitalData['content'] = implode("\n\n", $digitalData['doc_pages']);
             }
         }
+        $rawSuggested = $response['suggested_prompts'] ?? null;
+        $digitalData['suggested_prompts'] = is_array($rawSuggested)
+            ? array_values(array_filter(array_map('strval', $rawSuggested)))
+            : [];
+        $rawInsights = $response['insights'] ?? null;
+        $digitalData['insights'] = is_array($rawInsights)
+            ? array_values(array_filter(array_map('strval', $rawInsights)))
+            : [];
 
-        $name = $nameFromRequest ?: pathinfo($path, PATHINFO_FILENAME);
-        $data = Data::create([
-            'user_id' => $request->user()->id,
-            'name' => pathinfo($name, PATHINFO_FILENAME),
-            'raw_data' => $rawData,
-            'digital_data' => $digitalData,
-        ]);
+        // 2. In one transaction: store file, create Data, sync table rows. Roll back all on failure.
+        $disk = config('filesystems.default');
+        $path = null;
+        [$aiProvider, $aiModel] = $this->defaultAiProviderAndModel();
 
-        if (($digitalData['type'] ?? '') === 'table') {
-            $data->syncTableRowsFromDigitalData();
+        try {
+            DB::beginTransaction();
+
+            $ext = $this->mimeToExt($mimeType);
+            $path = 'digitalize/'.Str::uuid().'.'.$ext;
+            Storage::disk($disk)->put($path, $decoded);
+
+            $rawData = [
+                'disk' => $disk,
+                'path' => $path,
+            ];
+
+            $name = $nameFromRequest ?: pathinfo($path, PATHINFO_FILENAME);
+            $data = Data::create([
+                'user_id' => $request->user()->id,
+                'name' => pathinfo($name, PATHINFO_FILENAME),
+                'raw_data' => $rawData,
+                'digital_data' => $digitalData,
+                'ai_provider' => $aiProvider,
+                'ai_model' => $aiModel,
+            ]);
+
+            if (($digitalData['type'] ?? '') === 'table') {
+                $data->syncTableRowsFromDigitalData();
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'id' => $data->id,
+                'name' => $data->name,
+                'digital_data' => $data->digital_data,
+            ], 201);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            if ($path !== null) {
+                try {
+                    Storage::disk($disk)->delete($path);
+                } catch (\Throwable) {
+                    // ignore cleanup failure
+                }
+            }
+            throw $e;
         }
-
-        return response()->json([
-            'id' => $data->id,
-            'name' => $data->name,
-            'digital_data' => $data->digital_data,
-        ], 201);
     }
 
     /**
@@ -185,7 +218,8 @@ class DigitalizeController extends Controller
             $newRows = [];
         }
 
-        $existingDecoded = json_decode($digital['content'] ?? '{}', true) ?: [];
+        $existingContent = $digital['content'] ?? '{}';
+        $existingDecoded = is_array($existingContent) ? $existingContent : (json_decode(is_string($existingContent) ? $existingContent : '{}', true) ?: []);
         $existingHeaders = $existingDecoded['headers'] ?? [];
         $headerCount = count($existingHeaders);
         if ($headerCount === 0) {
@@ -257,6 +291,25 @@ class DigitalizeController extends Controller
             'created_at' => $data->created_at,
             'updated_at' => $data->updated_at,
         ]);
+    }
+
+    /**
+     * Default AI provider and model used for extraction (from config).
+     *
+     * @return array{0: string|null, 1: string|null} [provider, model]
+     */
+    private function defaultAiProviderAndModel(): array
+    {
+        $provider = config('ai.default');
+        if (! is_string($provider) || $provider === '') {
+            return [null, null];
+        }
+        $providerConfig = config('ai.providers.'.$provider, []);
+        $model = $providerConfig['models']['text']['default']
+            ?? $providerConfig['deployment']
+            ?? null;
+
+        return [$provider, is_string($model) ? $model : null];
     }
 
     private function mimeToExt(string $mime): string

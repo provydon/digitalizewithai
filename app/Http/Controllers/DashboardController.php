@@ -41,6 +41,8 @@ class DashboardController extends Controller
             'id' => $d->id,
             'name' => $d->name,
             'type' => $d->digital_data['type'] ?? null,
+            'ai_provider' => $d->ai_provider,
+            'ai_model' => $d->ai_model,
             'created_at' => $d->created_at?->toIso8601String(),
         ])->all();
 

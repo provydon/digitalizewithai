@@ -75,6 +75,8 @@ type DigitalData = {
     content?: string | null;
     doc_page_count?: number;
     table_row_count?: number;
+    suggested_prompts?: string[];
+    insights?: string[];
 };
 
 type DataRecord = {
@@ -142,6 +144,16 @@ const isTableData = computed(() => !!tableData.value);
 const isDocData = computed(() => {
     const dd = record.value?.digital_data;
     return !!dd && dd.type === 'doc';
+});
+
+const suggestedPrompts = computed(() => {
+    const list = record.value?.digital_data?.suggested_prompts;
+    return Array.isArray(list) ? list.filter((p): p is string => typeof p === 'string' && p.trim() !== '') : [];
+});
+
+const insights = computed(() => {
+    const list = record.value?.digital_data?.insights;
+    return Array.isArray(list) ? list.filter((i): i is string => typeof i === 'string' && i.trim() !== '') : [];
 });
 
 // —— Doc pages: 100% backend. Only current page fetched from API when multi-page. ——
@@ -1006,12 +1018,12 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                     </div>
                                     <div
                                         v-else
-                                        class="min-w-0 prose prose-sm max-w-none dark:prose-invert"
+                                        class="content-paper min-w-0 rounded-xl bg-white p-4 text-gray-900 shadow-sm sm:p-5"
                                     >
                                         <div v-if="docEditing" class="space-y-3">
                                             <textarea
                                                 v-model="docEditContent"
-                                                class="min-h-[240px] w-full max-w-full resize-y rounded-lg border border-sidebar-border/70 bg-background p-3 font-sans text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring dark:border-sidebar-border sm:p-4 sm:text-base"
+                                                class="min-h-[240px] w-full max-w-full resize-y rounded-lg border border-gray-300 bg-white p-3 font-sans text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-0 sm:p-4 sm:text-base"
                                                 :placeholder="'Document content…'"
                                                 spellcheck="false"
                                             />
@@ -1038,29 +1050,29 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                         </div>
                                         <template v-else>
                                             <pre
-                                                class="max-w-full overflow-x-auto whitespace-pre-wrap rounded-lg bg-muted/50 p-3 font-sans text-sm text-foreground sm:p-4 sm:text-base"
+                                                class="max-w-full overflow-x-auto whitespace-pre-wrap rounded-lg bg-white p-3 font-sans text-sm text-gray-900 sm:p-4 sm:text-base"
                                             >{{ displayedDocContentFiltered || ' ' }}</pre>
                                         </template>
                                     </div>
                                 </div>
 
-                                <!-- Table: paginated, searchable, editable -->
-                                <div v-else-if="tableData" class="space-y-4">
+                                <!-- Table: paginated, searchable, editable (always white background) -->
+                                <div v-else-if="tableData" class="table-paper space-y-4 rounded-xl bg-white p-4 text-gray-900 shadow-sm sm:p-5">
                                     <div class="flex flex-wrap items-center gap-2 sm:gap-3">
                                         <div class="relative min-w-0 flex-1 basis-full sm:basis-0 sm:max-w-sm">
                                             <Search
-                                                class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                                                class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
                                             />
                                             <input
                                                 v-model="tableSearch"
                                                 type="search"
                                                 placeholder="Search for anything.."
-                                                class="w-full rounded-lg border border-sidebar-border/70 bg-background py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring dark:border-sidebar-border"
+                                                class="w-full rounded-lg border border-gray-300 bg-gray-50 py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-0"
                                             />
                                         </div>
                                         <span
                                             v-if="rowsMeta"
-                                            class="text-sm text-muted-foreground"
+                                            class="text-sm text-gray-600"
                                         >
                                             {{ rowsMeta.total.toLocaleString() }} row{{ rowsMeta.total !== 1 ? 's' : '' }}
                                         </span>
@@ -1068,7 +1080,7 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                             <Button
                                                 size="sm"
                                                 variant="outline"
-                                                class="gap-1.5"
+                                                class="gap-1.5 border-gray-300 text-gray-900 hover:bg-gray-100"
                                                 @click="openAddRow"
                                             >
                                                 <TableIcon class="h-3.5 w-3.5" />
@@ -1081,7 +1093,7 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                                 <TooltipTrigger as-child>
                                                     <button
                                                         type="button"
-                                                        class="rounded p-1.5 text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                                                        class="rounded p-1.5 text-gray-500 hover:bg-gray-200 hover:text-gray-900"
                                                         @click="copyTableToClipboard"
                                                     >
                                                         <Copy class="h-3.5 w-3.5" />
@@ -1096,26 +1108,24 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                     <p v-if="rowsError" class="text-sm text-destructive">
                                         {{ rowsError }}
                                     </p>
-                                    <div v-if="rowsLoading" class="py-8 text-center text-sm text-muted-foreground">
+                                    <div v-if="rowsLoading" class="py-8 text-center text-sm text-gray-600">
                                         Loading rows…
                                     </div>
                                     <div class="-mx-3 overflow-x-auto overscroll-x-contain sm:mx-0">
                                         <table
-                                            class="w-full min-w-[280px] border-collapse text-left text-sm sm:min-w-[300px]"
+                                            class="w-full min-w-[280px] border-collapse text-left text-sm text-gray-900 sm:min-w-[300px]"
                                         >
                                             <thead>
-                                                <tr
-                                                    class="border-b border-sidebar-border bg-muted/50 dark:border-sidebar-border"
-                                                >
+                                                <tr class="border-b border-gray-200 bg-gray-100">
                                                     <th
                                                         v-for="(h, i) in tableHeaders"
                                                         :key="i"
-                                                        class="px-2 py-2 font-medium text-foreground sm:px-4 sm:py-3"
+                                                        class="px-2 py-2 font-medium text-gray-900 sm:px-4 sm:py-3"
                                                     >
                                                         {{ h }}
                                                     </th>
                                                     <th
-                                                        class="w-20 px-2 py-2 font-medium text-foreground sm:w-24 sm:px-4 sm:py-3"
+                                                        class="w-20 px-2 py-2 font-medium text-gray-900 sm:w-24 sm:px-4 sm:py-3"
                                                     >
                                                         Actions
                                                     </th>
@@ -1125,12 +1135,12 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                                 <tr
                                                     v-for="row in tableRows"
                                                     :key="row.id"
-                                                    class="border-b border-sidebar-border/70 dark:border-sidebar-border"
+                                                    class="border-b border-gray-200 hover:bg-gray-50"
                                                 >
                                                     <td
                                                         v-for="(cell, ci) in (row.cells ?? [])"
                                                         :key="ci"
-                                                        class="max-w-[120px] truncate px-2 py-2 text-muted-foreground sm:max-w-none sm:px-4 sm:py-3"
+                                                        class="max-w-[120px] truncate px-2 py-2 text-gray-700 sm:max-w-none sm:px-4 sm:py-3"
                                                         :title="cell != null ? String(cell) : undefined"
                                                     >
                                                         {{ cell == null ? '—' : cell }}
@@ -1139,7 +1149,7 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                                         <div class="flex items-center gap-0.5 sm:gap-1">
                                                             <button
                                                                 type="button"
-                                                                class="min-h-[44px] min-w-[44px] rounded p-2 text-muted-foreground hover:bg-muted hover:text-foreground sm:min-h-0 sm:min-w-0 sm:p-1.5"
+                                                                class="min-h-[44px] min-w-[44px] rounded p-2 text-gray-500 hover:bg-gray-200 hover:text-gray-900 sm:min-h-0 sm:min-w-0 sm:p-1.5"
                                                                 title="Edit row"
                                                                 @click="openEditRow(row)"
                                                             >
@@ -1147,7 +1157,7 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                                             </button>
                                                             <button
                                                                 type="button"
-                                                                class="min-h-[44px] min-w-[44px] rounded p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive sm:min-h-0 sm:min-w-0 sm:p-1.5"
+                                                                class="min-h-[44px] min-w-[44px] rounded p-2 text-gray-500 hover:bg-red-50 hover:text-red-600 sm:min-h-0 sm:min-w-0 sm:p-1.5"
                                                                 title="Delete row"
                                                                 @click="openDeleteRow(row)"
                                                             >
@@ -1165,18 +1175,18 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                     >
                                         <button
                                             type="button"
-                                            class="rounded-lg border border-sidebar-border/70 px-3 py-1.5 text-foreground hover:bg-muted/60 disabled:opacity-50 dark:border-sidebar-border"
+                                            class="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-gray-900 hover:bg-gray-100 disabled:opacity-50"
                                             :disabled="tablePage <= 1"
                                             @click="tablePage = Math.max(1, tablePage - 1)"
                                         >
                                             Previous
                                         </button>
-                                        <span class="text-muted-foreground">
+                                        <span class="text-gray-600">
                                             Page {{ rowsMeta.current_page }} of {{ rowsMeta.last_page }}
                                         </span>
                                         <button
                                             type="button"
-                                            class="rounded-lg border border-sidebar-border/70 px-3 py-1.5 text-foreground hover:bg-muted/60 disabled:opacity-50 dark:border-sidebar-border"
+                                            class="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-gray-900 hover:bg-gray-100 disabled:opacity-50"
                                             :disabled="tablePage >= rowsMeta.last_page"
                                             @click="tablePage = Math.min(rowsMeta.last_page, tablePage + 1)"
                                         >
@@ -1199,9 +1209,35 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                     class="flex flex-1 flex-col gap-3 overflow-y-auto rounded-lg py-2"
                                 >
                                     <template v-if="messages.length === 0">
-                                        <p class="px-2 py-8 text-center text-sm text-muted-foreground">
-                                            Ask anything about this data. Type below and press Enter or click Send.
+                                        <p class="px-2 py-4 text-center text-sm text-muted-foreground">
+                                            Ask anything about this data. Type below or try a suggestion.
                                         </p>
+                                        <div
+                                            v-if="suggestedPrompts.length > 0"
+                                            class="flex flex-wrap justify-center gap-2 px-2 pb-2"
+                                        >
+                                            <button
+                                                v-for="(p, i) in suggestedPrompts"
+                                                :key="i"
+                                                type="button"
+                                                class="inline-flex items-center rounded-lg border border-border bg-muted/50 px-3 py-1.5 text-left text-sm text-foreground transition-colors hover:bg-muted hover:border-primary/50"
+                                                @click="askAi(p)"
+                                            >
+                                                {{ p }}
+                                            </button>
+                                        </div>
+                                        <div
+                                            v-if="insights.length > 0"
+                                            class="mx-2 mt-2 flex flex-wrap justify-center gap-1.5 border-t border-border/60 pt-3"
+                                        >
+                                            <span
+                                                v-for="(insight, i) in insights"
+                                                :key="i"
+                                                class="rounded-md bg-muted/40 px-2 py-1 text-xs text-muted-foreground"
+                                            >
+                                                {{ insight }}
+                                            </span>
+                                        </div>
                                     </template>
                                     <template v-else>
                                         <div

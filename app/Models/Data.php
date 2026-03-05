@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -10,12 +11,22 @@ class Data extends Model
 {
     protected $table = 'data';
 
-    protected $fillable = ['user_id', 'name', 'raw_data', 'digital_data'];
+    protected $fillable = ['user_id', 'name', 'raw_data', 'digital_data', 'ai_provider', 'ai_model'];
 
     protected $casts = [
         'raw_data' => 'array',
         'digital_data' => 'array',
     ];
+
+    /**
+     * Capitalize the name (title case) before saving.
+     */
+    protected function name(): Attribute
+    {
+        return Attribute::make(
+            set: fn (?string $value) => $value !== null && $value !== '' ? ucwords(strtolower(trim($value))) : $value,
+        );
+    }
 
     public function user(): BelongsTo
     {
@@ -33,7 +44,7 @@ class Data extends Model
     }
 
     /**
-     * Sync data_table_rows from digital_data (content is JSON string with headers + rows). Idempotent: replaces all rows.
+     * Sync data_table_rows from digital_data (content is JSON string or array with headers + rows). Idempotent: replaces all rows.
      */
     public function syncTableRowsFromDigitalData(): void
     {
@@ -41,7 +52,8 @@ class Data extends Model
         if (! is_array($digital) || ($digital['type'] ?? null) !== 'table') {
             return;
         }
-        $decoded = json_decode($digital['content'] ?? '', true);
+        $content = $digital['content'] ?? '';
+        $decoded = is_array($content) ? $content : (json_decode(is_string($content) ? $content : '{}', true) ?: []);
         if (! is_array($decoded)) {
             return;
         }
@@ -70,7 +82,8 @@ class Data extends Model
         if (! is_array($digital) || ($digital['type'] ?? null) !== 'table') {
             return;
         }
-        $decoded = json_decode($digital['content'] ?? '{}', true) ?: [];
+        $content = $digital['content'] ?? '{}';
+        $decoded = is_array($content) ? $content : (json_decode(is_string($content) ? $content : '{}', true) ?: []);
         $ordered = $this->tableRows()->orderBy('row_index')->get();
         $decoded['rows'] = $ordered->pluck('cells')->all();
         $digital['content'] = json_encode($decoded);

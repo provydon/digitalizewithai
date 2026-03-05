@@ -31,7 +31,8 @@ class DataTableRowsController extends Controller
             $data->syncTableRowsFromDigitalData();
         }
 
-        $decoded = json_decode($data->digital_data['content'] ?? '{}', true) ?: [];
+        $content = $data->digital_data['content'] ?? '{}';
+        $decoded = is_array($content) ? $content : (json_decode(is_string($content) ? $content : '{}', true) ?: []);
         $headers = $decoded['headers'] ?? [];
 
         $perPage = (int) $request->input('per_page', 50);
@@ -69,7 +70,8 @@ class DataTableRowsController extends Controller
             $data->syncTableRowsFromDigitalData();
         }
 
-        $decoded = json_decode($data->digital_data['content'] ?? '{}', true) ?: [];
+        $content = $data->digital_data['content'] ?? '{}';
+        $decoded = is_array($content) ? $content : (json_decode(is_string($content) ? $content : '{}', true) ?: []);
         $headers = $decoded['headers'] ?? [];
         $cellCount = count($headers);
 

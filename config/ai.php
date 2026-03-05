@@ -136,7 +136,7 @@ return [
             'url' => 'https://api.nova.amazon.com/v1',
             'models' => [
                 'text' => [
-                    'default' => 'nova-2-lite-v1',
+                    'default' => 'nova-lite-v1',
                     'cheapest' => 'nova-micro-v1',
                     'smartest' => 'nova-pro-v1',
                 ],

@@ -201,7 +201,8 @@ class DataViewController extends Controller
             return response()->json(['message' => 'Table data is required for chart suggestion.'], 422);
         }
 
-        $decoded = json_decode($digitalData['content'] ?? '', true);
+        $content = $digitalData['content'] ?? '';
+        $decoded = is_array($content) ? $content : (json_decode(is_string($content) ? $content : '{}', true) ?: []);
         if (! is_array($decoded)) {
             return response()->json(['message' => 'Invalid table data.'], 422);
         }
@@ -256,9 +257,9 @@ class DataViewController extends Controller
         $type = $digitalData['type'];
         $content = $digitalData['content'];
         if ($type === 'table') {
-            $decoded = json_decode($content, true);
+            $decoded = is_array($content) ? $content : (json_decode(is_string($content) ? $content : '{}', true) ?: []);
             if (! is_array($decoded)) {
-                return $content;
+                return is_string($content) ? $content : '';
             }
             $headers = $decoded['headers'] ?? [];
             $rows = $decoded['rows'] ?? [];

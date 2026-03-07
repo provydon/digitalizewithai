@@ -234,7 +234,7 @@ onMounted(() => {
                 <p v-else-if="uploadError" class="mt-3 text-sm text-destructive">
                     {{ uploadError }}
                 </p>
-                <p v-else-if="uploadSuccess" class="mt-3 text-sm font-medium text-green-600 dark:text-green-400">
+                <p v-else-if="uploadSuccess" class="mt-3 text-sm font-medium text-success">
                     ✓ Added below.
                 </p>
             </div>

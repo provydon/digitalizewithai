@@ -112,12 +112,12 @@ function onDocEditInput(e: Event) {
         </div>
         <div
             v-else
-            class="content-paper min-w-0 rounded-xl bg-white p-4 text-gray-900 shadow-sm sm:p-5"
+            class="content-paper min-w-0 rounded-xl bg-card p-4 text-card-foreground shadow-sm sm:p-5"
         >
             <div v-if="docEditing" class="space-y-3">
                 <textarea
                     :value="docEditContent"
-                    class="min-h-[240px] w-full max-w-full resize-y rounded-lg border border-gray-300 bg-white p-3 font-sans text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-0 sm:p-4 sm:text-base"
+                    class="min-h-[240px] w-full max-w-full resize-y rounded-lg border border-input bg-background p-3 font-sans text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-0 sm:p-4 sm:text-base"
                     placeholder="Document content…"
                     spellcheck="false"
                     @input="onDocEditInput"
@@ -145,7 +145,7 @@ function onDocEditInput(e: Event) {
             </div>
             <template v-else>
                 <pre
-                    class="max-w-full overflow-x-auto whitespace-pre-wrap rounded-lg bg-white p-3 font-sans text-sm text-gray-900 sm:p-4 sm:text-base"
+                    class="max-w-full overflow-x-auto whitespace-pre-wrap rounded-lg bg-background p-3 font-sans text-sm text-foreground sm:p-4 sm:text-base"
                 >{{ displayedContent || ' ' }}</pre>
             </template>
         </div>

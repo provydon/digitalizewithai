@@ -186,7 +186,7 @@ defineExpose({
                     v-if="mode === 'full' && listMeta && listMeta.last_page > 1 && !loading && items.length > 0"
                     class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/80 bg-muted/20 px-4 py-3 sm:justify-end"
                 >
-                    <span class="text-sm text-muted-foreground dark:text-gray-400 sm:order-2">
+                    <span class="text-sm text-muted-foreground sm:order-2">
                         Page {{ listMeta.current_page }} of {{ listMeta.last_page }}
                     </span>
                     <div class="flex gap-2 sm:order-1">

@@ -166,7 +166,7 @@ function updateAddCell(index: number, value: string | number) {
                         <p v-else-if="appendError" class="text-sm text-destructive">
                             {{ appendError }}
                         </p>
-                        <p v-else-if="appendSuccess" class="text-sm text-green-600 dark:text-green-400">
+                        <p v-else-if="appendSuccess" class="text-sm text-success">
                             Rows appended. They appear in the table.
                         </p>
                     </div>

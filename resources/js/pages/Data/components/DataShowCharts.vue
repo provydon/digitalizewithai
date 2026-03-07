@@ -90,10 +90,16 @@ const effectiveChartConfig = computed(() => {
     return { labelCol, valueCol, chartType, title: s?.title ?? null };
 });
 
+function getThemeColor(cssVar: string): string {
+    if (typeof document === 'undefined') return 'hsl(0 0% 50%)';
+    const raw = getComputedStyle(document.documentElement).getPropertyValue(cssVar).trim();
+    return raw.startsWith('hsl') ? raw : `hsl(${raw})`;
+}
+
 const chartOptions = computed(() => {
     const isDark = isDarkChart.value;
     const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
-    const tickColor = isDark ? 'hsl(0 0% 63.9%)' : 'hsl(0 0% 45.1%)';
+    const tickColor = getThemeColor('--muted-foreground');
     const config = effectiveChartConfig.value;
     const isPie = config?.chartType === 'pie';
     return {
@@ -169,7 +175,7 @@ function chartTitle(chart: SavedChart): string {
         <div class="flex flex-wrap items-center gap-2">
             <button
                 type="button"
-                class="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-lg border-2 border-gray-300 px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted/60 hover:border-gray-400 dark:border-gray-600 dark:hover:border-gray-500 sm:min-h-0"
+                class="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-lg border-2 border-input px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted/60 hover:border-primary/50 sm:min-h-0"
                 :class="showSpecificChartRequest ? 'bg-muted/50' : 'bg-transparent'"
                 @click="emit('update:showSpecificChartRequest', !showSpecificChartRequest)"
             >

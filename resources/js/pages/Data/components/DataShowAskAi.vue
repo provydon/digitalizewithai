@@ -150,7 +150,7 @@ function chatTitle(chat: SavedChat): string {
                         v-for="(p, i) in suggestedPrompts"
                         :key="i"
                         type="button"
-                        class="inline-flex cursor-pointer items-center rounded border border-gray-300 bg-muted/50 px-2 py-1 text-[11px] leading-tight text-foreground transition-colors hover:bg-muted hover:border-primary/50 dark:border-gray-600 dark:hover:border-primary/50 sm:rounded-lg sm:border-2 sm:px-3 sm:py-1.5 sm:text-sm"
+                        class="inline-flex cursor-pointer items-center rounded border border-input bg-muted/50 px-2 py-1 text-[11px] leading-tight text-foreground transition-colors hover:bg-muted hover:border-primary/50 sm:rounded-lg sm:border-2 sm:px-3 sm:py-1.5 sm:text-sm"
                         @click="emit('ask', p)"
                     >
                         {{ p }}
@@ -195,7 +195,7 @@ function chatTitle(chat: SavedChat): string {
                 </div>
                 <textarea
                     v-model="question"
-                    class="min-h-[44px] w-full flex-1 rounded-lg border-2 border-gray-300 bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring dark:border-gray-600"
+                    class="min-h-[44px] w-full flex-1 rounded-lg border-2 border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                     placeholder="Ask about this data..."
                     rows="1"
                     @keydown.enter.exact.prevent="submitQuestion"

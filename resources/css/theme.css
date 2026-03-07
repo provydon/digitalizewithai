@@ -1,68 +1,83 @@
 /**
- * App theme — single source of truth for colors and radii.
- * Edit this file to change the look of the whole app (light + dark).
- * Variables are used by Tailwind via app.css @theme inline.
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * APP THEME — SINGLE SOURCE OF TRUTH FOR COLORS
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * To change the whole app's color theme:
+ *   1. Change --brand-hue in BOTH :root and .dark below (same value, 0–360).
+ *   2. Optionally tweak saturation/lightness for --primary in each block.
+ * All primary-like tokens (ring, accent, sidebar-primary, chart-1/2/5) derive
+ * from --brand-hue so one change updates buttons, links, focus rings, charts.
+ * Variables are wired to Tailwind in app.css @theme inline.
+ * ═══════════════════════════════════════════════════════════════════════════════
  */
 
 /* ─── Light theme ─────────────────────────────────────────────────────────── */
 :root {
+    /* Brand: change this hue (0–360) to change the whole app */
+    --brand-hue: 263;
+
     /* Surfaces */
     --background: hsl(0 0% 100%);
-    --foreground: hsl(214 24% 13%); /* #161d26 */
+    --foreground: hsl(214 24% 13%);
     --card: hsl(0 0% 100%);
     --card-foreground: hsl(214 24% 13%);
     --popover: hsl(0 0% 100%);
     --popover-foreground: hsl(214 24% 13%);
 
-    /* Brand / primary (e.g. Nova purple) */
-    --primary: hsl(263 74% 58%); /* #7c3aed */
+    /* Brand / primary — driven by --brand-hue */
+    --primary: hsl(var(--brand-hue) 74% 58%);
     --primary-foreground: hsl(0 0% 100%);
 
     /* Secondary & muted */
     --secondary: hsl(240 5% 96%);
     --secondary-foreground: hsl(214 24% 13%);
     --muted: hsl(240 5% 96%);
-    --muted-foreground: hsl(240 2% 42%); /* #6b6b6e */
+    --muted-foreground: hsl(240 2% 42%);
 
-    /* Accent */
-    --accent: hsl(263 74% 96%);
-    --accent-foreground: hsl(263 74% 35%);
+    /* Accent — tint of brand */
+    --accent: hsl(var(--brand-hue) 74% 96%);
+    --accent-foreground: hsl(var(--brand-hue) 74% 35%);
 
     /* Semantic */
     --destructive: hsl(0 84.2% 60.2%);
     --destructive-foreground: hsl(0 0% 98%);
+    --success: hsl(142 71% 45%);
+    --success-foreground: hsl(0 0% 100%);
 
     /* Borders & inputs */
-    --border: hsl(240 5% 91%); /* #e5e5e7 */
+    --border: hsl(240 5% 91%);
     --input: hsl(240 5% 89%);
-    --ring: hsl(263 74% 58%);
+    --ring: hsl(var(--brand-hue) 74% 58%);
 
-    /* Charts */
-    --chart-1: hsl(263 74% 58%);
-    --chart-2: hsl(263 74% 65%);
-    --chart-3: hsl(24 100% 56%); /* Nova orange #ff6200 */
-    --chart-4: hsl(293 100% 61%); /* Nova magenta #e433ff */
-    --chart-5: hsl(263 74% 45%);
+    /* Charts — chart-1/2/5 use brand; 3/4 are accents */
+    --chart-1: hsl(var(--brand-hue) 74% 58%);
+    --chart-2: hsl(var(--brand-hue) 74% 65%);
+    --chart-3: hsl(24 100% 56%);
+    --chart-4: hsl(293 100% 61%);
+    --chart-5: hsl(var(--brand-hue) 74% 45%);
 
     /* Layout */
-    --radius: 0.75rem; /* rounded-xl */
+    --radius: 0.75rem;
 
     /* Sidebar */
     --sidebar-background: hsl(0 0% 99%);
     --sidebar-foreground: hsl(214 24% 13%);
-    --sidebar-primary: hsl(263 74% 58%);
+    --sidebar-primary: hsl(var(--brand-hue) 74% 58%);
     --sidebar-primary-foreground: hsl(0 0% 100%);
-    --sidebar-accent: hsl(263 74% 96%);
+    --sidebar-accent: hsl(var(--brand-hue) 74% 96%);
     --sidebar-accent-foreground: hsl(214 24% 13%);
     --sidebar-border: hsl(240 5% 91%);
-    --sidebar-ring: hsl(263 74% 58%);
+    --sidebar-ring: hsl(var(--brand-hue) 74% 58%);
     --sidebar: hsl(0 0% 99%);
 }
 
 /* ─── Dark theme ───────────────────────────────────────────────────────────── */
 .dark {
+    /* Same brand hue as light — change here too when changing theme */
+    --brand-hue: 263;
+
     /* Surfaces */
-    --background: hsl(220 14% 14%); /* soft charcoal */
+    --background: hsl(220 14% 14%);
     --foreground: hsl(220 10% 95%);
     --card: hsl(220 12% 18%);
     --card-foreground: hsl(220 10% 95%);
@@ -70,7 +85,7 @@
     --popover-foreground: hsl(220 10% 95%);
 
     /* Brand / primary */
-    --primary: hsl(263 84% 65%);
+    --primary: hsl(var(--brand-hue) 84% 65%);
     --primary-foreground: hsl(0 0% 100%);
 
     /* Secondary & muted */
@@ -80,33 +95,35 @@
     --muted-foreground: hsl(220 8% 65%);
 
     /* Accent */
-    --accent: hsl(263 40% 28%);
-    --accent-foreground: hsl(263 84% 80%);
+    --accent: hsl(var(--brand-hue) 40% 28%);
+    --accent-foreground: hsl(var(--brand-hue) 84% 80%);
 
     /* Semantic */
     --destructive: hsl(0 84% 60%);
     --destructive-foreground: hsl(0 0% 98%);
+    --success: hsl(142 71% 52%);
+    --success-foreground: hsl(0 0% 100%);
 
     /* Borders & inputs */
     --border: hsl(220 10% 26%);
     --input: hsl(220 10% 24%);
-    --ring: hsl(263 84% 65%);
+    --ring: hsl(var(--brand-hue) 84% 65%);
 
     /* Charts */
-    --chart-1: hsl(263 84% 65%);
-    --chart-2: hsl(263 84% 72%);
+    --chart-1: hsl(var(--brand-hue) 84% 65%);
+    --chart-2: hsl(var(--brand-hue) 84% 72%);
     --chart-3: hsl(24 100% 56%);
     --chart-4: hsl(293 100% 61%);
-    --chart-5: hsl(263 74% 50%);
+    --chart-5: hsl(var(--brand-hue) 74% 50%);
 
     /* Sidebar */
     --sidebar-background: hsl(220 14% 12%);
     --sidebar-foreground: hsl(220 10% 95%);
-    --sidebar-primary: hsl(263 84% 65%);
+    --sidebar-primary: hsl(var(--brand-hue) 84% 65%);
     --sidebar-primary-foreground: hsl(0 0% 100%);
     --sidebar-accent: hsl(220 10% 22%);
     --sidebar-accent-foreground: hsl(220 10% 95%);
     --sidebar-border: hsl(220 10% 24%);
-    --sidebar-ring: hsl(263 84% 65%);
+    --sidebar-ring: hsl(var(--brand-hue) 84% 65%);
     --sidebar: hsl(220 14% 12%);
 }

@@ -38,6 +38,16 @@ class Data extends Model
         return $this->hasMany(DataTableRow::class, 'data_id');
     }
 
+    public function savedChats(): HasMany
+    {
+        return $this->hasMany(SavedDataChat::class, 'data_id');
+    }
+
+    public function savedCharts(): HasMany
+    {
+        return $this->hasMany(SavedDataChart::class, 'data_id');
+    }
+
     public function scopeForUser($query, $userId)
     {
         return $query->where('user_id', $userId);

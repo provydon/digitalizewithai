@@ -30,6 +30,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('dashboard/api/data/{data}/rows/{data_table_row}', [DataTableRowsController::class, 'update'])->name('dashboard.api.data.rows.update');
     Route::delete('dashboard/api/data/{data}/rows/{data_table_row}', [DataTableRowsController::class, 'destroy'])->name('dashboard.api.data.rows.destroy');
     Route::patch('dashboard/api/data/{data}/doc-content', [DataViewController::class, 'updateDocContent'])->name('dashboard.api.data.doc-content.update');
+    Route::get('dashboard/api/data/{data}/saved-chats', [DataViewController::class, 'savedChatsIndex'])->name('dashboard.api.data.saved-chats.index');
+    Route::post('dashboard/api/data/{data}/saved-chats', [DataViewController::class, 'savedChatStore'])->name('dashboard.api.data.saved-chats.store');
+    Route::delete('dashboard/api/data/{data}/saved-chats/{saved_chat}', [DataViewController::class, 'savedChatDestroy'])->name('dashboard.api.data.saved-chats.destroy');
+    Route::get('dashboard/api/data/{data}/saved-charts', [DataViewController::class, 'savedChartsIndex'])->name('dashboard.api.data.saved-charts.index');
+    Route::post('dashboard/api/data/{data}/saved-charts', [DataViewController::class, 'savedChartStore'])->name('dashboard.api.data.saved-charts.store');
+    Route::delete('dashboard/api/data/{data}/saved-charts/{saved_chart}', [DataViewController::class, 'savedChartDestroy'])->name('dashboard.api.data.saved-charts.destroy');
     Route::get('dashboard/data/{data}', [DataViewController::class, 'show'])->name('dashboard.data.show');
     Route::get('data', [DashboardController::class, 'dataPage'])->name('data.index');
 });

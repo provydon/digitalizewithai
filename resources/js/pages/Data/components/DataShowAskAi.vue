@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import { Bookmark, ChevronDown, ChevronRight, Loader2, MessageSquarePlus, Trash2 } from 'lucide-vue-next';
 import { nextTick, ref, watch } from 'vue';
 import { renderMarkdown } from '@/lib/markdown';
-import type { ChatMessage } from '../types';
+import type { ChatMessage, SavedChat } from '../types';
 
 const props = defineProps<{
     recordName: string;
@@ -11,12 +12,21 @@ const props = defineProps<{
     insights: string[];
     askLoading: boolean;
     askError: string | null;
+    savedChats: SavedChat[];
+    saveChatLoading: boolean;
+    savedChatError: string | null;
+    canSaveChat: boolean;
 }>();
 
 const emit = defineEmits<{
     ask: [prompt?: string];
+    saveChat: [name?: string];
+    loadChat: [chat: SavedChat];
+    deleteChat: [chat: SavedChat];
+    newChat: [];
 }>();
 
+const savedChatsOpen = ref(false);
 const question = ref('');
 const chatScrollRef = ref<HTMLElement | null>(null);
 
@@ -52,6 +62,18 @@ function submitQuestion() {
     if (!q) return;
     question.value = '';
     emit('ask', q);
+}
+
+function onSaveChat() {
+    if (props.saveChatLoading || !props.canSaveChat) return;
+    emit('saveChat');
+}
+
+function chatTitle(chat: SavedChat): string {
+    if (chat.name?.trim()) return chat.name;
+    const first = chat.messages?.[0];
+    const text = first?.content?.trim();
+    return text ? (text.slice(0, 40) + (text.length > 40 ? '…' : '')) : 'Untitled chat';
 }
 </script>
 
@@ -140,6 +162,29 @@ function submitQuestion() {
                 </div>
             </template>
             <div class="flex flex-col gap-3 pt-1 sm:gap-2 sm:pt-0">
+                <div class="flex flex-wrap items-center gap-2">
+                    <button
+                        type="button"
+                        class="inline-flex items-center gap-1.5 rounded-lg border border-sidebar-border/70 bg-muted/50 px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted dark:border-sidebar-border"
+                        :disabled="askLoading"
+                        title="Start a new chat"
+                        @click="emit('newChat')"
+                    >
+                        <MessageSquarePlus class="h-3.5 w-3.5" />
+                        New chat
+                    </button>
+                    <button
+                        v-if="canSaveChat"
+                        type="button"
+                        class="inline-flex items-center gap-1.5 rounded-lg border border-sidebar-border/70 bg-muted/50 px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted dark:border-sidebar-border"
+                        :disabled="saveChatLoading"
+                        @click="onSaveChat"
+                    >
+                        <Loader2 v-if="saveChatLoading" class="h-3.5 w-3.5 animate-spin" />
+                        <Bookmark v-else class="h-3.5 w-3.5" />
+                        Save chat
+                    </button>
+                </div>
                 <textarea
                     v-model="question"
                     class="min-h-[44px] w-full flex-1 rounded-lg border-2 border-gray-300 bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring dark:border-gray-600"
@@ -156,9 +201,44 @@ function submitQuestion() {
                     {{ askLoading ? '…' : 'Send' }}
                 </button>
             </div>
-            <p v-if="askError" class="text-sm text-destructive">
-                {{ askError }}
+            <p v-if="askError || savedChatError" class="text-sm text-destructive">
+                {{ askError ?? savedChatError }}
             </p>
+            <div v-if="savedChats.length > 0" class="border-t border-sidebar-border/70 pt-3">
+                <button
+                    type="button"
+                    class="flex w-full items-center gap-1.5 text-left text-sm font-medium text-foreground"
+                    @click="savedChatsOpen = !savedChatsOpen"
+                >
+                    <ChevronDown v-if="savedChatsOpen" class="h-4 w-4" />
+                    <ChevronRight v-else class="h-4 w-4" />
+                    Saved chats ({{ savedChats.length }})
+                </button>
+                <ul v-show="savedChatsOpen" class="mt-2 max-h-32 space-y-1 overflow-y-auto">
+                    <li
+                        v-for="chat in savedChats"
+                        :key="chat.id"
+                        class="flex items-center justify-between gap-2 rounded border border-sidebar-border/50 bg-muted/30 px-2 py-1.5 text-sm"
+                    >
+                        <button
+                            type="button"
+                            class="min-w-0 flex-1 truncate text-left hover:underline"
+                            :title="chatTitle(chat)"
+                            @click="emit('loadChat', chat)"
+                        >
+                            {{ chatTitle(chat) }}
+                        </button>
+                        <button
+                            type="button"
+                            class="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-destructive/20 hover:text-destructive"
+                            title="Delete"
+                            @click="emit('deleteChat', chat)"
+                        >
+                            <Trash2 class="h-3.5 w-3.5" />
+                        </button>
+                    </li>
+                </ul>
+            </div>
         </div>
     </div>
 </template>

@@ -12,11 +12,11 @@ import {
     PointElement,
     Title,
 } from 'chart.js';
-import { BarChart3 } from 'lucide-vue-next';
-import { computed } from 'vue';
+import { BarChart3, Bookmark, ChevronDown, ChevronRight, Loader2, MessageSquarePlus, Trash2 } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
 import { Chart } from 'vue-chartjs';
 import { useAppearance } from '@/composables/useAppearance';
-import type { ChartSuggestion } from '../types';
+import type { ChartSuggestion, SavedChart } from '../types';
 
 ChartJS.register(
     CategoryScale,
@@ -39,13 +39,23 @@ const props = defineProps<{
     showSpecificChartRequest: boolean;
     chartSuggestionLoading: boolean;
     canChart: boolean;
+    savedCharts: SavedChart[];
+    saveChartLoading: boolean;
+    savedChartError: string | null;
+    canSaveChart: boolean;
 }>();
 
 const emit = defineEmits<{
     'update:chartRequest': [v: string];
     'update:showSpecificChartRequest': [v: boolean];
     'suggest-chart': [];
+    'save-chart': [];
+    'load-chart': [chart: SavedChart];
+    'delete-chart': [chart: SavedChart];
+    'new-chart': [];
 }>();
+
+const savedChartsOpen = ref(false);
 
 function onChartRequestInput(e: Event) {
     emit('update:chartRequest', (e.target as HTMLInputElement).value);
@@ -136,6 +146,15 @@ const chartData = computed(() => {
         ],
     };
 });
+
+function chartTitle(chart: SavedChart): string {
+    const name = chart.name?.trim();
+    if (name) return name;
+    const t = chart.chart_config?.title?.trim();
+    if (t) return t;
+    const type = chart.chart_config?.chartType ?? 'bar';
+    return `${type.charAt(0).toUpperCase() + type.slice(1)} chart`;
+}
 </script>
 
 <template>
@@ -164,6 +183,27 @@ const chartData = computed(() => {
             >
                 <BarChart3 class="h-4 w-4" />
                 {{ chartSuggestionLoading ? '…' : chartSuggestion ? 'Generate Another Chart' : 'Generate Chart' }}
+            </button>
+            <button
+                type="button"
+                class="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-sidebar-border/70 bg-muted/50 px-3 py-2 text-sm font-medium text-foreground hover:bg-muted sm:min-h-0"
+                :disabled="chartSuggestionLoading"
+                title="Start a new chart"
+                @click="emit('new-chart')"
+            >
+                <MessageSquarePlus class="h-4 w-4" />
+                New chart
+            </button>
+            <button
+                v-if="canSaveChart"
+                type="button"
+                class="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-sidebar-border/70 bg-muted/50 px-3 py-2 text-sm font-medium text-foreground hover:bg-muted sm:min-h-0"
+                :disabled="saveChartLoading"
+                @click="emit('save-chart')"
+            >
+                <Loader2 v-if="saveChartLoading" class="h-4 w-4 animate-spin" />
+                <Bookmark v-else class="h-4 w-4" />
+                Save chart
             </button>
         </div>
         <div
@@ -205,6 +245,44 @@ const chartData = computed(() => {
                     :options="chartOptions"
                 />
             </div>
+        </div>
+        <p v-if="savedChartError" class="text-sm text-destructive">
+            {{ savedChartError }}
+        </p>
+        <div v-if="savedCharts.length > 0" class="border-t border-sidebar-border/70 pt-3">
+            <button
+                type="button"
+                class="flex w-full items-center gap-1.5 text-left text-sm font-medium text-foreground"
+                @click="savedChartsOpen = !savedChartsOpen"
+            >
+                <ChevronDown v-if="savedChartsOpen" class="h-4 w-4" />
+                <ChevronRight v-else class="h-4 w-4" />
+                Saved charts ({{ savedCharts.length }})
+            </button>
+            <ul v-show="savedChartsOpen" class="mt-2 max-h-32 space-y-1 overflow-y-auto">
+                <li
+                    v-for="chart in savedCharts"
+                    :key="chart.id"
+                    class="flex items-center justify-between gap-2 rounded border border-sidebar-border/50 bg-muted/30 px-2 py-1.5 text-sm"
+                >
+                    <button
+                        type="button"
+                        class="min-w-0 flex-1 truncate text-left hover:underline"
+                        :title="chartTitle(chart)"
+                        @click="emit('load-chart', chart)"
+                    >
+                        {{ chartTitle(chart) }}
+                    </button>
+                    <button
+                        type="button"
+                        class="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-destructive/20 hover:text-destructive"
+                        title="Delete"
+                        @click="emit('delete-chart', chart)"
+                    >
+                        <Trash2 class="h-3.5 w-3.5" />
+                    </button>
+                </li>
+            </ul>
         </div>
     </div>
 </template>

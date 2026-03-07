@@ -6,6 +6,8 @@ use App\Ai\Agents\ChartSuggestionAgent;
 use App\Ai\Agents\DataInsightAgent;
 use App\Ai\Agents\DataInsightStreamingAgent;
 use App\Models\Data;
+use App\Models\SavedDataChart;
+use App\Models\SavedDataChat;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -300,5 +302,139 @@ class DataViewController extends Controller
         }
 
         return $content;
+    }
+
+    /** List saved chats for this data record. */
+    public function savedChatsIndex(Data $data): JsonResponse
+    {
+        if ($data->user_id !== auth()->id()) {
+            abort(404);
+        }
+
+        $chats = $data->savedChats()
+            ->orderByDesc('updated_at')
+            ->get(['id', 'name', 'messages', 'created_at', 'updated_at']);
+
+        return response()->json([
+            'chats' => $chats->map(fn (SavedDataChat $c) => [
+                'id' => $c->id,
+                'name' => $c->name,
+                'messages' => $c->messages,
+                'created_at' => $c->created_at?->toIso8601String(),
+                'updated_at' => $c->updated_at?->toIso8601String(),
+            ]),
+        ]);
+    }
+
+    /** Save current chat. POST body: { "name": "optional title", "messages": [...] }. */
+    public function savedChatStore(Request $request, Data $data): JsonResponse
+    {
+        if ($data->user_id !== auth()->id()) {
+            abort(404);
+        }
+
+        $messages = $request->input('messages');
+        if (! is_array($messages) || count($messages) === 0) {
+            return response()->json(['message' => 'At least one message is required.'], 422);
+        }
+
+        $name = $request->input('name');
+        $name = is_string($name) ? trim($name) : null;
+        if ($name === '') {
+            $name = null;
+        }
+
+        $chat = $data->savedChats()->create([
+            'user_id' => auth()->id(),
+            'name' => $name,
+            'messages' => $messages,
+        ]);
+
+        return response()->json([
+            'id' => $chat->id,
+            'name' => $chat->name,
+            'messages' => $chat->messages,
+            'created_at' => $chat->created_at?->toIso8601String(),
+            'updated_at' => $chat->updated_at?->toIso8601String(),
+        ], 201);
+    }
+
+    /** Delete a saved chat. */
+    public function savedChatDestroy(Data $data, SavedDataChat $saved_chat): JsonResponse
+    {
+        if ($data->user_id !== auth()->id() || $saved_chat->data_id !== $data->id || $saved_chat->user_id !== auth()->id()) {
+            abort(404);
+        }
+
+        $saved_chat->delete();
+
+        return response()->json(['deleted' => true]);
+    }
+
+    /** List saved charts for this data record. */
+    public function savedChartsIndex(Data $data): JsonResponse
+    {
+        if ($data->user_id !== auth()->id()) {
+            abort(404);
+        }
+
+        $charts = $data->savedCharts()
+            ->orderByDesc('updated_at')
+            ->get(['id', 'name', 'chart_config', 'created_at', 'updated_at']);
+
+        return response()->json([
+            'charts' => $charts->map(fn (SavedDataChart $c) => [
+                'id' => $c->id,
+                'name' => $c->name,
+                'chart_config' => $c->chart_config,
+                'created_at' => $c->created_at?->toIso8601String(),
+                'updated_at' => $c->updated_at?->toIso8601String(),
+            ]),
+        ]);
+    }
+
+    /** Save current chart. POST body: { "name": "optional title", "chart_config": { chartType, labelColumn, valueColumn, title } }. */
+    public function savedChartStore(Request $request, Data $data): JsonResponse
+    {
+        if ($data->user_id !== auth()->id()) {
+            abort(404);
+        }
+
+        $config = $request->input('chart_config');
+        if (! is_array($config)) {
+            return response()->json(['message' => 'chart_config object is required.'], 422);
+        }
+
+        $name = $request->input('name');
+        $name = is_string($name) ? trim($name) : null;
+        if ($name === '') {
+            $name = null;
+        }
+
+        $chart = $data->savedCharts()->create([
+            'user_id' => auth()->id(),
+            'name' => $name,
+            'chart_config' => $config,
+        ]);
+
+        return response()->json([
+            'id' => $chart->id,
+            'name' => $chart->name,
+            'chart_config' => $chart->chart_config,
+            'created_at' => $chart->created_at?->toIso8601String(),
+            'updated_at' => $chart->updated_at?->toIso8601String(),
+        ], 201);
+    }
+
+    /** Delete a saved chart. */
+    public function savedChartDestroy(Data $data, SavedDataChart $saved_chart): JsonResponse
+    {
+        if ($data->user_id !== auth()->id() || $saved_chart->data_id !== $data->id || $saved_chart->user_id !== auth()->id()) {
+            abort(404);
+        }
+
+        $saved_chart->delete();
+
+        return response()->json(['deleted' => true]);
     }
 }

@@ -38,6 +38,22 @@ export type ChartSuggestion = {
     title: string | null;
 };
 
+export type SavedChat = {
+    id: number;
+    name: string | null;
+    messages: ChatMessage[];
+    created_at: string | null;
+    updated_at: string | null;
+};
+
+export type SavedChart = {
+    id: number;
+    name: string | null;
+    chart_config: ChartSuggestion;
+    created_at: string | null;
+    updated_at: string | null;
+};
+
 /** Returns array of page numbers and 'ellipsis' for pill pagination. */
 export function paginationSlots(
     current: number,

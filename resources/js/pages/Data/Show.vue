@@ -31,8 +31,10 @@ import type {
     ChartSuggestion,
     ChatMessage,
     DataRecord,
-    TableRowRecord,
     RowsMeta,
+    SavedChart,
+    SavedChat,
+    TableRowRecord,
 } from '@/pages/Data/types';
 
 type Props = {
@@ -61,10 +63,31 @@ const breadcrumbs = computed<BreadcrumbItem[]>(() => {
 const backHref = computed(() => (props.from === 'data' ? '/data' : dashboard()));
 const backLabel = computed(() => (props.from === 'data' ? 'Back to Data' : 'Back to dashboard'));
 
+async function fetchSavedChats() {
+    if (!record.value) return;
+    try {
+        const { data } = await api.get<{ chats: SavedChat[] }>(`/dashboard/api/data/${record.value.id}/saved-chats`);
+        savedChats.value = data.chats ?? [];
+    } catch {
+        savedChats.value = [];
+    }
+}
+
+async function fetchSavedCharts() {
+    if (!record.value) return;
+    try {
+        const { data } = await api.get<{ charts: SavedChart[] }>(`/dashboard/api/data/${record.value.id}/saved-charts`);
+        savedCharts.value = data.charts ?? [];
+    } catch {
+        savedCharts.value = [];
+    }
+}
+
 onMounted(async () => {
     try {
         const { data } = await api.get<DataRecord>(`/dashboard/api/data/${props.id}`);
         record.value = data;
+        await Promise.all([fetchSavedChats(), fetchSavedCharts()]);
     } catch (e: unknown) {
         const err = e as { response?: { data?: { message?: string } }; message?: string };
         error.value = err.response?.data?.message ?? err.message ?? 'Failed to load';
@@ -486,6 +509,9 @@ watch(tableSearch, () => {
 const messages = ref<ChatMessage[]>([]);
 const askLoading = ref(false);
 const askError = ref<string | null>(null);
+const savedChats = ref<SavedChat[]>([]);
+const saveChatLoading = ref(false);
+const savedChatError = ref<string | null>(null);
 
 function getCsrfToken(): string {
     const meta = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
@@ -768,6 +794,9 @@ const chartRequest = ref('');
 const showSpecificChartRequest = ref(false);
 const chartSuggestion = ref<ChartSuggestion | null>(null);
 const chartSuggestionLoading = ref(false);
+const savedCharts = ref<SavedChart[]>([]);
+const saveChartLoading = ref(false);
+const savedChartError = ref<string | null>(null);
 
 async function suggestChartFromAi() {
     if (!record.value || !canChart.value) return;
@@ -787,6 +816,89 @@ async function suggestChartFromAi() {
         chartSuggestion.value = null;
     } finally {
         chartSuggestionLoading.value = false;
+    }
+}
+
+function startNewChat() {
+    messages.value = [];
+    askError.value = null;
+}
+
+async function saveCurrentChat(name?: string) {
+    if (!record.value || messages.value.length === 0) return;
+    saveChatLoading.value = true;
+    savedChatError.value = null;
+    try {
+        const { data } = await api.post<SavedChat>(
+            `/dashboard/api/data/${record.value.id}/saved-chats`,
+            { name: name?.trim() || null, messages: messages.value },
+        );
+        savedChats.value = [data, ...savedChats.value];
+    } catch (e: unknown) {
+        const err = e as { response?: { data?: { message?: string } }; message?: string };
+        savedChatError.value = err.response?.data?.message ?? err.message ?? 'Failed to save chat';
+    } finally {
+        saveChatLoading.value = false;
+    }
+}
+
+function loadSavedChat(chat: SavedChat) {
+    messages.value = Array.isArray(chat.messages) ? [...chat.messages] : [];
+}
+
+async function deleteSavedChat(chat: SavedChat) {
+    if (!record.value) return;
+    try {
+        await api.delete(`/dashboard/api/data/${record.value.id}/saved-chats/${chat.id}`);
+        savedChats.value = savedChats.value.filter((c) => c.id !== chat.id);
+    } catch {
+        await fetchSavedChats();
+    }
+}
+
+function startNewChart() {
+    chartSuggestion.value = null;
+    chartRequest.value = '';
+    showSpecificChartRequest.value = false;
+}
+
+async function saveCurrentChart() {
+    if (!record.value || !chartSuggestion.value) return;
+    saveChartLoading.value = true;
+    savedChartError.value = null;
+    try {
+        const { data } = await api.post<SavedChart>(
+            `/dashboard/api/data/${record.value.id}/saved-charts`,
+            { name: null, chart_config: chartSuggestion.value },
+        );
+        savedCharts.value = [data, ...savedCharts.value];
+    } catch (e: unknown) {
+        const err = e as { response?: { data?: { message?: string } }; message?: string };
+        savedChartError.value = err.response?.data?.message ?? err.message ?? 'Failed to save chart';
+    } finally {
+        saveChartLoading.value = false;
+    }
+}
+
+function loadSavedChart(chart: SavedChart) {
+    const cfg = chart.chart_config;
+    if (cfg && typeof cfg.chartType === 'string' && typeof cfg.labelColumn === 'number' && typeof cfg.valueColumn === 'number') {
+        chartSuggestion.value = {
+            chartType: cfg.chartType === 'line' || cfg.chartType === 'pie' ? cfg.chartType : 'bar',
+            labelColumn: cfg.labelColumn,
+            valueColumn: cfg.valueColumn,
+            title: cfg.title ?? null,
+        };
+    }
+}
+
+async function deleteSavedChart(chart: SavedChart) {
+    if (!record.value) return;
+    try {
+        await api.delete(`/dashboard/api/data/${record.value.id}/saved-charts/${chart.id}`);
+        savedCharts.value = savedCharts.value.filter((c) => c.id !== chart.id);
+    } catch {
+        await fetchSavedCharts();
     }
 }
 
@@ -936,7 +1048,15 @@ const aiModelLabel = computed(() => {
                                     :insights="insights"
                                     :ask-loading="askLoading"
                                     :ask-error="askError"
+                                    :saved-chats="savedChats"
+                                    :save-chat-loading="saveChatLoading"
+                                    :saved-chat-error="savedChatError"
+                                    :can-save-chat="messages.length > 0"
                                     @ask="askAi"
+                                    @new-chat="startNewChat"
+                                    @save-chat="saveCurrentChat"
+                                    @load-chat="loadSavedChat"
+                                    @delete-chat="deleteSavedChat"
                                 />
                             </TabsContent>
 
@@ -949,9 +1069,17 @@ const aiModelLabel = computed(() => {
                                     :show-specific-chart-request="showSpecificChartRequest"
                                     :chart-suggestion-loading="chartSuggestionLoading"
                                     :can-chart="!!canChart"
+                                    :saved-charts="savedCharts"
+                                    :save-chart-loading="saveChartLoading"
+                                    :saved-chart-error="savedChartError"
+                                    :can-save-chart="!!chartSuggestion"
                                     @update:chart-request="chartRequest = $event"
                                     @update:show-specific-chart-request="showSpecificChartRequest = $event"
                                     @suggest-chart="suggestChartFromAi"
+                                    @new-chart="startNewChart"
+                                    @save-chart="saveCurrentChart"
+                                    @load-chart="loadSavedChart"
+                                    @delete-chart="deleteSavedChart"
                                 />
                             </TabsContent>
 

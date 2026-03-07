@@ -32,6 +32,7 @@ class DataTableRow extends Model
         if ($query->getConnection()->getDriverName() === 'pgsql') {
             return $query->pgSearch($trimmed, ['search_content']);
         }
+
         return $query->where('search_content', 'like', '%'.addcslashes($trimmed, '%_\\').'%');
     }
 }

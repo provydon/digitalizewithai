@@ -13,7 +13,7 @@ return [
     |
     */
 
-    'default' => 'nova',
+    'default' => 'anthropic',
     'default_for_images' => 'gemini',
     'default_for_audio' => 'openai',
     'default_for_transcription' => 'openai',
@@ -136,7 +136,7 @@ return [
             'url' => 'https://api.nova.amazon.com/v1',
             'models' => [
                 'text' => [
-                    'default' => 'nova-lite-v1',
+                    'default' => 'nova-2-lite-v1',
                     'cheapest' => 'nova-micro-v1',
                     'smartest' => 'nova-pro-v1',
                 ],

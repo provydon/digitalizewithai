@@ -13,14 +13,18 @@ use Inertia\Response;
 
 class DataViewController extends Controller
 {
-    public function show(Data $data): Response|JsonResponse
+    public function show(Request $request, Data $data): Response|JsonResponse
     {
         if ($data->user_id !== auth()->id()) {
             abort(404);
         }
 
+        $from = $request->query('from', 'dashboard');
+        $from = in_array($from, ['dashboard', 'data'], true) ? $from : 'dashboard';
+
         return Inertia::render('Data/Show', [
             'id' => $data->id,
+            'from' => $from,
         ]);
     }
 
@@ -68,6 +72,7 @@ class DataViewController extends Controller
         } else {
             $content = (string) ($digital['content'] ?? '');
         }
+
         return response()->json([
             'page' => $page,
             'total_pages' => $pageCount,
@@ -89,7 +94,23 @@ class DataViewController extends Controller
         if ($content === '' && ! empty($digital['doc_pages'])) {
             $content = implode("\n\n", $digital['doc_pages']);
         }
+
         return response()->json(['content' => $content]);
+    }
+
+    /** Update data record name. PATCH body: { "name": "..." }. */
+    public function update(Request $request, Data $data): JsonResponse
+    {
+        if ($data->user_id !== auth()->id()) {
+            abort(404);
+        }
+        $name = $request->input('name');
+        if (! is_string($name) || trim($name) === '') {
+            return response()->json(['message' => 'name is required and must be non-empty.'], 422);
+        }
+        $data->update(['name' => trim($name)]);
+
+        return response()->json(['name' => $data->name]);
     }
 
     /** Update doc content (inline edit). PATCH body: { "content": "..." } or { "page": 1, "content": "..." } for multi-page. */
@@ -127,6 +148,7 @@ class DataViewController extends Controller
             }
         }
         $data->update(['digital_data' => $digital]);
+
         return response()->json(['content' => $content]);
     }
 

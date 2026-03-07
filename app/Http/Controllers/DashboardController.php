@@ -15,6 +15,12 @@ class DashboardController extends Controller
         return Inertia::render('Dashboard');
     }
 
+    /** Full data list page (search + pagination). */
+    public function dataPage(): Response
+    {
+        return Inertia::render('Data/Index');
+    }
+
     /** List data for dashboard (JSON). Paginated and searchable by name. Only current user's data. */
     public function dataIndex(Request $request): JsonResponse
     {
@@ -64,6 +70,7 @@ class DashboardController extends Controller
             abort(404);
         }
         $data->delete();
+
         return response()->json(['deleted' => true]);
     }
 }

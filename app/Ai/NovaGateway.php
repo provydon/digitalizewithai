@@ -5,9 +5,7 @@ namespace App\Ai;
 use Closure;
 use Generator;
 use Illuminate\Http\Client\PendingRequest;
-use Illuminate\Support\Collection;
 use Laravel\Ai\Contracts\Gateway\Gateway;
-use Laravel\Ai\Contracts\Gateway\TextGateway;
 use Laravel\Ai\Contracts\Providers\TextProvider;
 use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Gateway\TextGenerationOptions;
@@ -25,14 +23,20 @@ use Laravel\Ai\Streaming\Events\StreamStart;
 use Laravel\Ai\Streaming\Events\TextDelta;
 use Laravel\Ai\Streaming\Events\TextEnd;
 use Laravel\Ai\Streaming\Events\TextStart;
-use Laravel\Ai\Tools\Request as ToolRequest;
-use Throwable;
 
 /**
  * Gateway for Amazon Nova API (api.nova.amazon.com) using the Chat Completions endpoint.
  * Prism's OpenAI driver uses the Responses API (/v1/responses) which Nova does not support.
  *
+ * Fundamental limitation: Nova has no API-level structured output (no response_format/json_schema).
+ * Other providers (e.g. OpenAI) can enforce a JSON schema at the API, so the model is constrained
+ * to valid schema output. With Nova we only append schema as text in the system prompt; output
+ * remains free-form. That is why we need: (1) unwrapStructuredContent for markdown-wrapped JSON,
+ * (2) a Nova-specific agent with stricter table vs doc rules, and (3) explicit "extract verbatim"
+ * instructions—otherwise Nova may paraphrase, substitute placeholder text, or ignore structure.
+ *
  * @see https://nova.amazon.com/dev/documentation
+ * @see https://docs.aws.amazon.com/nova/latest/userguide/prompting-structured-output.html
  */
 class NovaGateway implements Gateway
 {
@@ -62,16 +66,24 @@ class NovaGateway implements Gateway
         ?TextGenerationOptions $options = null,
         ?int $timeout = null,
     ): TextResponse {
-        $instructions = $schema !== null
-            ? rtrim($instructions ?? '')."\n\nRespond with valid JSON only, no other text."
-            : $instructions;
-        $openAiMessages = $this->toOpenAiMessages($instructions, $messages);
-        $body = [
-            'model' => $model,
-            'messages' => $openAiMessages,
-            'max_tokens' => $options?->maxTokens ?? 4096,
-            'temperature' => $options?->temperature,
-        ];
+        if ($schema !== null) {
+            $instructions = rtrim($instructions ?? '')."\n\n".$this->structuredOutputSchemaPrompt($schema);
+            $openAiMessages = $this->toOpenAiMessages($instructions, $messages);
+            $body = [
+                'model' => $model,
+                'messages' => $openAiMessages,
+                'max_tokens' => $options?->maxTokens ?? 4096,
+                'temperature' => 0,
+            ];
+        } else {
+            $openAiMessages = $this->toOpenAiMessages($instructions, $messages);
+            $body = [
+                'model' => $model,
+                'messages' => $openAiMessages,
+                'max_tokens' => $options?->maxTokens ?? 4096,
+                'temperature' => $options?->temperature,
+            ];
+        }
         if (count($tools) > 0) {
             $body['tools'] = $this->toOpenAiTools($tools);
             $body['tool_choice'] = 'auto';
@@ -100,8 +112,12 @@ class NovaGateway implements Gateway
         if ($schema !== null) {
             $structured = json_decode($content, true);
             if (! is_array($structured)) {
+                $structured = $this->unwrapStructuredContent($content);
+            }
+            if (! is_array($structured)) {
                 $structured = ['content' => $content];
             }
+
             return (new StructuredTextResponse($structured, $content, $usageObj, $meta))
                 ->withMessages(collect([new AssistantMessage($content)]));
         }
@@ -195,6 +211,83 @@ class NovaGateway implements Gateway
     }
 
     /**
+     * When Nova returns "```json\n{...}\n```" as the raw content, unwrap and return the inner object.
+     * Uses brace matching so content that contains "}" or "```" is handled correctly.
+     *
+     * @return array<string, mixed>|null
+     */
+    protected function unwrapStructuredContent(string $content): ?array
+    {
+        $stripped = preg_replace('/^\s*```(?:json)?\s*/i', '', $content);
+        $start = strpos($stripped, '{');
+        if ($start === false) {
+            return null;
+        }
+        $depth = 0;
+        $inString = false;
+        $escape = false;
+        $len = strlen($stripped);
+        for ($i = $start; $i < $len; $i++) {
+            $c = $stripped[$i];
+            if ($escape) {
+                $escape = false;
+
+                continue;
+            }
+            if ($c === '\\' && $inString) {
+                $escape = true;
+
+                continue;
+            }
+            if ($c === '"') {
+                $inString = ! $inString;
+
+                continue;
+            }
+            if (! $inString) {
+                if ($c === '{') {
+                    $depth++;
+                } elseif ($c === '}') {
+                    $depth--;
+                    if ($depth === 0) {
+                        $json = substr($stripped, $start, $i - $start + 1);
+                        $decoded = json_decode($json, true);
+
+                        return is_array($decoded) && isset($decoded['type'], $decoded['content']) ? $decoded : null;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Build explicit output-schema text for Nova when structured output is requested.
+     * Nova does not receive the schema in the API; adding it to the system prompt
+     * improves adherence (see https://docs.aws.amazon.com/nova/latest/userguide/prompting-structured-output.html).
+     *
+     * @param  array<string, mixed>  $schema
+     */
+    protected function structuredOutputSchemaPrompt(array $schema): string
+    {
+        $keys = array_keys($schema);
+        if (count($keys) === 0) {
+            return 'Respond with valid JSON only, no other text or preamble.';
+        }
+
+        $lines = [
+            'Output only a single JSON object. Do not include any preamble, markdown fences, or text before or after the JSON.',
+            'Required keys: "type" (must be the string "doc" or "table"), "content" (string).',
+            'Use type "table" for any repeated list with columns: e.g. state + abbreviation, name + value, key + value, product + price. Each such list MUST have type "table" and content MUST be a JSON string of {"headers": ["Col1", "Col2", ...], "rows": [["a", "b"], ...]}. Do not use type "doc" for lists that have a column structure.',
+            'Use type "doc" only for continuous prose or paragraphs, not for columnar lists.',
+            'Optional keys: "table_row_count" (integer), "doc_page_count" (integer), "doc_pages" (array of strings), "suggested_prompts" (array of strings), "insights" (array of strings).',
+        ];
+
+        return implode("\n", $lines);
+    }
+
+    /**
      * @return array<int, array{role: string, content: string}>
      */
     protected function toOpenAiMessages(?string $instructions, array $messages): array
@@ -230,6 +323,7 @@ class NovaGateway implements Gateway
                 }
             }
         }
+
         return $out;
     }
 
@@ -266,6 +360,7 @@ class NovaGateway implements Gateway
                 ],
             ];
         }
+
         return $out;
     }
 

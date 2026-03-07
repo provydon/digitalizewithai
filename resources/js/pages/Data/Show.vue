@@ -16,6 +16,7 @@ import { Head, Link } from '@inertiajs/vue3';
 import {
     BarChart3,
     FileJson,
+    FileOutput,
     FileSpreadsheet,
     FileText,
     MessageSquare,
@@ -47,6 +48,8 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { Chart } from 'vue-chartjs';
+import autoTable from 'jspdf-autotable';
+import { jsPDF } from 'jspdf';
 import * as XLSX from 'xlsx';
 import AppLayout from '@/layouts/AppLayout.vue';
 import api from '@/lib/api';
@@ -90,19 +93,30 @@ type DataRecord = {
 
 type Props = {
     id: number;
+    /** Where the user came from: 'dashboard' | 'data' (for breadcrumbs and back link) */
+    from?: 'dashboard' | 'data';
 };
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+    from: 'dashboard',
+});
 
 const record = ref<DataRecord | null>(null);
 const loading = ref(true);
 const error = ref<string | null>(null);
 const activeTab = ref('data');
 
-const breadcrumbs = computed<BreadcrumbItem[]>(() => [
-    { title: 'Dashboard', href: dashboard() },
-    { title: record.value?.name ?? '…', href: '#' },
-]);
+const breadcrumbs = computed<BreadcrumbItem[]>(() => {
+    const items: BreadcrumbItem[] = [{ title: 'Dashboard', href: dashboard() }];
+    if (props.from === 'data') {
+        items.push({ title: 'Data', href: '/data' });
+    }
+    items.push({ title: record.value?.name ?? '…', href: '#' });
+    return items;
+});
+
+const backHref = computed(() => (props.from === 'data' ? '/data' : dashboard()));
+const backLabel = computed(() => (props.from === 'data' ? 'Back to Data' : 'Back to dashboard'));
 
 onMounted(async () => {
     try {
@@ -200,6 +214,42 @@ const docEditing = ref(false);
 const docEditContent = ref('');
 const docEditSaving = ref(false);
 const docEditError = ref<string | null>(null);
+
+// —— Edit data name (title) ——
+const nameEditing = ref(false);
+const nameEditValue = ref('');
+const nameEditSaving = ref(false);
+const nameEditError = ref<string | null>(null);
+
+function startNameEdit() {
+    if (!record.value) return;
+    nameEditError.value = null;
+    nameEditValue.value = record.value.name;
+    nameEditing.value = true;
+}
+
+function cancelNameEdit() {
+    nameEditing.value = false;
+    nameEditValue.value = '';
+    nameEditError.value = null;
+}
+
+async function saveNameEdit() {
+    const name = nameEditValue.value.trim();
+    if (!record.value || !name) return;
+    nameEditSaving.value = true;
+    nameEditError.value = null;
+    try {
+        const { data } = await api.patch<{ name: string }>(`/dashboard/api/data/${record.value.id}`, { name });
+        if (record.value) record.value.name = data.name;
+        cancelNameEdit();
+    } catch (e: unknown) {
+        const err = e as { response?: { data?: { message?: string } }; message?: string };
+        nameEditError.value = err.response?.data?.message ?? err.message ?? 'Failed to save name';
+    } finally {
+        nameEditSaving.value = false;
+    }
+}
 
 function startDocEdit() {
     docEditError.value = null;
@@ -745,6 +795,73 @@ function exportToJson() {
     URL.revokeObjectURL(url);
 }
 
+function exportToPdf(docContentOverride?: string) {
+    if (!record.value) return;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const name = record.value.name || 'export';
+    const title = name.slice(0, 80);
+
+    if (isTableData.value) {
+        const t = tableData.value;
+        if (!t?.headers?.length) return;
+        const headers = t.headers as string[];
+        const rows = (t.rows ?? []).map((row: unknown[]) =>
+            (row ?? []).map((cell) => (cell != null ? String(cell) : '')),
+        );
+        doc.setFontSize(14);
+        doc.text(title, 14, 16);
+        autoTable(doc, {
+            head: [headers],
+            body: rows,
+            startY: 22,
+            styles: { fontSize: 9 },
+            headStyles: { fillColor: [100, 100, 100] },
+        });
+    } else if (isDocData.value) {
+        const content = docContentOverride ?? docContent.value ?? '';
+        if (content) {
+            doc.setFontSize(14);
+            doc.text(title, 14, 16);
+            const pageWidth = doc.internal.pageSize.getWidth() - 28;
+            const lines = doc.splitTextToSize(content, pageWidth);
+            doc.setFontSize(10);
+            let y = 24;
+            for (const line of lines) {
+                if (y > doc.internal.pageSize.getHeight() - 20) {
+                    doc.addPage();
+                    y = 20;
+                }
+                doc.text(line, 14, y);
+                y += 6;
+            }
+        } else {
+            doc.setFontSize(14);
+            doc.text(title, 14, 20);
+            doc.setFontSize(10);
+            doc.text('(Content loaded on demand — use Export to Doc for full text.)', 14, 30);
+        }
+    } else {
+        doc.setFontSize(14);
+        doc.text(title, 14, 20);
+        doc.setFontSize(10);
+        doc.text('No content to export as PDF.', 14, 30);
+    }
+
+    doc.save(`${name}.pdf`);
+}
+
+async function exportToPdfAsync() {
+    if (!record.value) return;
+    if (isDocData.value && isMultiPageDoc.value) {
+        const { data } = await api.get<{ content: string }>(
+            `/dashboard/api/data/${record.value.id}/doc-content`,
+        );
+        exportToPdf(data.content ?? '');
+    } else {
+        exportToPdf();
+    }
+}
+
 // —— Charts (AI-suggested, table only) ——
 const chartRequest = ref('');
 const showSpecificChartRequest = ref(false);
@@ -870,6 +987,7 @@ const canChart = computed(
         (tableData.value.rows?.length ?? 0) > 0,
 );
 const canExportExcel = computed(() => !!tableData.value && !!record.value);
+const canExportPdf = computed(() => (!!tableData.value || isDocData.value) && !!record.value);
 </script>
 
 <template>
@@ -880,10 +998,10 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
         <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl px-3 py-4 sm:p-4">
             <div class="flex items-center gap-4">
                 <Link
-                    :href="dashboard()"
+                    :href="backHref"
                     class="min-h-[44px] shrink-0 py-2 text-sm text-muted-foreground underline-offset-4 hover:underline sm:min-h-0"
                 >
-                    ← Back to dashboard
+                    ← {{ backLabel }}
                 </Link>
             </div>
 
@@ -892,14 +1010,60 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                 class="min-w-0 rounded-xl border border-sidebar-border/70 bg-card shadow-sm dark:border-sidebar-border"
             >
                 <div class="border-b border-sidebar-border/70 px-3 pt-4 dark:border-sidebar-border sm:px-4">
-                    <h1 class="mb-2 truncate text-lg font-semibold text-foreground sm:text-xl">
-                        {{ record.name }}
-                    </h1>
-                    <p
-                        v-if="record.created_at"
-                        class="mb-4 text-sm text-muted-foreground"
-                    >
-                        Created {{ new Date(record.created_at).toLocaleString() }}
+                    <div class="mb-2 flex min-w-0 items-center gap-1.5">
+                        <template v-if="!nameEditing">
+                            <h1
+                                class="min-w-0 truncate text-lg font-semibold text-foreground sm:text-xl"
+                                @dblclick="startNameEdit"
+                            >
+                                {{ record.name }}
+                            </h1>
+                            <button
+                                type="button"
+                                class="shrink-0 rounded p-1 text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                                title="Edit name"
+                                aria-label="Edit name"
+                                @click="startNameEdit"
+                            >
+                                <Pencil class="h-3.5 w-3.5" />
+                            </button>
+                        </template>
+                        <template v-else>
+                            <input
+                                v-model="nameEditValue"
+                                type="text"
+                                class="min-w-0 flex-1 rounded-lg border border-border bg-background px-2 py-1 text-lg font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-ring sm:text-xl"
+                                placeholder="Name"
+                                @keydown.enter.prevent="saveNameEdit()"
+                                @keydown.escape.prevent="cancelNameEdit()"
+                            />
+                            <Button
+                                size="sm"
+                                class="shrink-0"
+                                :disabled="nameEditSaving || !nameEditValue.trim()"
+                                @click="saveNameEdit"
+                            >
+                                {{ nameEditSaving ? '…' : 'Save' }}
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="secondary"
+                                class="shrink-0"
+                                :disabled="nameEditSaving"
+                                @click="cancelNameEdit"
+                            >
+                                Cancel
+                            </Button>
+                        </template>
+                    </div>
+                    <p v-if="nameEditError" class="mb-1 text-sm text-destructive">
+                        {{ nameEditError }}
+                    </p>
+                    <p class="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                        <span class="font-mono">ID: {{ record.id }}</span>
+                        <span v-if="record.created_at">
+                            Created {{ new Date(record.created_at).toLocaleString() }}
+                        </span>
                     </p>
 
                     <TabsRoot v-model="activeTab" class="w-full">
@@ -950,8 +1114,8 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                             <input
                                                 v-model="docSearch"
                                                 type="search"
-                                                placeholder="Search for anything.."
-                                                class="w-full rounded-lg border border-sidebar-border/70 bg-background py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring dark:border-sidebar-border"
+                                                placeholder="Search for anything in the document"
+                                                class="w-full rounded-lg border-2 border-border bg-background py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-primary dark:border-sidebar-border dark:focus:border-primary"
                                             />
                                         </div>
                                         <div
@@ -982,10 +1146,11 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                             <button
                                                 v-if="!docEditing"
                                                 type="button"
-                                                class="rounded p-1.5 text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                                                class="inline-flex items-center gap-1.5 rounded border border-border px-2 py-1.5 text-sm text-muted-foreground hover:bg-muted/50 hover:text-foreground dark:border-sidebar-border"
                                                 title="Edit"
                                                 @click="startDocEdit"
                                             >
+                                                Edit
                                                 <Pencil class="h-3.5 w-3.5" />
                                             </button>
                                             <Tooltip
@@ -995,9 +1160,10 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                                 <TooltipTrigger as-child>
                                                     <button
                                                         type="button"
-                                                        class="rounded p-1.5 text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                                                        class="inline-flex items-center gap-1.5 rounded border border-border px-2 py-1.5 text-sm text-muted-foreground hover:bg-muted/50 hover:text-foreground dark:border-sidebar-border"
                                                         @click="copyDocToClipboard"
                                                     >
+                                                        Copy
                                                         <Copy class="h-3.5 w-3.5" />
                                                     </button>
                                                 </TooltipTrigger>
@@ -1066,8 +1232,8 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                             <input
                                                 v-model="tableSearch"
                                                 type="search"
-                                                placeholder="Search for anything.."
-                                                class="w-full rounded-lg border border-gray-300 bg-gray-50 py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-0"
+                                                placeholder="Search for anything in the table"
+                                                class="w-full rounded-lg border-2 border-gray-400 bg-gray-50 py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary focus:ring-offset-0"
                                             />
                                         </div>
                                         <span
@@ -1093,9 +1259,10 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                                 <TooltipTrigger as-child>
                                                     <button
                                                         type="button"
-                                                        class="rounded p-1.5 text-gray-500 hover:bg-gray-200 hover:text-gray-900"
+                                                        class="inline-flex items-center gap-1.5 rounded border border-gray-300 px-2 py-1.5 text-sm text-gray-500 hover:bg-gray-200 hover:text-gray-900"
                                                         @click="copyTableToClipboard"
                                                     >
+                                                        Copy
                                                         <Copy class="h-3.5 w-3.5" />
                                                     </button>
                                                 </TooltipTrigger>
@@ -1208,38 +1375,7 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                     ref="chatScrollRef"
                                     class="flex flex-1 flex-col gap-3 overflow-y-auto rounded-lg py-2"
                                 >
-                                    <template v-if="messages.length === 0">
-                                        <p class="px-2 py-4 text-center text-sm text-muted-foreground">
-                                            Ask anything about this data. Type below or try a suggestion.
-                                        </p>
-                                        <div
-                                            v-if="suggestedPrompts.length > 0"
-                                            class="flex flex-wrap justify-center gap-2 px-2 pb-2"
-                                        >
-                                            <button
-                                                v-for="(p, i) in suggestedPrompts"
-                                                :key="i"
-                                                type="button"
-                                                class="inline-flex items-center rounded-lg border border-border bg-muted/50 px-3 py-1.5 text-left text-sm text-foreground transition-colors hover:bg-muted hover:border-primary/50"
-                                                @click="askAi(p)"
-                                            >
-                                                {{ p }}
-                                            </button>
-                                        </div>
-                                        <div
-                                            v-if="insights.length > 0"
-                                            class="mx-2 mt-2 flex flex-wrap justify-center gap-1.5 border-t border-border/60 pt-3"
-                                        >
-                                            <span
-                                                v-for="(insight, i) in insights"
-                                                :key="i"
-                                                class="rounded-md bg-muted/40 px-2 py-1 text-xs text-muted-foreground"
-                                            >
-                                                {{ insight }}
-                                            </span>
-                                        </div>
-                                    </template>
-                                    <template v-else>
+                                    <template v-if="messages.length > 0">
                                         <div
                                             v-for="(msg, i) in messages"
                                             :key="i"
@@ -1276,11 +1412,44 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                         </div>
                                     </template>
                                 </div>
-                                <div class="mt-3 shrink-0 space-y-1">
-                                    <div class="flex flex-col gap-2 sm:flex-row">
+                                <div class="mt-4 shrink-0 space-y-4 sm:mt-3 sm:space-y-3">
+                                    <template v-if="messages.length === 0">
+                                        <p class="hidden px-2 pt-1 pb-2 text-center text-sm text-muted-foreground sm:block sm:pb-1">
+                                            Ask anything about
+                                            <span class="inline-block font-bold text-lg text-foreground">{{ record?.name ?? 'this data' }}</span>
+                                            . Type below or click a suggestion below.
+                                        </p>
+                                        <div
+                                            v-if="suggestedPrompts.length > 0"
+                                            class="flex flex-wrap justify-center gap-1.5 px-1 py-1.5 sm:gap-2.5 sm:px-2 sm:py-2"
+                                        >
+                                            <button
+                                                v-for="(p, i) in suggestedPrompts"
+                                                :key="i"
+                                                type="button"
+                                                class="inline-flex cursor-pointer items-center rounded border border-gray-300 bg-muted/50 px-2 py-1 text-[11px] leading-tight text-foreground transition-colors hover:bg-muted hover:border-primary/50 dark:border-gray-600 dark:hover:border-primary/50 sm:rounded-lg sm:border-2 sm:px-3 sm:py-1.5 sm:text-sm"
+                                                @click="askAi(p)"
+                                            >
+                                                {{ p }}
+                                            </button>
+                                        </div>
+                                        <div
+                                            v-if="insights.length > 0"
+                                            class="hidden sm:mx-2 sm:flex sm:flex-wrap sm:justify-center sm:gap-1.5 sm:border-t sm:border-border/60 sm:pt-3 sm:pb-1"
+                                        >
+                                            <span
+                                                v-for="(insight, i) in insights"
+                                                :key="i"
+                                                class="rounded-md bg-muted/40 px-2 py-1 text-xs text-muted-foreground"
+                                            >
+                                                {{ insight }}
+                                            </span>
+                                        </div>
+                                    </template>
+                                    <div class="flex flex-col gap-3 pt-1 sm:gap-2 sm:pt-0">
                                         <textarea
                                             v-model="question"
-                                            class="min-h-[44px] w-full flex-1 rounded-lg border border-sidebar-border/70 bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring dark:border-sidebar-border"
+                                            class="min-h-[44px] w-full flex-1 rounded-lg border-2 border-gray-300 bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring dark:border-gray-600"
                                             placeholder="Ask about this data..."
                                             rows="1"
                                             @keydown.enter.exact.prevent="askAi()"
@@ -1307,7 +1476,7 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                 <div class="flex flex-wrap items-center gap-2">
                                     <button
                                         type="button"
-                                        class="inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-sidebar-border/70 px-3 py-2 text-sm font-medium text-foreground hover:bg-muted/60 dark:border-sidebar-border sm:min-h-0"
+                                        class="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-lg border-2 border-gray-300 px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted/60 hover:border-gray-400 dark:border-gray-600 dark:hover:border-gray-500 sm:min-h-0"
                                         :class="showSpecificChartRequest ? 'bg-muted/50' : 'bg-transparent'"
                                         @click="showSpecificChartRequest = !showSpecificChartRequest"
                                     >
@@ -1400,6 +1569,16 @@ const canExportExcel = computed(() => !!tableData.value && !!record.value);
                                     >
                                         <FileText class="h-4 w-4 shrink-0" />
                                         Export to Doc
+                                    </button>
+                                    <button
+                                        v-if="isTableData || isDocData"
+                                        type="button"
+                                        class="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg border border-sidebar-border/70 bg-muted/30 px-3 py-2.5 text-sm font-medium text-foreground hover:bg-muted/60 dark:border-sidebar-border disabled:opacity-50 sm:w-auto sm:py-2"
+                                        :disabled="!canExportPdf"
+                                        @click="exportToPdfAsync"
+                                    >
+                                        <FileOutput class="h-4 w-4 shrink-0" />
+                                        Export as PDF
                                     </button>
                                 </div>
                                 <p

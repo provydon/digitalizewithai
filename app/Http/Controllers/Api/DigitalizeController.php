@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Ai\Agents\DigitalizeAgent;
+use App\Ai\Agents\DigitalizeAgentNova;
 use App\Http\Controllers\Controller;
 use App\Models\Data;
 use Illuminate\Http\JsonResponse;
@@ -83,17 +84,25 @@ class DigitalizeController extends Controller
             ? Image::fromBase64($base64, $mimeType)
             : Document::fromBase64($base64, $mimeType);
 
-        $agent = new DigitalizeAgent;
+        $agent = $this->digitalizeAgent();
         $response = $agent->prompt(
             'Extract all content from this image or video (e.g. handwritten or printed text, tables). Return structured JSON with type (doc or table) and content as described in your instructions.',
             attachments: [$attachment],
         );
+        $response = $this->digitalizeResponseToArray($response);
+
+        if (config('ai.default') === 'nova') {
+            $response = $this->normalizeDigitalizeResponse($response);
+        }
 
         $type = $response['type'] ?? 'doc';
         $content = $response['content'] ?? '';
+        if ($type === 'table' && is_array($content)) {
+            $content = json_encode($content);
+        }
         $digitalData = [
             'type' => $type,
-            'content' => $content,
+            'content' => is_string($content) ? $content : (string) json_encode($content),
         ];
         if ($type === 'table' && isset($response['table_row_count'])) {
             $digitalData['table_row_count'] = (int) $response['table_row_count'];
@@ -197,11 +206,16 @@ class DigitalizeController extends Controller
             ? Image::fromBase64($base64, $mimeType)
             : Document::fromBase64($base64, $mimeType);
 
-        $agent = new DigitalizeAgent;
+        $agent = $this->digitalizeAgent();
         $response = $agent->prompt(
             'Extract all content from this image or video (e.g. handwritten or printed text, tables). Return structured JSON with type (doc or table) and content as described in your instructions.',
             attachments: [$attachment],
         );
+        $response = $this->digitalizeResponseToArray($response);
+
+        if (config('ai.default') === 'nova') {
+            $response = $this->normalizeDigitalizeResponse($response);
+        }
 
         $type = $response['type'] ?? 'doc';
         if ($type !== 'table') {
@@ -291,6 +305,54 @@ class DigitalizeController extends Controller
             'created_at' => $data->created_at,
             'updated_at' => $data->updated_at,
         ]);
+    }
+
+    /**
+     * Ensure the agent response is an array (Nova returns StructuredAgentResponse).
+     *
+     * @param  array<string, mixed>|object  $response
+     * @return array<string, mixed>
+     */
+    private function digitalizeResponseToArray(array|object $response): array
+    {
+        if (is_array($response)) {
+            return $response;
+        }
+
+        return method_exists($response, 'toArray') ? $response->toArray() : (array) $response;
+    }
+
+    /**
+     * Unwrap response when Nova puts the full JSON inside the content field (e.g. "```json\n{...}\n```").
+     * Only called when ai.default is nova so other providers are never affected.
+     *
+     * @param  array<string, mixed>  $response
+     * @return array<string, mixed>
+     */
+    private function normalizeDigitalizeResponse(array $response): array
+    {
+        $content = $response['content'] ?? '';
+        if (! is_string($content) || $content === '') {
+            return $response;
+        }
+        $stripped = preg_replace('/^\s*```(?:json)?\s*/i', '', $content);
+        $stripped = preg_replace('/\s*```\s*$/', '', trim($stripped));
+        $decoded = json_decode($stripped, true);
+        if (! is_array($decoded) || ! isset($decoded['type'], $decoded['content'])) {
+            return $response;
+        }
+
+        return array_merge($response, $decoded);
+    }
+
+    /**
+     * Resolve the digitalize agent: Nova-specific agent when default provider is Nova, else default agent.
+     */
+    private function digitalizeAgent(): DigitalizeAgent|DigitalizeAgentNova
+    {
+        return config('ai.default') === 'nova'
+            ? new DigitalizeAgentNova
+            : new DigitalizeAgent;
     }
 
     /**

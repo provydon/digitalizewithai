@@ -2,8 +2,6 @@
 
 namespace App\Ai;
 
-use Illuminate\Contracts\Events\Dispatcher;
-use Laravel\Ai\Contracts\Gateway\Gateway;
 use Laravel\Ai\Contracts\Providers\TextProvider;
 use Laravel\Ai\Providers\Concerns\GeneratesText;
 use Laravel\Ai\Providers\Concerns\HasTextGateway;

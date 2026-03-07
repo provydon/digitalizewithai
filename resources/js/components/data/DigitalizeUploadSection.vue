@@ -178,7 +178,7 @@ onMounted(() => {
             class="upload-card mt-4 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6"
         >
             <p class="mb-4 text-sm text-muted-foreground">
-                Add a photo or video — we’ll extract the text or table and name it for you.
+                Add a photo or video — we’ll extract the text or table and save it as an item in your workspace. You can edit it, chart it, and ask AI to change it anytime.
             </p>
             <div v-if="providerOptions.length > 0" class="mb-4 w-full">
                 <Label for="upload-ai-provider" class="text-xs font-medium text-muted-foreground">AI provider</Label>
@@ -245,7 +245,7 @@ onMounted(() => {
                     :disabled="!pendingFile || uploadLoading"
                     @click="startUpload"
                 >
-                    {{ pendingFile ? 'Extract & add' : 'Upload' }}
+                    {{ pendingFile ? 'Extract & save' : 'Upload' }}
                 </Button>
                 <span v-if="!pendingFile" class="text-xs text-muted-foreground">
                     Tip: Multiple pages? One photo per page or pause 1–2 sec per page in video.

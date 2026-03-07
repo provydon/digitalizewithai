@@ -38,6 +38,10 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'name' => config('app.name'),
+            'branding' => [
+                'name' => config('branding.name'),
+                'ai_attribution' => trim((string) (config('branding.ai_attribution') ?? '')) ?: null,
+            ],
             'auth' => [
                 'user' => $request->user(),
             ],

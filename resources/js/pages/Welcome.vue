@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
 import { dashboard, login, register } from '@/routes';
+import { computed } from 'vue';
 
 withDefaults(
     defineProps<{
@@ -10,10 +11,19 @@ withDefaults(
         canRegister: true,
     },
 );
+
+const page = usePage();
+const branding = computed(() => (page.props.branding as { name: string; ai_attribution: string | null }) ?? { name: 'Digitalize with AI', ai_attribution: 'Amazon Nova' });
+const aiName = computed(() => branding.value.ai_attribution ?? 'AI');
+const pageTitle = computed(() =>
+    branding.value.ai_attribution
+        ? `${branding.value.name} — ${branding.value.ai_attribution}`
+        : branding.value.name,
+);
 </script>
 
 <template>
-    <Head title="Digitalize with AI — Amazon Nova">
+    <Head :title="pageTitle">
         <link rel="preconnect" href="https://rsms.me/" />
         <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
     </Head>
@@ -28,8 +38,9 @@ withDefaults(
                     :href="$page.props.auth.user ? dashboard() : '/'"
                     class="flex items-center gap-3"
                 >
-                    <!-- Amazon Nova logo -->
+                    <!-- AI partner logo (e.g. Amazon Nova for hackathon) -->
                     <svg
+                        v-if="branding.ai_attribution"
                         role="img"
                         class="h-8 w-auto text-foreground"
                         viewBox="0 0 179 32"
@@ -37,7 +48,7 @@ withDefaults(
                         xmlns="http://www.w3.org/2000/svg"
                         aria-labelledby="logo-title"
                     >
-                        <title id="logo-title">Amazon Nova</title>
+                        <title id="logo-title">{{ branding.ai_attribution }}</title>
                         <path
                             d="M41.1172 23.625C40.8609 23.625 40.7328 23.5264 40.7328 23.3293C40.7328 23.2534 40.7479 23.17 40.7781 23.079C40.8081 22.988 40.8383 22.897 40.8685 22.806L46.1587 8.4735C46.234 8.246 46.317 8.08675 46.4074 7.99575C46.4979 7.90475 46.6712 7.85925 46.9274 7.85925H48.3291C48.5852 7.85925 48.7587 7.90475 48.8491 7.99575C48.9395 8.08675 49.0224 8.246 49.0978 8.4735L54.388 22.806C54.4181 22.897 54.4483 22.988 54.4785 23.079C54.5085 23.17 54.5237 23.2534 54.5237 23.3293C54.5237 23.5264 54.3955 23.625 54.1393 23.625H52.8507C52.5944 23.625 52.4211 23.5795 52.3307 23.4885C52.2403 23.3975 52.1573 23.2383 52.082 23.0108L50.8386 19.439H44.3501L43.1519 23.0108C43.0765 23.2383 42.9936 23.3975 42.9032 23.4885C42.8128 23.5795 42.6394 23.625 42.3832 23.625H41.1172ZM44.9605 17.6873H50.2508L47.583 9.95225L44.9605 17.6873Z"
                             fill="currentColor"
@@ -113,7 +124,7 @@ withDefaults(
                         </defs>
                     </svg>
                     <span class="text-sm font-medium text-muted-foreground">
-                        Digitalize with AI
+                        {{ branding.name }}
                     </span>
                 </Link>
                 <div class="flex items-center gap-3">
@@ -146,19 +157,26 @@ withDefaults(
         <main class="flex-1 px-6 pb-20 lg:px-12">
             <!-- Hero -->
             <section class="mx-auto max-w-5xl pt-16 text-center lg:pt-24">
-                <p class="mb-3 text-sm font-medium uppercase tracking-wider text-primary">
-                    Powered by Amazon Nova
+                <p v-if="branding.ai_attribution" class="mb-3 text-sm font-medium uppercase tracking-wider text-primary">
+                    Powered by {{ branding.ai_attribution }}
                 </p>
                 <h1 class="mb-4 text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
-                    Digitalize with AI
+                    {{ branding.name }}
                 </h1>
                 <p class="mx-auto max-w-2xl text-lg text-muted-foreground lg:text-xl">
-                    Turn Physical books, notes, documents, logs, records and tables into
-                    editable and exportable digital content and get actionable insights with AI—using Amazon Nova.
+                    Turn <strong class="text-foreground">physical</strong> books, notes, documents, logs, records and tables into digital content—then:
+                </p>
+                <ul class="mx-auto mt-2 max-w-2xl list-inside list-disc text-left text-lg text-muted-foreground lg:text-xl [&_strong]:text-foreground">
+                    <li><strong>Search</strong> through your data and ask AI anything about it</li>
+                    <li>Get <strong>metrics and trends</strong></li>
+                    <li><strong>Edit and export</strong> to Excel, PDF, and more</li>
+                    <li>Take <strong>Agentic AI Actions</strong> on your data</li>
+                </ul>
+                <p class="mx-auto mt-2 max-w-2xl text-lg text-muted-foreground lg:text-xl">
+                    <strong class="text-foreground">Physical</strong> paper, handwritten logs, books, medical records—nearly impossible to search, get metrics from, or export. <strong class="text-foreground">Until now.</strong>
                 </p>
                 <p class="mx-auto mt-3 max-w-xl text-sm text-muted-foreground">
-                    Upload an image or record a video. Nova’s multimodal AI extracts the content and gives you
-                    clean text or structured tables you can view, edit, and build on.
+                    Upload a photo or video of your <strong class="text-foreground">physical</strong> source. We extract the content; you get clean text or tables you can view, edit, chart, chat with and export.
                 </p>
                 <div v-if="!$page.props.auth.user" class="mt-10 flex flex-wrap justify-center gap-4">
                     <Link
@@ -187,119 +205,12 @@ withDefaults(
             <!-- What it does -->
             <section class="mx-auto max-w-5xl pt-20 lg:pt-28">
                 <h2 class="mb-10 text-center text-2xl font-semibold text-foreground lg:text-3xl">
-                    What you can do
+                    From <strong>physical</strong> to digital—a data workspace
                 </h2>
                 <div
                     class="grid gap-8 rounded-2xl border border-border bg-card p-8 lg:grid-cols-2 lg:gap-12 lg:p-12"
                 >
-                    <div class="flex gap-4">
-                        <span
-                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
-                            aria-hidden
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-                            </svg>
-                        </span>
-                        <div>
-                            <h3 class="mb-1 font-semibold text-foreground">
-                                Upload & extract
-                            </h3>
-                            <p class="text-sm leading-relaxed text-muted-foreground">
-                                Upload a photo or record a video from your device or camera. Amazon Nova detects whether the content is a document (prose, notes) or a table and returns structured text or rows you can use right away.
-                            </p>
-                        </div>
-                    </div>
-                    <div class="flex gap-4">
-                        <span
-                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
-                            aria-hidden
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                            </svg>
-                        </span>
-                        <div>
-                            <h3 class="mb-1 font-semibold text-foreground">
-                                Documents
-                            </h3>
-                            <p class="text-sm leading-relaxed text-muted-foreground">
-                                View extracted text as clean, readable content. Edit inline, copy to clipboard, and ask Nova questions about your document. Multi-page docs are supported.
-                            </p>
-                        </div>
-                    </div>
-                    <div class="flex gap-4">
-                        <span
-                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
-                            aria-hidden
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 01-1.125-1.125M3.375 19.5h7.5c.621 0 1.125-.504 1.125-1.125m-9.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-7.5A1.125 1.125 0 0112 18.375m9.75-12.75c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125m19.5 0v1.5c0 .621-.504 1.125-1.125 1.125M2.25 5.625v1.5c0 .621.504 1.125 1.125 1.125M12 18.375v-1.5m0 1.5c0 .621.504 1.125 1.125 1.125M12 12.375v-1.5m0 1.5c0 .621.504 1.125 1.125 1.125m0 0h7.5m-7.5 0c.621 0 1.125.504 1.125 1.125M12 21.375v-1.5m0 1.5c0 .621.504 1.125 1.125 1.125m0 0h7.5m-7.5 0c.621 0 1.125.504 1.125 1.125m0 0v-1.5m0 1.5v-1.5m0 1.5V21m0 0h7.5m-7.5 0h7.5" />
-                    </svg>
-                        </span>
-                        <div>
-                            <h3 class="mb-1 font-semibold text-foreground">
-                                Tables
-                            </h3>
-                            <p class="text-sm leading-relaxed text-muted-foreground">
-                                See extracted data as a proper table with headers and rows. Edit cells, add rows manually, or add rows by uploading another photo or video—new data is appended. Search and paginate large datasets.
-                            </p>
-                        </div>
-                    </div>
-                    <div class="flex gap-4">
-                        <span
-                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
-                            aria-hidden
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
-                            </svg>
-                        </span>
-                        <div>
-                            <h3 class="mb-1 font-semibold text-foreground">
-                                Powered by Amazon Nova
-                            </h3>
-                            <p class="text-sm leading-relaxed text-muted-foreground">
-                                Extraction and understanding use Amazon Nova’s multimodal AI so you get accurate text and structured tables from handwritten or printed sources—including from video frames.
-                            </p>
-                        </div>
-                    </div>
-                    <div class="flex gap-4">
-                        <span
-                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
-                            aria-hidden
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 001.5-.189m-1.5.189a6.01 6.01 0 01-1.5-.189m3.75 7.478a12.06 12.06 0 01-4.5 0m3.75 2.383a14.406 14.406 0 01-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 10-7.517 0c.85.493 1.509 1.333 1.509 2.316V18" />
-                            </svg>
-                        </span>
-                        <div>
-                            <h3 class="mb-1 font-semibold text-foreground">
-                                Get insights with AI
-                            </h3>
-                            <p class="text-sm leading-relaxed text-muted-foreground">
-                                Ask Nova questions about your documents and tables. Get summaries, key points, trends, and actionable insights from your digitalized content.
-                            </p>
-                        </div>
-                    </div>
-                    <div class="flex gap-4">
-                        <span
-                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
-                            aria-hidden
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
-                            </svg>
-                        </span>
-                        <div>
-                            <h3 class="mb-1 font-semibold text-foreground">
-                                Generate charts
-                            </h3>
-                            <p class="text-sm leading-relaxed text-muted-foreground">
-                                Turn table data into visual charts with AI. Nova suggests the best chart types and helps you visualize trends, comparisons, and distributions at a glance.
-                            </p>
-                        </div>
-                    </div>
+                    <!-- 1. Search (lead value) -->
                     <div class="flex gap-4">
                         <span
                             class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
@@ -311,13 +222,52 @@ withDefaults(
                         </span>
                         <div>
                             <h3 class="mb-1 font-semibold text-foreground">
-                                Search with AI
+                                Search through your data
                             </h3>
                             <p class="text-sm leading-relaxed text-muted-foreground">
-                                Search across your documents and table rows. Use natural language or keywords—Nova helps you find exactly what you need in your digitalized content.
+                                You can’t Ctrl+F a <strong>physical</strong> notebook. <strong>Search across all your items</strong>—every doc and table—in one place. Find what you need without digging through paper or files.
                             </p>
                         </div>
                     </div>
+                    <!-- 2. Chat with data -->
+                    <div class="flex gap-4">
+                        <span
+                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
+                            aria-hidden
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 001.5-.189m-1.5.189a6.01 6.01 0 01-1.5-.189m3.75 7.478a12.06 12.06 0 01-4.5 0m3.75 2.383a14.406 14.406 0 01-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 10-7.517 0c.85.493 1.509 1.333 1.509 2.316V18" />
+                            </svg>
+                        </span>
+                        <div>
+                            <h3 class="mb-1 font-semibold text-foreground">
+                                Chat with your data
+                            </h3>
+                            <p class="text-sm leading-relaxed text-muted-foreground">
+                                Ask AI anything about each doc or table—insights, summaries, trends. Conversations are <strong>tied to that item</strong>; save them and return later.
+                            </p>
+                        </div>
+                    </div>
+                    <!-- 3. Take action with AI -->
+                    <div class="flex gap-4">
+                        <span
+                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
+                            aria-hidden
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
+                            </svg>
+                        </span>
+                        <div>
+                            <h3 class="mb-1 font-semibold text-foreground">
+                                Take action with AI on your data
+                            </h3>
+                            <p class="text-sm leading-relaxed text-muted-foreground">
+                                Tell AI to add rows, edit cells, or rewrite paragraphs. <strong>Changes persist</strong> in your data—not just in a reply. Real edits, real tables and docs.
+                            </p>
+                        </div>
+                    </div>
+                    <!-- 4. Export / ship to your tools -->
                     <div class="flex gap-4">
                         <span
                             class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
@@ -329,10 +279,29 @@ withDefaults(
                         </span>
                         <div>
                             <h3 class="mb-1 font-semibold text-foreground">
-                                Export anywhere
+                                Export—or ship to your tools
                             </h3>
                             <p class="text-sm leading-relaxed text-muted-foreground">
-                                Export to Excel, docs, notes, or JSON. Turn physical table logs and records into clean JSON or spreadsheets—use your data in the tools you already use.
+                                One-click export to <strong>Excel, PDF, JSON, or plain text</strong>. Use in spreadsheets, docs, Google Drive, or your own data source. Your data, you choose where it lives.
+                            </p>
+                        </div>
+                    </div>
+                    <!-- 8. Start from physical (reframed: get data in, not “keep forever”) -->
+                    <div class="flex gap-4">
+                        <span
+                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
+                            aria-hidden
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                            </svg>
+                        </span>
+                        <div>
+                            <h3 class="mb-1 font-semibold text-foreground">
+                                Start from physical
+                            </h3>
+                            <p class="text-sm leading-relaxed text-muted-foreground">
+                                Upload a photo or video of <strong>physical</strong> notes, logs, or tables. We extract it into a doc or table so you can search, chat, take action, and export—or ship to your own storage when you’re ready.
                             </p>
                         </div>
                     </div>
@@ -345,10 +314,10 @@ withDefaults(
                     class="rounded-2xl border border-border bg-accent px-8 py-12 text-center lg:py-16"
                 >
                     <h2 class="mb-3 text-xl font-semibold text-foreground lg:text-2xl">
-                        Ready to digitalize?
+                        Your data workspace, not a one-off chat
                     </h2>
                     <p class="mx-auto max-w-md text-sm text-muted-foreground">
-                        Create an account, upload a photo or video, and get editable content in seconds with Amazon Nova.
+                        Create an account. Upload photos and videos—they become stored items you can edit, chart, and ask AI to change. Export to Excel or PDF whenever you need.
                     </p>
                     <div v-if="!$page.props.auth.user" class="mt-6">
                         <Link

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { Link } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
 import { home } from '@/routes';
 import { computed } from 'vue';
+import AppLogoIcon from '@/components/AppLogoIcon.vue';
 
 const props = withDefaults(
     defineProps<{
@@ -16,6 +17,10 @@ const props = withDefaults(
     },
 );
 
+const page = usePage();
+const branding = computed(() => (page.props.branding as { name: string; ai_attribution: string | null }) ?? { name: 'Digitalize with AI', ai_attribution: 'Amazon Nova' });
+const showNovaLogo = computed(() => !!branding.value.ai_attribution);
+
 const uid = computed(() => `nl-${Math.random().toString(36).slice(2, 9)}`);
 </script>
 
@@ -25,10 +30,17 @@ const uid = computed(() => `nl-${Math.random().toString(36).slice(2, 9)}`);
         :href="linkToHome ? home() : undefined"
         class="flex items-center gap-2 font-medium text-foreground no-underline"
     >
-        <!-- Compact: gradient star icon only -->
+        <!-- When no AI attribution: app icon + name only (product mode) -->
+        <template v-if="!showNovaLogo">
+            <AppLogoIcon class="h-8 w-8 shrink-0" />
+            <span v-if="showText" class="text-sm font-medium text-muted-foreground">
+                {{ branding.name }}
+            </span>
+        </template>
+        <!-- Compact: gradient star icon only (Nova) -->
         <svg
-            v-if="variant === 'compact'"
-            :aria-label="showText ? undefined : 'Amazon Nova'"
+            v-else-if="variant === 'compact'"
+            :aria-label="showText ? undefined : (branding.ai_attribution ?? 'AI')"
             class="h-8 w-8 shrink-0"
             viewBox="0 0 32 32"
             fill="none"
@@ -63,7 +75,7 @@ const uid = computed(() => `nl-${Math.random().toString(36).slice(2, 9)}`);
             xmlns="http://www.w3.org/2000/svg"
             aria-labelledby="nova-logo-title"
         >
-            <title id="nova-logo-title">Amazon Nova</title>
+            <title id="nova-logo-title">{{ branding.ai_attribution }}</title>
             <path d="M41.1172 23.625C40.8609 23.625 40.7328 23.5264 40.7328 23.3293C40.7328 23.2534 40.7479 23.17 40.7781 23.079C40.8081 22.988 40.8383 22.897 40.8685 22.806L46.1587 8.4735C46.234 8.246 46.317 8.08675 46.4074 7.99575C46.4979 7.90475 46.6712 7.85925 46.9274 7.85925H48.3291C48.5852 7.85925 48.7587 7.90475 48.8491 7.99575C48.9395 8.08675 49.0224 8.246 49.0978 8.4735L54.388 22.806C54.4181 22.897 54.4483 22.988 54.4785 23.079C54.5085 23.17 54.5237 23.2534 54.5237 23.3293C54.5237 23.5264 54.3955 23.625 54.1393 23.625H52.8507C52.5944 23.625 52.4211 23.5795 52.3307 23.4885C52.2403 23.3975 52.1573 23.2383 52.082 23.0108L50.8386 19.439H44.3501L43.1519 23.0108C43.0765 23.2383 42.9936 23.3975 42.9032 23.4885C42.8128 23.5795 42.6394 23.625 42.3832 23.625H41.1172ZM44.9605 17.6873H50.2508L47.583 9.95225L44.9605 17.6873Z" fill="currentColor" />
             <path d="M57.9963 23.625H56.6624C56.3609 23.625 56.2102 23.4734 56.2102 23.17V12.5458C56.2102 12.2424 56.3609 12.0908 56.6624 12.0908H57.6571C57.9586 12.0908 58.1319 12.2348 58.1771 12.523L58.3128 13.251C59.0362 12.7505 59.7446 12.3789 60.4379 12.1363C61.1312 11.8784 61.832 11.7495 62.5404 11.7495C63.9421 11.7495 64.8917 12.2879 65.3891 13.3648C66.8812 12.2879 68.3733 11.7495 69.8654 11.7495C70.9054 11.7495 71.7042 12.0453 72.2619 12.6368C72.8195 13.2283 73.0983 14.07 73.0983 15.162V23.17C73.0983 23.4734 72.9477 23.625 72.6462 23.625H71.3123C71.0108 23.625 70.8602 23.4734 70.8602 23.17V15.799C70.8602 15.0255 70.7169 14.4644 70.4306 14.1155C70.1443 13.7515 69.6921 13.5695 69.0741 13.5695C67.9739 13.5695 66.8661 13.9108 65.7508 14.5933C65.7658 14.6994 65.7734 14.8131 65.7734 14.9345C65.7734 15.0559 65.7734 15.1771 65.7734 15.2985V23.17C65.7734 23.4734 65.6227 23.625 65.3212 23.625H63.9874C63.6859 23.625 63.5352 23.4734 63.5352 23.17V15.799C63.5352 15.0255 63.392 14.4644 63.1056 14.1155C62.8193 13.7515 62.3672 13.5695 61.7492 13.5695C60.6037 13.5695 59.5034 13.9031 58.4484 14.5705V23.17C58.4484 23.4734 58.2977 23.625 57.9963 23.625Z" fill="currentColor" />
             <path d="M78.8538 23.9208C77.7838 23.9208 76.9247 23.6099 76.2765 22.988C75.6435 22.3661 75.327 21.5471 75.327 20.531C75.327 19.4239 75.7189 18.5441 76.5026 17.892C77.2864 17.2246 78.3414 16.891 79.6677 16.891C80.5118 16.891 81.4613 17.0199 82.5163 17.2778V15.7763C82.5163 14.9573 82.328 14.3809 81.9511 14.0473C81.5894 13.7136 80.9639 13.5468 80.0746 13.5468C79.5924 13.5468 79.0799 13.5846 78.5373 13.6605C78.0099 13.7364 77.5049 13.8501 77.0226 14.0018C76.7965 14.0624 76.6382 14.1079 76.5478 14.1383C76.4725 14.1534 76.4121 14.161 76.3669 14.161C76.1861 14.161 76.0956 14.0245 76.0956 13.7515V13.1373C76.0956 12.9249 76.1258 12.7809 76.1861 12.705C76.2464 12.614 76.3669 12.5306 76.5478 12.4548C77.0301 12.2424 77.6255 12.0756 78.3338 11.9543C79.0573 11.8178 79.7657 11.7495 80.459 11.7495C81.8908 11.7495 82.9458 12.0453 83.6241 12.6368C84.3023 13.2283 84.6414 14.1459 84.6414 15.3895V23.17C84.6414 23.4734 84.4907 23.625 84.1893 23.625H83.2171C82.9308 23.625 82.765 23.4809 82.7197 23.1928L82.6067 22.442C82.0641 22.9121 81.4613 23.2761 80.7981 23.534C80.15 23.7919 79.502 23.9208 78.8538 23.9208ZM79.3964 22.2145C80.4515 22.2145 81.4915 21.8278 82.5163 21.0543V18.7338C82.1395 18.6428 81.7402 18.5745 81.3181 18.529C80.9111 18.4684 80.5118 18.438 80.1198 18.438C78.4168 18.438 77.5651 19.0978 77.5651 20.4173C77.5651 20.9784 77.7234 21.4183 78.0399 21.7368C78.3564 22.0553 78.8086 22.2145 79.3964 22.2145Z" fill="currentColor" />
@@ -81,8 +93,8 @@ const uid = computed(() => `nl-${Math.random().toString(36).slice(2, 9)}`);
             </g>
             <defs><linearGradient :id="`${uid}-fgrad`" x1="33.6628" y1="33.633" x2="-2.08592" y2="-1.90102" gradientUnits="userSpaceOnUse"><stop stop-color="#ff6200" /><stop offset="0.398661" stop-color="#e433ff" /><stop offset="0.96" stop-color="#7c3aed" /></linearGradient></defs>
         </svg>
-        <span v-if="showText" class="text-sm font-medium text-muted-foreground">
-            Digitalize with AI
+        <span v-if="showText && showNovaLogo" class="text-sm font-medium text-muted-foreground">
+            {{ branding.name }}
         </span>
     </component>
 </template>

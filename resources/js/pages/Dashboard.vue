@@ -28,10 +28,10 @@ function onUploaded() {
         <div class="dashboard-page flex min-h-full flex-1 flex-col overflow-x-auto">
             <header class="dashboard-header shrink-0 border-b border-border/80 bg-background/95 px-4 py-5 backdrop-blur sm:px-6">
                 <ul class="list-inside list-disc space-y-2 text-sm font-semibold text-foreground sm:text-base">
-                    <li>Add a photo or video of Data.</li>
-                    <li>We’ll use AI to extract it into Digital items (text, tables, books, logs, Records, etc.).</li>
-                    <li>Search, copy, edit, and export your digitalized items.</li>
-                    <li>Get insights, charts, etc about your Data with AI or even ask AI to do something for you on or with your Data.</li>
+                    <li>Upload a photo or video of <strong>physical</strong> notes, logs, or tables—each becomes a <strong>saved</strong> doc or table in your workspace.</li>
+                    <li><strong>Search</strong> through your data and get <strong>metrics, totals, and charts</strong>—things that are hard to do with physical notes or handwritten logs.</li>
+                    <li>Every item stays: edit it, build charts, and <strong>ask AI to change it</strong>; changes persist.</li>
+                    <li>Export any item to Excel, PDF, or JSON with one click.</li>
                 </ul>
             </header>
 

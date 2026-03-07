@@ -57,32 +57,32 @@ const tablePaginationSlots = () => {
 </script>
 
 <template>
-    <div class="table-paper space-y-4 rounded-xl bg-card p-4 text-card-foreground shadow-sm sm:p-5">
+    <div class="table-paper space-y-4 rounded-xl bg-white p-4 text-gray-900 shadow-sm sm:p-5">
         <div class="flex flex-wrap items-center gap-2 sm:gap-3">
             <div class="relative min-w-0 flex-1 basis-full sm:basis-0 sm:max-w-sm">
                 <Search
-                    class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                    class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500"
                 />
                 <input
                     :value="tableSearch"
                     type="search"
                     placeholder="Search for anything in the table"
-                    class="w-full rounded-lg border-2 border-input bg-muted/50 py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary focus:ring-offset-0"
+                    class="w-full rounded-lg border-2 border-gray-300 bg-gray-50 py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary focus:ring-offset-0"
                     @input="onTableSearchInput"
                 />
             </div>
             <span
                 v-if="rowsMeta"
-                class="text-sm text-muted-foreground"
+                class="text-sm text-gray-600"
             >
                 {{ rowsMeta.total.toLocaleString() }} row{{ rowsMeta.total !== 1 ? 's' : '' }}
             </span>
             <div v-if="rowsMeta && rowsMeta.total > 0" class="flex items-center gap-1.5 text-sm">
-                <label for="table-per-page" class="text-muted-foreground">Rows per page</label>
+                <label for="table-per-page" class="text-gray-600">Rows per page</label>
                 <select
                     id="table-per-page"
                     :value="tablePerPage"
-                    class="rounded-lg border border-input bg-background px-2 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                    class="rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary"
                     @change="emit('update:tablePerPage', Number(($event.target as HTMLSelectElement).value))"
                 >
                     <option :value="25">25</option>
@@ -94,7 +94,7 @@ const tablePaginationSlots = () => {
                 <Button
                     size="sm"
                     variant="outline"
-                    class="gap-1.5 border-border text-foreground hover:bg-muted"
+                    class="gap-1.5 border-gray-300 bg-white text-gray-900 hover:bg-gray-100"
                     @click="emit('add-rows')"
                 >
                     <TableIcon class="h-3.5 w-3.5" />
@@ -107,7 +107,7 @@ const tablePaginationSlots = () => {
                     <TooltipTrigger as-child>
                         <button
                             type="button"
-                            class="inline-flex items-center gap-1.5 rounded border border-border px-2 py-1.5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+                            class="inline-flex items-center gap-1.5 rounded border border-gray-300 px-2 py-1.5 text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-900"
                             @click="emit('copy')"
                         >
                             Copy
@@ -129,7 +129,7 @@ const tablePaginationSlots = () => {
         >
             <button
                 type="button"
-                class="rounded-lg border border-input bg-background px-2.5 py-1.5 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50"
+                class="rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-sm font-medium text-gray-900 hover:bg-gray-100 disabled:opacity-50"
                 :disabled="tablePage <= 1"
                 @click="emit('go-to-page', tablePage - 1)"
             >
@@ -140,40 +140,40 @@ const tablePaginationSlots = () => {
                     v-if="slot !== 'ellipsis'"
                     type="button"
                     class="min-w-[2.25rem] rounded-lg border px-2.5 py-1.5 text-sm font-medium transition-colors"
-                    :class="tablePage === slot ? 'border-primary bg-primary text-primary-foreground' : 'border-input bg-background text-foreground hover:bg-muted'"
+                    :class="tablePage === slot ? 'border-primary bg-primary text-primary-foreground' : 'border-gray-300 bg-white text-gray-900 hover:bg-gray-100'"
                     @click="emit('go-to-page', slot)"
                 >
                     {{ slot }}
                 </button>
-                <span v-else class="px-1 text-muted-foreground">…</span>
+                <span v-else class="px-1 text-gray-500">…</span>
             </template>
             <button
                 type="button"
-                class="rounded-lg border border-input bg-background px-2.5 py-1.5 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50"
+                class="rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-sm font-medium text-gray-900 hover:bg-gray-100 disabled:opacity-50"
                 :disabled="tablePage >= (rowsMeta?.last_page ?? 1)"
                 @click="emit('go-to-page', tablePage + 1)"
             >
                 Next
             </button>
         </div>
-        <div v-if="rowsLoading" class="py-8 text-center text-sm text-muted-foreground">
+        <div v-if="rowsLoading" class="py-8 text-center text-sm text-gray-600">
             Loading rows…
         </div>
         <div class="-mx-3 overflow-x-auto overscroll-x-contain sm:mx-0">
             <table
-                class="w-full min-w-[280px] border-collapse text-left text-sm text-foreground sm:min-w-[300px]"
+                class="w-full min-w-[280px] border-collapse text-left text-sm text-gray-900 sm:min-w-[300px]"
             >
                 <thead>
-                    <tr class="border-b border-border bg-muted">
+                    <tr class="border-b border-gray-200 bg-gray-100">
                         <th
                             v-for="(h, i) in tableHeaders"
                             :key="i"
-                            class="px-2 py-2 font-medium text-foreground sm:px-4 sm:py-3"
+                            class="px-2 py-2 font-medium text-gray-900 sm:px-4 sm:py-3"
                         >
                             {{ h }}
                         </th>
                         <th
-                            class="w-20 px-2 py-2 font-medium text-foreground sm:w-24 sm:px-4 sm:py-3"
+                            class="w-20 px-2 py-2 font-medium text-gray-900 sm:w-24 sm:px-4 sm:py-3"
                         >
                             Actions
                         </th>
@@ -183,12 +183,12 @@ const tablePaginationSlots = () => {
                     <tr
                         v-for="row in tableRows"
                         :key="row.id"
-                        class="border-b border-border hover:bg-muted/50"
+                        class="border-b border-gray-200 hover:bg-gray-50"
                     >
                         <td
                             v-for="(cell, ci) in (row.cells ?? [])"
                             :key="ci"
-                            class="max-w-[120px] truncate px-2 py-2 text-muted-foreground sm:max-w-none sm:px-4 sm:py-3"
+                            class="max-w-[120px] truncate px-2 py-2 text-gray-700 sm:max-w-none sm:px-4 sm:py-3"
                             :title="cell != null ? String(cell) : undefined"
                         >
                             {{ cell == null ? '—' : cell }}
@@ -197,7 +197,7 @@ const tablePaginationSlots = () => {
                             <div class="flex items-center gap-0.5 sm:gap-1">
                                 <button
                                     type="button"
-                                    class="min-h-[44px] min-w-[44px] rounded p-2 text-muted-foreground hover:bg-muted hover:text-foreground sm:min-h-0 sm:min-w-0 sm:p-1.5"
+                                    class="min-h-[44px] min-w-[44px] rounded p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900 sm:min-h-0 sm:min-w-0 sm:p-1.5"
                                     title="Edit row"
                                     @click="emit('edit-row', row)"
                                 >
@@ -223,7 +223,7 @@ const tablePaginationSlots = () => {
         >
             <button
                 type="button"
-                class="rounded-lg border border-input bg-background px-2.5 py-1.5 font-medium text-foreground hover:bg-muted disabled:opacity-50"
+                class="rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 font-medium text-gray-900 hover:bg-gray-100 disabled:opacity-50"
                 :disabled="tablePage <= 1"
                 @click="emit('go-to-page', tablePage - 1)"
             >
@@ -234,16 +234,16 @@ const tablePaginationSlots = () => {
                     v-if="slot !== 'ellipsis'"
                     type="button"
                     class="min-w-[2.25rem] rounded-lg border px-2.5 py-1.5 font-medium transition-colors"
-                    :class="tablePage === slot ? 'border-primary bg-primary text-primary-foreground' : 'border-input bg-background text-foreground hover:bg-muted'"
+                    :class="tablePage === slot ? 'border-primary bg-primary text-primary-foreground' : 'border-gray-300 bg-white text-gray-900 hover:bg-gray-100'"
                     @click="emit('go-to-page', slot)"
                 >
                     {{ slot }}
                 </button>
-                <span v-else class="px-1 text-muted-foreground">…</span>
+                <span v-else class="px-1 text-gray-500">…</span>
             </template>
             <button
                 type="button"
-                class="rounded-lg border border-input bg-background px-2.5 py-1.5 font-medium text-foreground hover:bg-muted disabled:opacity-50"
+                class="rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 font-medium text-gray-900 hover:bg-gray-100 disabled:opacity-50"
                 :disabled="tablePage >= (rowsMeta?.last_page ?? 1)"
                 @click="emit('go-to-page', tablePage + 1)"
             >

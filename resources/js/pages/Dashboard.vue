@@ -28,10 +28,10 @@ function onUploaded() {
         <div class="dashboard-page flex min-h-full flex-1 flex-col overflow-x-auto">
             <header class="dashboard-header shrink-0 border-b border-border/80 bg-background/95 px-4 py-5 backdrop-blur sm:px-6">
                 <ul class="list-inside list-disc space-y-2 text-sm font-semibold text-foreground sm:text-base">
-                    <li>Upload a photo or video of <strong>physical</strong> notes, logs, or tables—each becomes a <strong>saved</strong> doc or table in your workspace.</li>
-                    <li><strong>Search</strong> through your data and get <strong>metrics, totals, and charts</strong>—things that are hard to do with physical notes or handwritten logs.</li>
-                    <li>Every item stays: edit it, build charts, and <strong>ask AI to change it</strong>; changes persist.</li>
-                    <li>Export any item to Excel, PDF, or JSON with one click.</li>
+                    <li>Upload photos or video of notes, logs, or tables → saved docs or tables.</li>
+                    <li><strong>Search</strong>, get <strong>metrics and charts</strong> from your data.</li>
+                    <li>Edit, Chat with data, and <strong>ask AI</strong> to do things with your data.</li>
+                    <li>Export to Excel, PDF, or JSON.</li>
                 </ul>
             </header>
 

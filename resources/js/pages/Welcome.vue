@@ -164,20 +164,11 @@ const pageTitle = computed(() =>
                     {{ branding.name }}
                 </h1>
                 <p class="mx-auto max-w-2xl text-lg text-muted-foreground lg:text-xl">
-                    Turn <strong class="text-foreground">physical</strong> books, notes, documents, logs, records and tables into digital content—then:
+                    Turn <strong class="text-foreground">physical</strong> books, notes, documents, logs, records and tables into digital content.
                 </p>
-                <ul class="mx-auto mt-2 max-w-2xl list-inside list-disc text-left text-lg text-muted-foreground lg:text-xl [&_strong]:text-foreground">
-                    <li><strong>Search</strong> through your data and ask AI anything about it</li>
-                    <li>Get <strong>metrics and trends</strong></li>
-                    <li><strong>Edit and export</strong> to Excel, PDF, and more</li>
-                    <li>Take <strong>Agentic AI Actions</strong> on your data</li>
-                </ul>
-                <p class="mx-auto mt-2 max-w-2xl text-lg text-muted-foreground lg:text-xl">
-                    <strong class="text-foreground">Physical</strong> paper, handwritten logs, books, medical records—nearly impossible to search, get metrics from, or export. <strong class="text-foreground">Until now.</strong>
-                </p>
-                <p class="mx-auto mt-3 max-w-xl text-sm text-muted-foreground">
-                    Upload a photo or video of your <strong class="text-foreground">physical</strong> source. We extract the content; you get clean text or tables you can view, edit, chart, chat with and export.
-                </p>
+                <!-- <p class="mx-auto mt-2 max-w-2xl text-lg text-muted-foreground lg:text-xl">
+                    <strong class="text-foreground">Physical</strong> paper, handwritten logs, physical notes/books, physical medical records—nearly impossible to immediately search, get metrics from, Ask Questions about or export. <strong class="text-foreground">Until now.</strong>
+                </p> -->
                 <div v-if="!$page.props.auth.user" class="mt-10 flex flex-wrap justify-center gap-4">
                     <Link
                         :href="register()"

@@ -301,6 +301,34 @@ function goToDocPage(page: number) {
     fetchDocPage(p);
 }
 
+/** Returns array of page numbers and 'ellipsis' for pill pagination: [1, 'ellipsis', 4, 5, 6, 'ellipsis', 100] */
+function paginationSlots(current: number, total: number): (number | 'ellipsis')[] {
+    if (total <= 0) return [];
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+    const slots: (number | 'ellipsis')[] = [1];
+    const windowStart = Math.max(2, current - 1);
+    const windowEnd = Math.min(total - 1, current + 1);
+    if (windowStart > 2) slots.push('ellipsis');
+    for (let p = windowStart; p <= windowEnd; p++) {
+        if (p !== 1 && p !== total) slots.push(p);
+    }
+    if (windowEnd < total - 1) slots.push('ellipsis');
+    if (total > 1) slots.push(total);
+    return slots;
+}
+
+const docPaginationSlots = computed(() =>
+    paginationSlots(docPageCurrent.value, docPageCount.value),
+);
+const tablePaginationSlots = computed(() =>
+    paginationSlots(tablePage.value, rowsMeta.value?.last_page ?? 0),
+);
+
+function goToTablePage(page: number) {
+    const last = rowsMeta.value?.last_page ?? 1;
+    tablePage.value = Math.max(1, Math.min(last, page));
+}
+
 // —— Table rows: 100% backend. No full dataset on frontend — only current page from API. ——
 type TableRowRecord = { id: number; row_index: number; cells: unknown[] };
 type RowsMeta = { current_page: number; last_page: number; per_page: number; total: number };
@@ -561,6 +589,10 @@ watch(
     },
 );
 watch(tablePage, () => fetchTableRows());
+watch(tablePerPage, () => {
+    tablePage.value = 1;
+    fetchTableRows();
+});
 watch(tableSearch, () => {
     if (searchDebounce) clearTimeout(searchDebounce);
     searchDebounce = setTimeout(() => {
@@ -1118,30 +1150,6 @@ const canExportPdf = computed(() => (!!tableData.value || isDocData.value) && !!
                                                 class="w-full rounded-lg border-2 border-border bg-background py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-primary dark:border-sidebar-border dark:focus:border-primary"
                                             />
                                         </div>
-                                        <div
-                                            v-if="isMultiPageDoc"
-                                            class="flex flex-wrap items-center gap-2 text-sm"
-                                        >
-                                            <span class="text-muted-foreground">
-                                                Page {{ docPageCurrent }} of {{ docPageCount }}
-                                            </span>
-                                            <button
-                                                type="button"
-                                                class="rounded-lg border border-sidebar-border/70 px-3 py-1.5 text-foreground hover:bg-muted/60 disabled:opacity-50 dark:border-sidebar-border"
-                                                :disabled="docPageCurrent <= 1"
-                                                @click="goToDocPage(docPageCurrent - 1)"
-                                            >
-                                                Previous
-                                            </button>
-                                            <button
-                                                type="button"
-                                                class="rounded-lg border border-sidebar-border/70 px-3 py-1.5 text-foreground hover:bg-muted/60 disabled:opacity-50 dark:border-sidebar-border"
-                                                :disabled="docPageCurrent >= docPageCount"
-                                                @click="goToDocPage(docPageCurrent + 1)"
-                                            >
-                                                Next
-                                            </button>
-                                        </div>
                                         <div class="ml-auto flex items-center gap-2">
                                             <button
                                                 v-if="!docEditing"
@@ -1176,6 +1184,40 @@ const canExportPdf = computed(() => (!!tableData.value || isDocData.value) && !!
                                     <p v-if="docPageError" class="text-sm text-destructive">
                                         {{ docPageError }}
                                     </p>
+                                    <!-- Doc page pills (top) -->
+                                    <div
+                                        v-if="isMultiPageDoc"
+                                        class="flex flex-wrap items-center justify-center gap-1 py-2"
+                                    >
+                                        <button
+                                            type="button"
+                                            class="rounded-lg border border-sidebar-border/70 px-2.5 py-1.5 text-sm font-medium text-foreground hover:bg-muted/60 disabled:opacity-50 dark:border-sidebar-border"
+                                            :disabled="docPageCurrent <= 1"
+                                            @click="goToDocPage(docPageCurrent - 1)"
+                                        >
+                                            Previous
+                                        </button>
+                                        <template v-for="(slot, idx) in docPaginationSlots" :key="idx">
+                                            <button
+                                                v-if="slot !== 'ellipsis'"
+                                                type="button"
+                                                class="min-w-[2.25rem] rounded-lg border px-2.5 py-1.5 text-sm font-medium transition-colors"
+                                                :class="docPageCurrent === slot ? 'border-primary bg-primary text-primary-foreground' : 'border-sidebar-border/70 text-foreground hover:bg-muted/60 dark:border-sidebar-border'"
+                                                @click="goToDocPage(slot)"
+                                            >
+                                                {{ slot }}
+                                            </button>
+                                            <span v-else class="px-1 text-muted-foreground">…</span>
+                                        </template>
+                                        <button
+                                            type="button"
+                                            class="rounded-lg border border-sidebar-border/70 px-2.5 py-1.5 text-sm font-medium text-foreground hover:bg-muted/60 disabled:opacity-50 dark:border-sidebar-border"
+                                            :disabled="docPageCurrent >= docPageCount"
+                                            @click="goToDocPage(docPageCurrent + 1)"
+                                        >
+                                            Next
+                                        </button>
+                                    </div>
                                     <div
                                         v-if="docPageLoading && isMultiPageDoc"
                                         class="py-8 text-center text-sm text-muted-foreground"
@@ -1220,6 +1262,40 @@ const canExportPdf = computed(() => (!!tableData.value || isDocData.value) && !!
                                             >{{ displayedDocContentFiltered || ' ' }}</pre>
                                         </template>
                                     </div>
+                                    <!-- Doc page pills (bottom) -->
+                                    <div
+                                        v-if="isMultiPageDoc"
+                                        class="flex flex-wrap items-center justify-center gap-1 py-3"
+                                    >
+                                        <button
+                                            type="button"
+                                            class="rounded-lg border border-sidebar-border/70 px-2.5 py-1.5 text-sm font-medium text-foreground hover:bg-muted/60 disabled:opacity-50 dark:border-sidebar-border"
+                                            :disabled="docPageCurrent <= 1"
+                                            @click="goToDocPage(docPageCurrent - 1)"
+                                        >
+                                            Previous
+                                        </button>
+                                        <template v-for="(slot, idx) in docPaginationSlots" :key="'bottom-' + idx">
+                                            <button
+                                                v-if="slot !== 'ellipsis'"
+                                                type="button"
+                                                class="min-w-[2.25rem] rounded-lg border px-2.5 py-1.5 text-sm font-medium transition-colors"
+                                                :class="docPageCurrent === slot ? 'border-primary bg-primary text-primary-foreground' : 'border-sidebar-border/70 text-foreground hover:bg-muted/60 dark:border-sidebar-border'"
+                                                @click="goToDocPage(slot)"
+                                            >
+                                                {{ slot }}
+                                            </button>
+                                            <span v-else class="px-1 text-muted-foreground">…</span>
+                                        </template>
+                                        <button
+                                            type="button"
+                                            class="rounded-lg border border-sidebar-border/70 px-2.5 py-1.5 text-sm font-medium text-foreground hover:bg-muted/60 disabled:opacity-50 dark:border-sidebar-border"
+                                            :disabled="docPageCurrent >= docPageCount"
+                                            @click="goToDocPage(docPageCurrent + 1)"
+                                        >
+                                            Next
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <!-- Table: paginated, searchable, editable (always white background) -->
@@ -1242,6 +1318,18 @@ const canExportPdf = computed(() => (!!tableData.value || isDocData.value) && !!
                                         >
                                             {{ rowsMeta.total.toLocaleString() }} row{{ rowsMeta.total !== 1 ? 's' : '' }}
                                         </span>
+                                        <div v-if="rowsMeta && rowsMeta.total > 0" class="flex items-center gap-1.5 text-sm">
+                                            <label for="table-per-page" class="text-gray-600">Rows per page</label>
+                                            <select
+                                                id="table-per-page"
+                                                v-model.number="tablePerPage"
+                                                class="rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary"
+                                            >
+                                                <option :value="25">25</option>
+                                                <option :value="50">50</option>
+                                                <option :value="100">100</option>
+                                            </select>
+                                        </div>
                                         <div class="ml-auto flex items-center gap-2">
                                             <Button
                                                 size="sm"
@@ -1275,6 +1363,40 @@ const canExportPdf = computed(() => (!!tableData.value || isDocData.value) && !!
                                     <p v-if="rowsError" class="text-sm text-destructive">
                                         {{ rowsError }}
                                     </p>
+                                    <!-- Table page pills (top) -->
+                                    <div
+                                        v-if="rowsMeta && rowsMeta.last_page > 1"
+                                        class="flex flex-wrap items-center justify-center gap-1 py-2"
+                                    >
+                                        <button
+                                            type="button"
+                                            class="rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-sm font-medium text-gray-900 hover:bg-gray-100 disabled:opacity-50"
+                                            :disabled="tablePage <= 1"
+                                            @click="goToTablePage(tablePage - 1)"
+                                        >
+                                            Previous
+                                        </button>
+                                        <template v-for="(slot, idx) in tablePaginationSlots" :key="idx">
+                                            <button
+                                                v-if="slot !== 'ellipsis'"
+                                                type="button"
+                                                class="min-w-[2.25rem] rounded-lg border px-2.5 py-1.5 text-sm font-medium transition-colors"
+                                                :class="tablePage === slot ? 'border-primary bg-primary text-primary-foreground' : 'border-gray-300 bg-white text-gray-900 hover:bg-gray-100'"
+                                                @click="goToTablePage(slot)"
+                                            >
+                                                {{ slot }}
+                                            </button>
+                                            <span v-else class="px-1 text-gray-500">…</span>
+                                        </template>
+                                        <button
+                                            type="button"
+                                            class="rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-sm font-medium text-gray-900 hover:bg-gray-100 disabled:opacity-50"
+                                            :disabled="tablePage >= rowsMeta.last_page"
+                                            @click="goToTablePage(tablePage + 1)"
+                                        >
+                                            Next
+                                        </button>
+                                    </div>
                                     <div v-if="rowsLoading" class="py-8 text-center text-sm text-gray-600">
                                         Loading rows…
                                     </div>
@@ -1336,26 +1458,36 @@ const canExportPdf = computed(() => (!!tableData.value || isDocData.value) && !!
                                             </tbody>
                                         </table>
                                     </div>
+                                    <!-- Table page pills (bottom) -->
                                     <div
                                         v-if="rowsMeta && rowsMeta.last_page > 1"
-                                        class="flex flex-wrap items-center gap-2 text-sm"
+                                        class="flex flex-wrap items-center justify-center gap-1 py-3 text-sm"
                                     >
                                         <button
                                             type="button"
-                                            class="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-gray-900 hover:bg-gray-100 disabled:opacity-50"
+                                            class="rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 font-medium text-gray-900 hover:bg-gray-100 disabled:opacity-50"
                                             :disabled="tablePage <= 1"
-                                            @click="tablePage = Math.max(1, tablePage - 1)"
+                                            @click="goToTablePage(tablePage - 1)"
                                         >
                                             Previous
                                         </button>
-                                        <span class="text-gray-600">
-                                            Page {{ rowsMeta.current_page }} of {{ rowsMeta.last_page }}
-                                        </span>
+                                        <template v-for="(slot, idx) in tablePaginationSlots" :key="'bottom-' + idx">
+                                            <button
+                                                v-if="slot !== 'ellipsis'"
+                                                type="button"
+                                                class="min-w-[2.25rem] rounded-lg border px-2.5 py-1.5 font-medium transition-colors"
+                                                :class="tablePage === slot ? 'border-primary bg-primary text-primary-foreground' : 'border-gray-300 bg-white text-gray-900 hover:bg-gray-100'"
+                                                @click="goToTablePage(slot)"
+                                            >
+                                                {{ slot }}
+                                            </button>
+                                            <span v-else class="px-1 text-gray-500">…</span>
+                                        </template>
                                         <button
                                             type="button"
-                                            class="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-gray-900 hover:bg-gray-100 disabled:opacity-50"
+                                            class="rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 font-medium text-gray-900 hover:bg-gray-100 disabled:opacity-50"
                                             :disabled="tablePage >= rowsMeta.last_page"
-                                            @click="tablePage = Math.min(rowsMeta.last_page, tablePage + 1)"
+                                            @click="goToTablePage(tablePage + 1)"
                                         >
                                             Next
                                         </button>

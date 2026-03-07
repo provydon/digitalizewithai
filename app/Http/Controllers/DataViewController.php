@@ -48,6 +48,8 @@ class DataViewController extends Controller
             'name' => $data->name,
             'raw_data' => $data->raw_data,
             'digital_data' => $digitalData,
+            'ai_provider' => $data->ai_provider,
+            'ai_model' => $data->ai_model,
             'created_at' => $data->created_at?->toIso8601String(),
             'updated_at' => $data->updated_at?->toIso8601String(),
         ]);
@@ -205,7 +207,7 @@ class DataViewController extends Controller
         $prompt = "Here is the user's data:\n\n---\n{$context}\n---\n\nUser question or request:\n{$question}";
         $agent = new DataInsightStreamingAgent;
 
-        return $agent->stream($prompt);
+        return $agent->stream($prompt, [], $data->ai_provider, $data->ai_model);
     }
 
     /**
@@ -248,7 +250,11 @@ class DataViewController extends Controller
             : 'Suggest the best chart type and which column indices to use for labels and values.';
 
         $agent = new ChartSuggestionAgent;
-        $response = $agent->prompt("Table data:\n---\n{$context}\n---\n{$promptSuffix}");
+        $response = $agent->prompt(
+            "Table data:\n---\n{$context}\n---\n{$promptSuffix}",
+            provider: $data->ai_provider,
+            model: $data->ai_model,
+        );
 
         $chartType = $response['chartType'] ?? 'bar';
         $chartType = in_array($chartType, ['bar', 'line', 'pie'], true) ? $chartType : 'bar';

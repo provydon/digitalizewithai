@@ -5,6 +5,7 @@ import type { ChatMessage } from '../types';
 
 const props = defineProps<{
     recordName: string;
+    aiModelLabel: string;
     messages: ChatMessage[];
     suggestedPrompts: string[];
     insights: string[];
@@ -19,16 +20,31 @@ const emit = defineEmits<{
 const question = ref('');
 const chatScrollRef = ref<HTMLElement | null>(null);
 
-watch(
-    () => props.messages.length,
-    () => {
-        nextTick(() => {
-            chatScrollRef.value?.scrollTo({
-                top: chatScrollRef.value.scrollHeight,
+function scrollToBottom() {
+    nextTick(() => {
+        const el = chatScrollRef.value;
+        if (el) {
+            el.scrollTo({
+                top: el.scrollHeight,
                 behavior: 'smooth',
             });
-        });
+        }
+    });
+}
+
+watch(
+    () => props.messages.length,
+    scrollToBottom,
+);
+
+// Scroll as streaming content grows
+watch(
+    () => {
+        const msgs = props.messages;
+        const last = msgs[msgs.length - 1];
+        return last?.role === 'assistant' ? last.content.length : 0;
     },
+    scrollToBottom,
 );
 
 function submitQuestion() {
@@ -40,10 +56,10 @@ function submitQuestion() {
 </script>
 
 <template>
-    <div class="flex min-h-[320px] flex-col p-3 sm:min-h-[420px] sm:p-4">
+    <div class="flex h-[60vh] min-h-[320px] max-h-[560px] flex-col p-3 sm:p-4">
         <div
             ref="chatScrollRef"
-            class="flex flex-1 flex-col gap-3 overflow-y-auto rounded-lg py-2"
+            class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto rounded-lg py-2"
         >
             <template v-if="messages.length > 0">
                 <div
@@ -83,6 +99,13 @@ function submitQuestion() {
             </template>
         </div>
         <div class="mt-4 shrink-0 space-y-4 sm:mt-3 sm:space-y-3">
+            <p
+                v-if="aiModelLabel"
+                class="px-2 text-xs text-muted-foreground"
+                title="Same model used when this data was extracted"
+            >
+                Using: {{ aiModelLabel }}
+            </p>
             <template v-if="messages.length === 0">
                 <p class="hidden px-2 pt-1 pb-2 text-center text-sm text-muted-foreground sm:block sm:pb-1">
                     Ask anything about

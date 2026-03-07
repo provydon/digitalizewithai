@@ -33,6 +33,7 @@ ChartJS.register(
 
 const props = defineProps<{
     tableData: { headers?: string[]; rows?: unknown[][] } | null;
+    aiModelLabel: string;
     chartSuggestion: ChartSuggestion | null;
     chartRequest: string;
     showSpecificChartRequest: boolean;
@@ -139,6 +140,13 @@ const chartData = computed(() => {
 
 <template>
     <div class="flex flex-col gap-4 p-3 pt-4 sm:p-6">
+        <p
+            v-if="aiModelLabel"
+            class="text-xs text-muted-foreground"
+            title="Same model used when this data was extracted"
+        >
+            Using: {{ aiModelLabel }}
+        </p>
         <div class="flex flex-wrap items-center gap-2">
             <button
                 type="button"

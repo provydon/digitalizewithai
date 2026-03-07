@@ -14,6 +14,8 @@ export type DataRecord = {
     name: string;
     raw_data: Record<string, unknown> | null;
     digital_data: DigitalData | null;
+    ai_provider: string | null;
+    ai_model: string | null;
     created_at: string | null;
     updated_at: string | null;
 };

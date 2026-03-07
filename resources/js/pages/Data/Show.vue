@@ -798,6 +798,18 @@ const canChart = computed(
 );
 const canExportExcel = computed(() => !!tableData.value && !!record.value);
 const canExportPdf = computed(() => (!!tableData.value || isDocData.value) && !!record.value);
+
+/** Human-readable label for the AI model used when this data was extracted (and for Ask AI / Charts). */
+const aiModelLabel = computed(() => {
+    const r = record.value;
+    if (!r) return '';
+    const p = r.ai_provider?.trim();
+    const m = r.ai_model?.trim();
+    if (p && m) return `${p} · ${m}`;
+    if (m) return m;
+    if (p) return p;
+    return '';
+});
 </script>
 
 <template>
@@ -918,6 +930,7 @@ const canExportPdf = computed(() => (!!tableData.value || isDocData.value) && !!
                             <TabsContent value="ask" class="mt-0 rounded-b-xl">
                                 <DataShowAskAi
                                     :record-name="record?.name ?? ''"
+                                    :ai-model-label="aiModelLabel"
                                     :messages="messages"
                                     :suggested-prompts="suggestedPrompts"
                                     :insights="insights"
@@ -930,6 +943,7 @@ const canExportPdf = computed(() => (!!tableData.value || isDocData.value) && !!
                             <TabsContent value="charts" class="mt-0 rounded-b-xl">
                                 <DataShowCharts
                                     :table-data="tableData"
+                                    :ai-model-label="aiModelLabel"
                                     :chart-suggestion="chartSuggestion"
                                     :chart-request="chartRequest"
                                     :show-specific-chart-request="showSpecificChartRequest"

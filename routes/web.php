@@ -13,6 +13,7 @@ Route::inertia('/', 'Welcome', [
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('dashboard/api/digitalize-options', [ApiDigitalizeController::class, 'digitalizeOptions'])->name('dashboard.api.digitalize-options');
     Route::post('dashboard/digitalize', [ApiDigitalizeController::class, 'store'])->name('dashboard.digitalize');
     Route::post('dashboard/api/data/{data}/append-rows', [ApiDigitalizeController::class, 'appendToTable'])->name('dashboard.api.data.append-rows');
     Route::get('dashboard/api/data', [DashboardController::class, 'dataIndex'])->name('dashboard.api.data.index');

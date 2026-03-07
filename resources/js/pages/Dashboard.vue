@@ -35,10 +35,12 @@ function onUploaded() {
             </header>
 
             <div class="flex flex-1 flex-col gap-6 p-4 sm:p-6">
-                <DigitalizeUploadSection
-                    storage-key="dashboard_upload_seen"
-                    @uploaded="onUploaded"
-                />
+                <div class="flex justify-center">
+                    <DigitalizeUploadSection
+                        storage-key="dashboard_upload_seen"
+                        @uploaded="onUploaded"
+                    />
+                </div>
 
                 <DataListSection
                     ref="dataListRef"

@@ -144,4 +144,21 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Digitalize (image/video extraction) providers
+    |--------------------------------------------------------------------------
+    |
+    | Providers that support vision and can be chosen from the frontend when
+    | uploading data. Only providers listed here are exposed in the UI.
+    |
+    */
+    'digitalize_providers' => [
+        'anthropic' => ['name' => 'Claude (Anthropic)'],
+        'gemini' => ['name' => 'Google Gemini'],
+        'nova' => ['name' => 'Amazon Nova'],
+        'openai' => ['name' => 'OpenAI (GPT-4o)'],
+        'azure' => ['name' => 'Azure OpenAI'],
+    ],
+
 ];

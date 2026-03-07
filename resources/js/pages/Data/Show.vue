@@ -1,99 +1,42 @@
 <script setup lang="ts">
-import {
-    ArcElement,
-    BarElement,
-    CategoryScale,
-    Chart as ChartJS,
-    Filler,
-    Legend,
-    LinearScale,
-    LineController,
-    LineElement,
-    PointElement,
-    Title,
-} from 'chart.js';
 import { Head, Link } from '@inertiajs/vue3';
 import {
     BarChart3,
-    FileJson,
-    FileOutput,
     FileSpreadsheet,
-    FileText,
     MessageSquare,
     Table as TableIcon,
 } from 'lucide-vue-next';
-import { Camera, Copy, Pencil, Search, Trash2, Upload, Video } from 'lucide-vue-next';
-import {
-    TabsContent,
-    TabsList,
-    TabsRoot,
-    TabsTrigger,
-} from 'reka-ui';
+import { TabsContent, TabsList, TabsRoot, TabsTrigger } from 'reka-ui';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import {
-    Dialog,
-    DialogClose,
-    DialogContent,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-    Tooltip,
-    TooltipContent,
     TooltipProvider,
-    TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { Chart } from 'vue-chartjs';
+import AppLayout from '@/layouts/AppLayout.vue';
+import api from '@/lib/api';
+import { dashboard } from '@/routes';
+import type { BreadcrumbItem } from '@/types';
 import autoTable from 'jspdf-autotable';
 import { jsPDF } from 'jspdf';
 import * as XLSX from 'xlsx';
-import AppLayout from '@/layouts/AppLayout.vue';
-import api from '@/lib/api';
-import { useAppearance } from '@/composables/useAppearance';
-import { renderMarkdown } from '@/lib/markdown';
-import { dashboard } from '@/routes';
-import type { BreadcrumbItem } from '@/types';
-
-ChartJS.register(
-    CategoryScale,
-    LinearScale,
-    BarElement,
-    LineController,
-    LineElement,
-    PointElement,
-    Filler,
-    ArcElement,
-    Legend,
-    Title,
-);
-
-type ChatMessage = { role: 'user' | 'assistant'; content: string };
-
-type DigitalData = {
-    type: string;
-    content?: string | null;
-    doc_page_count?: number;
-    table_row_count?: number;
-    suggested_prompts?: string[];
-    insights?: string[];
-};
-
-type DataRecord = {
-    id: number;
-    name: string;
-    raw_data: Record<string, unknown> | null;
-    digital_data: DigitalData | null;
-    created_at: string | null;
-    updated_at: string | null;
-};
+import DataShowHeader from '@/pages/Data/components/DataShowHeader.vue';
+import DataShowDocView from '@/pages/Data/components/DataShowDocView.vue';
+import DataShowTableView from '@/pages/Data/components/DataShowTableView.vue';
+import DataShowAskAi from '@/pages/Data/components/DataShowAskAi.vue';
+import DataShowCharts from '@/pages/Data/components/DataShowCharts.vue';
+import DataShowExport from '@/pages/Data/components/DataShowExport.vue';
+import DataEditRowDialog from '@/pages/Data/components/DataEditRowDialog.vue';
+import DataAddRowsDialog from '@/pages/Data/components/DataAddRowsDialog.vue';
+import DataDeleteRowDialog from '@/pages/Data/components/DataDeleteRowDialog.vue';
+import type {
+    ChartSuggestion,
+    ChatMessage,
+    DataRecord,
+    TableRowRecord,
+    RowsMeta,
+} from '@/pages/Data/types';
 
 type Props = {
     id: number;
-    /** Where the user came from: 'dashboard' | 'data' (for breadcrumbs and back link) */
     from?: 'dashboard' | 'data';
 };
 
@@ -153,7 +96,6 @@ const docPageCount = computed(() => {
 });
 
 const isMultiPageDoc = computed(() => docPageCount.value > 1);
-
 const isTableData = computed(() => !!tableData.value);
 const isDocData = computed(() => {
     const dd = record.value?.digital_data;
@@ -170,7 +112,7 @@ const insights = computed(() => {
     return Array.isArray(list) ? list.filter((i): i is string => typeof i === 'string' && i.trim() !== '') : [];
 });
 
-// —— Doc pages: 100% backend. Only current page fetched from API when multi-page. ——
+// —— Doc state ——
 const docPageCurrent = ref(1);
 const docPageContent = ref('');
 const docPageLoading = ref(false);
@@ -215,42 +157,6 @@ const docEditContent = ref('');
 const docEditSaving = ref(false);
 const docEditError = ref<string | null>(null);
 
-// —— Edit data name (title) ——
-const nameEditing = ref(false);
-const nameEditValue = ref('');
-const nameEditSaving = ref(false);
-const nameEditError = ref<string | null>(null);
-
-function startNameEdit() {
-    if (!record.value) return;
-    nameEditError.value = null;
-    nameEditValue.value = record.value.name;
-    nameEditing.value = true;
-}
-
-function cancelNameEdit() {
-    nameEditing.value = false;
-    nameEditValue.value = '';
-    nameEditError.value = null;
-}
-
-async function saveNameEdit() {
-    const name = nameEditValue.value.trim();
-    if (!record.value || !name) return;
-    nameEditSaving.value = true;
-    nameEditError.value = null;
-    try {
-        const { data } = await api.patch<{ name: string }>(`/dashboard/api/data/${record.value.id}`, { name });
-        if (record.value) record.value.name = data.name;
-        cancelNameEdit();
-    } catch (e: unknown) {
-        const err = e as { response?: { data?: { message?: string } }; message?: string };
-        nameEditError.value = err.response?.data?.message ?? err.message ?? 'Failed to save name';
-    } finally {
-        nameEditSaving.value = false;
-    }
-}
-
 function startDocEdit() {
     docEditError.value = null;
     docEditContent.value = displayedDocContent.value;
@@ -282,6 +188,13 @@ async function saveDocEdit() {
     }
 }
 
+function goToDocPage(page: number) {
+    const total = docPageCount.value;
+    const p = Math.max(1, Math.min(total, page));
+    docPageCurrent.value = p;
+    fetchDocPage(p);
+}
+
 watch(
     () => [record.value?.id, isDocData.value, isMultiPageDoc.value] as const,
     ([id, isDoc, multi]: [number | undefined, boolean, boolean]) => {
@@ -294,51 +207,14 @@ watch(
     },
 );
 
-function goToDocPage(page: number) {
-    const total = docPageCount.value;
-    const p = Math.max(1, Math.min(total, page));
-    docPageCurrent.value = p;
-    fetchDocPage(p);
-}
-
-/** Returns array of page numbers and 'ellipsis' for pill pagination: [1, 'ellipsis', 4, 5, 6, 'ellipsis', 100] */
-function paginationSlots(current: number, total: number): (number | 'ellipsis')[] {
-    if (total <= 0) return [];
-    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
-    const slots: (number | 'ellipsis')[] = [1];
-    const windowStart = Math.max(2, current - 1);
-    const windowEnd = Math.min(total - 1, current + 1);
-    if (windowStart > 2) slots.push('ellipsis');
-    for (let p = windowStart; p <= windowEnd; p++) {
-        if (p !== 1 && p !== total) slots.push(p);
-    }
-    if (windowEnd < total - 1) slots.push('ellipsis');
-    if (total > 1) slots.push(total);
-    return slots;
-}
-
-const docPaginationSlots = computed(() =>
-    paginationSlots(docPageCurrent.value, docPageCount.value),
-);
-const tablePaginationSlots = computed(() =>
-    paginationSlots(tablePage.value, rowsMeta.value?.last_page ?? 0),
-);
-
-function goToTablePage(page: number) {
-    const last = rowsMeta.value?.last_page ?? 1;
-    tablePage.value = Math.max(1, Math.min(last, page));
-}
-
-// —— Table rows: 100% backend. No full dataset on frontend — only current page from API. ——
-type TableRowRecord = { id: number; row_index: number; cells: unknown[] };
-type RowsMeta = { current_page: number; last_page: number; per_page: number; total: number };
+// —— Table state ——
 const tableHeaders = ref<string[]>([]);
-const tableRows = ref<TableRowRecord[]>([]); // current page only
+const tableRows = ref<TableRowRecord[]>([]);
 const rowsMeta = ref<RowsMeta | null>(null);
 const rowsLoading = ref(false);
 const rowsError = ref<string | null>(null);
-const tableSearch = ref(''); // sent as ?search= to API
-const tablePage = ref(1); // sent as ?page= to API
+const tableSearch = ref('');
+const tablePage = ref(1);
 const tablePerPage = ref(50);
 const editRowOpen = ref(false);
 const editRow = ref<TableRowRecord | null>(null);
@@ -526,7 +402,7 @@ async function submitAppendUpload() {
     const formData = new FormData();
     formData.append('file', file);
     try {
-        const { data } = await api.post<{ added: number; message?: string }>(
+        await api.post<{ added: number; message?: string }>(
             `/dashboard/api/data/${record.value.id}/append-rows`,
             formData,
             {
@@ -588,6 +464,11 @@ watch(
         }
     },
 );
+function goToTablePage(page: number) {
+    const last = rowsMeta.value?.last_page ?? 1;
+    tablePage.value = Math.max(1, Math.min(last, page));
+}
+
 watch(tablePage, () => fetchTableRows());
 watch(tablePerPage, () => {
     tablePage.value = 1;
@@ -601,14 +482,10 @@ watch(tableSearch, () => {
     }, 300);
 });
 
-// —— Ask AI (table only) ——
-const question = ref('');
+// —— Ask AI ——
 const messages = ref<ChatMessage[]>([]);
-const chatScrollRef = ref<HTMLElement | null>(null);
 const askLoading = ref(false);
 const askError = ref<string | null>(null);
-
-const { resolvedAppearance } = useAppearance();
 
 function getCsrfToken(): string {
     const meta = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
@@ -618,12 +495,11 @@ function getCsrfToken(): string {
 }
 
 async function askAi(prompt?: string) {
-    const q = prompt ?? question.value.trim();
+    const q = (prompt ?? '').trim();
     if (!q || !record.value) return;
     askLoading.value = true;
     askError.value = null;
     messages.value.push({ role: 'user', content: q });
-    question.value = '';
     const assistantIndex = messages.value.length;
     messages.value.push({ role: 'assistant', content: '' });
 
@@ -646,9 +522,7 @@ async function askAi(prompt?: string) {
         }
         const reader = res.body?.getReader();
         const decoder = new TextDecoder();
-        if (!reader) {
-            throw new Error('No response body');
-        }
+        if (!reader) throw new Error('No response body');
         let buffer = '';
         while (true) {
             const { done, value } = await reader.read();
@@ -677,7 +551,6 @@ async function askAi(prompt?: string) {
                 }
             }
             await nextTick();
-            chatScrollRef.value?.scrollTo({ top: chatScrollRef.value.scrollHeight, behavior: 'smooth' });
         }
         if (buffer.startsWith('data: ')) {
             const data = buffer.slice(6).trim();
@@ -704,8 +577,6 @@ async function askAi(prompt?: string) {
         if (last?.role === 'assistant' && last.content === '') messages.value.pop();
     } finally {
         askLoading.value = false;
-        await nextTick();
-        chatScrollRef.value?.scrollTo({ top: chatScrollRef.value.scrollHeight, behavior: 'smooth' });
     }
 }
 
@@ -747,7 +618,7 @@ async function exportToDoc() {
 
 const canExportDoc = computed(() => isDocData.value && !!record.value);
 
-// —— Copy to clipboard ——
+// —— Copy ——
 const copyDocFeedback = ref(false);
 const copyTableFeedback = ref(false);
 const copyDocTooltipOpen = ref<boolean | undefined>(undefined);
@@ -756,7 +627,6 @@ const COPY_FEEDBACK_MS = 2500;
 
 async function copyDocToClipboard() {
     if (!record.value || !isDocData.value) return;
-    // Keep tooltip open and show "Copied" immediately so it doesn't close on click
     copyDocTooltipOpen.value = true;
     copyDocFeedback.value = true;
     setTimeout(() => {
@@ -790,7 +660,6 @@ async function copyDocToClipboard() {
 function copyTableToClipboard() {
     const t = tableData.value;
     if (!t?.headers?.length) return;
-    // Keep tooltip open and show "Copied" immediately so it doesn't close on click
     copyTableTooltipOpen.value = true;
     copyTableFeedback.value = true;
     setTimeout(() => {
@@ -894,102 +763,11 @@ async function exportToPdfAsync() {
     }
 }
 
-// —— Charts (AI-suggested, table only) ——
+// —— Charts ——
 const chartRequest = ref('');
 const showSpecificChartRequest = ref(false);
-type ChartSuggestion = {
-    chartType: 'bar' | 'line' | 'pie';
-    labelColumn: number;
-    valueColumn: number;
-    title: string | null;
-};
 const chartSuggestion = ref<ChartSuggestion | null>(null);
 const chartSuggestionLoading = ref(false);
-
-const isDarkChart = computed(() => resolvedAppearance.value === 'dark');
-
-const chartColors = [
-    'hsl(var(--chart-1))',
-    'hsl(var(--chart-2))',
-    'hsl(var(--chart-3))',
-    'hsl(var(--chart-4))',
-    'hsl(var(--chart-5))',
-];
-const chartColorsDark = [
-    'hsla(220, 70%, 50%, 0.85)',
-    'hsla(160, 60%, 45%, 0.85)',
-    'hsla(30, 80%, 55%, 0.85)',
-    'hsla(280, 65%, 60%, 0.85)',
-    'hsla(340, 75%, 55%, 0.85)',
-];
-
-const effectiveChartConfig = computed(() => {
-    const t = tableData.value;
-    if (!t?.headers?.length) return null;
-    const maxCol = t.headers.length - 1;
-    const s = chartSuggestion.value;
-    const labelCol = s ? Math.min(s.labelColumn, maxCol) : 0;
-    const valueCol = s ? Math.min(s.valueColumn, maxCol) : Math.min(1, maxCol);
-    const chartType = s?.chartType && ['bar', 'line', 'pie'].includes(s.chartType) ? s.chartType : 'bar';
-    return { labelCol, valueCol, chartType, title: s?.title ?? null };
-});
-
-const chartOptions = computed(() => {
-    const isDark = isDarkChart.value;
-    const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
-    const tickColor = isDark ? 'hsl(0 0% 63.9%)' : 'hsl(0 0% 45.1%)';
-    const config = effectiveChartConfig.value;
-    const isPie = config?.chartType === 'pie';
-    return {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: { display: isPie },
-            title: config?.title ? { display: true, text: config.title, font: { size: 14 } } : undefined,
-        },
-        scales: isPie
-            ? {}
-            : {
-                x: {
-                    grid: { color: gridColor },
-                    ticks: { color: tickColor, font: { size: 11 } },
-                },
-                y: {
-                    beginAtZero: true,
-                    grid: { color: gridColor },
-                    ticks: { color: tickColor, font: { size: 11 } },
-                },
-            },
-    };
-});
-
-const chartData = computed(() => {
-    const t = tableData.value;
-    const config = effectiveChartConfig.value;
-    if (!t?.headers?.length || !t.rows?.length || !config) return { labels: [], datasets: [] };
-    const labels = (t.rows as unknown[][]).map((row) => String(row[config.labelCol] ?? ''));
-    const values = (t.rows as unknown[][]).map((row) => {
-        const v = row[config.valueCol];
-        return typeof v === 'number' ? v : Number(v) || 0;
-    });
-    const colors = isDarkChart.value ? chartColorsDark : chartColors;
-    const pieColors = config.chartType === 'pie'
-        ? labels.map((_, i) => colors[i % colors.length])
-        : colors[0];
-    return {
-        labels,
-        datasets: [
-            {
-                label: (t.headers as string[])[config.valueCol] || 'Value',
-                data: values,
-                backgroundColor: pieColors,
-                borderColor: config.chartType === 'line' ? colors[0] : undefined,
-                fill: config.chartType === 'line',
-                tension: 0.3,
-            },
-        ],
-    };
-});
 
 async function suggestChartFromAi() {
     if (!record.value || !canChart.value) return;
@@ -1027,943 +805,245 @@ const canExportPdf = computed(() => (!!tableData.value || isDocData.value) && !!
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <TooltipProvider :delay-duration="300">
-        <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl px-3 py-4 sm:p-4">
-            <div class="flex items-center gap-4">
-                <Link
-                    :href="backHref"
-                    class="min-h-[44px] shrink-0 py-2 text-sm text-muted-foreground underline-offset-4 hover:underline sm:min-h-0"
+            <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl px-3 py-4 sm:p-4">
+                <div class="flex items-center gap-4">
+                    <Link
+                        :href="backHref"
+                        class="min-h-[44px] shrink-0 py-2 text-sm text-muted-foreground underline-offset-4 hover:underline sm:min-h-0"
+                    >
+                        ← {{ backLabel }}
+                    </Link>
+                </div>
+
+                <div
+                    v-if="!loading && !error && record"
+                    class="min-w-0 rounded-xl border border-sidebar-border/70 bg-card shadow-sm dark:border-sidebar-border"
                 >
-                    ← {{ backLabel }}
-                </Link>
-            </div>
+                    <div class="border-b border-sidebar-border/70 px-3 pt-4 dark:border-sidebar-border sm:px-4">
+                        <DataShowHeader
+                            :record="record"
+                            @update:name="(name) => { if (record) record.name = name }"
+                        />
 
-            <div
-                v-if="!loading && !error && record"
-                class="min-w-0 rounded-xl border border-sidebar-border/70 bg-card shadow-sm dark:border-sidebar-border"
-            >
-                <div class="border-b border-sidebar-border/70 px-3 pt-4 dark:border-sidebar-border sm:px-4">
-                    <div class="mb-2 flex min-w-0 items-center gap-1.5">
-                        <template v-if="!nameEditing">
-                            <h1
-                                class="min-w-0 truncate text-lg font-semibold text-foreground sm:text-xl"
-                                @dblclick="startNameEdit"
+                        <TabsRoot v-model="activeTab" class="w-full">
+                            <TabsList
+                                class="flex h-10 w-full items-center justify-start gap-1 overflow-x-auto overflow-y-hidden rounded-lg bg-muted/50 p-1 text-muted-foreground [-webkit-overflow-scrolling:touch]"
+                                aria-label="Data view tabs"
                             >
-                                {{ record.name }}
-                            </h1>
-                            <button
-                                type="button"
-                                class="shrink-0 rounded p-1 text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                                title="Edit name"
-                                aria-label="Edit name"
-                                @click="startNameEdit"
-                            >
-                                <Pencil class="h-3.5 w-3.5" />
-                            </button>
-                        </template>
-                        <template v-else>
-                            <input
-                                v-model="nameEditValue"
-                                type="text"
-                                class="min-w-0 flex-1 rounded-lg border border-border bg-background px-2 py-1 text-lg font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-ring sm:text-xl"
-                                placeholder="Name"
-                                @keydown.enter.prevent="saveNameEdit()"
-                                @keydown.escape.prevent="cancelNameEdit()"
-                            />
-                            <Button
-                                size="sm"
-                                class="shrink-0"
-                                :disabled="nameEditSaving || !nameEditValue.trim()"
-                                @click="saveNameEdit"
-                            >
-                                {{ nameEditSaving ? '…' : 'Save' }}
-                            </Button>
-                            <Button
-                                size="sm"
-                                variant="secondary"
-                                class="shrink-0"
-                                :disabled="nameEditSaving"
-                                @click="cancelNameEdit"
-                            >
-                                Cancel
-                            </Button>
-                        </template>
-                    </div>
-                    <p v-if="nameEditError" class="mb-1 text-sm text-destructive">
-                        {{ nameEditError }}
-                    </p>
-                    <p class="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                        <span class="font-mono">ID: {{ record.id }}</span>
-                        <span v-if="record.created_at">
-                            Created {{ new Date(record.created_at).toLocaleString() }}
-                        </span>
-                    </p>
-
-                    <TabsRoot v-model="activeTab" class="w-full">
-                        <TabsList
-                            class="flex h-10 w-full items-center justify-start gap-1 overflow-x-auto overflow-y-hidden rounded-lg bg-muted/50 p-1 text-muted-foreground [-webkit-overflow-scrolling:touch]"
-                            aria-label="Data view tabs"
-                        >
-                            <TabsTrigger
-                                value="data"
-                                class="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm sm:gap-2 sm:px-3"
-                            >
-                                <TableIcon class="h-4 w-4" />
-                                Data
-                            </TabsTrigger>
-                            <TabsTrigger
-                                value="ask"
-                                class="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm sm:gap-2 sm:px-3"
-                            >
-                                <MessageSquare class="h-4 w-4" />
-                                Ask AI
-                            </TabsTrigger>
-                            <TabsTrigger
-                                v-if="isTableData"
-                                value="charts"
-                                class="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm sm:gap-2 sm:px-3"
-                            >
-                                <BarChart3 class="h-4 w-4" />
-                                Charts
-                            </TabsTrigger>
-                            <TabsTrigger
-                                value="export"
-                                class="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm sm:gap-2 sm:px-3"
-                            >
-                                <FileSpreadsheet class="h-4 w-4" />
-                                Export
-                            </TabsTrigger>
-                        </TabsList>
-
-                        <TabsContent value="data" class="mt-0 rounded-b-xl">
-                            <div class="p-3 pt-4 sm:p-6">
-                                <!-- Doc: single page from record, multi-page from API (one page at a time) -->
-                                <div v-if="isDocData" class="space-y-4">
-                                    <div class="flex flex-wrap items-center justify-between gap-2">
-                                        <div class="relative min-w-0 flex-1 basis-full sm:basis-0 sm:max-w-sm">
-                                            <Search
-                                                class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-                                            />
-                                            <input
-                                                v-model="docSearch"
-                                                type="search"
-                                                placeholder="Search for anything in the document"
-                                                class="w-full rounded-lg border-2 border-border bg-background py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-primary dark:border-sidebar-border dark:focus:border-primary"
-                                            />
-                                        </div>
-                                        <div class="ml-auto flex items-center gap-2">
-                                            <button
-                                                v-if="!docEditing"
-                                                type="button"
-                                                class="inline-flex items-center gap-1.5 rounded border border-border px-2 py-1.5 text-sm text-muted-foreground hover:bg-muted/50 hover:text-foreground dark:border-sidebar-border"
-                                                title="Edit"
-                                                @click="startDocEdit"
-                                            >
-                                                Edit
-                                                <Pencil class="h-3.5 w-3.5" />
-                                            </button>
-                                            <Tooltip
-                                                :open="copyDocTooltipOpen"
-                                                @update:open="(v) => { if (!copyDocFeedback) copyDocTooltipOpen = v === false ? undefined : v }"
-                                            >
-                                                <TooltipTrigger as-child>
-                                                    <button
-                                                        type="button"
-                                                        class="inline-flex items-center gap-1.5 rounded border border-border px-2 py-1.5 text-sm text-muted-foreground hover:bg-muted/50 hover:text-foreground dark:border-sidebar-border"
-                                                        @click="copyDocToClipboard"
-                                                    >
-                                                        Copy
-                                                        <Copy class="h-3.5 w-3.5" />
-                                                    </button>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    {{ copyDocFeedback ? 'Copied to clipboard' : 'Copy to clipboard' }}
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </div>
-                                    </div>
-                                    <p v-if="docPageError" class="text-sm text-destructive">
-                                        {{ docPageError }}
-                                    </p>
-                                    <!-- Doc page pills (top) -->
-                                    <div
-                                        v-if="isMultiPageDoc"
-                                        class="flex flex-wrap items-center justify-center gap-1 py-2"
-                                    >
-                                        <button
-                                            type="button"
-                                            class="rounded-lg border border-sidebar-border/70 px-2.5 py-1.5 text-sm font-medium text-foreground hover:bg-muted/60 disabled:opacity-50 dark:border-sidebar-border"
-                                            :disabled="docPageCurrent <= 1"
-                                            @click="goToDocPage(docPageCurrent - 1)"
-                                        >
-                                            Previous
-                                        </button>
-                                        <template v-for="(slot, idx) in docPaginationSlots" :key="idx">
-                                            <button
-                                                v-if="slot !== 'ellipsis'"
-                                                type="button"
-                                                class="min-w-[2.25rem] rounded-lg border px-2.5 py-1.5 text-sm font-medium transition-colors"
-                                                :class="docPageCurrent === slot ? 'border-primary bg-primary text-primary-foreground' : 'border-sidebar-border/70 text-foreground hover:bg-muted/60 dark:border-sidebar-border'"
-                                                @click="goToDocPage(slot)"
-                                            >
-                                                {{ slot }}
-                                            </button>
-                                            <span v-else class="px-1 text-muted-foreground">…</span>
-                                        </template>
-                                        <button
-                                            type="button"
-                                            class="rounded-lg border border-sidebar-border/70 px-2.5 py-1.5 text-sm font-medium text-foreground hover:bg-muted/60 disabled:opacity-50 dark:border-sidebar-border"
-                                            :disabled="docPageCurrent >= docPageCount"
-                                            @click="goToDocPage(docPageCurrent + 1)"
-                                        >
-                                            Next
-                                        </button>
-                                    </div>
-                                    <div
-                                        v-if="docPageLoading && isMultiPageDoc"
-                                        class="py-8 text-center text-sm text-muted-foreground"
-                                    >
-                                        Loading page…
-                                    </div>
-                                    <div
-                                        v-else
-                                        class="content-paper min-w-0 rounded-xl bg-white p-4 text-gray-900 shadow-sm sm:p-5"
-                                    >
-                                        <div v-if="docEditing" class="space-y-3">
-                                            <textarea
-                                                v-model="docEditContent"
-                                                class="min-h-[240px] w-full max-w-full resize-y rounded-lg border border-gray-300 bg-white p-3 font-sans text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-0 sm:p-4 sm:text-base"
-                                                :placeholder="'Document content…'"
-                                                spellcheck="false"
-                                            />
-                                            <p v-if="docEditError" class="text-sm text-destructive">
-                                                {{ docEditError }}
-                                            </p>
-                                            <div class="flex flex-wrap gap-2">
-                                                <Button
-                                                    size="sm"
-                                                    :disabled="docEditSaving"
-                                                    @click="saveDocEdit"
-                                                >
-                                                    {{ docEditSaving ? 'Saving…' : 'Save' }}
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="secondary"
-                                                    :disabled="docEditSaving"
-                                                    @click="cancelDocEdit"
-                                                >
-                                                    Cancel
-                                                </Button>
-                                            </div>
-                                        </div>
-                                        <template v-else>
-                                            <pre
-                                                class="max-w-full overflow-x-auto whitespace-pre-wrap rounded-lg bg-white p-3 font-sans text-sm text-gray-900 sm:p-4 sm:text-base"
-                                            >{{ displayedDocContentFiltered || ' ' }}</pre>
-                                        </template>
-                                    </div>
-                                    <!-- Doc page pills (bottom) -->
-                                    <div
-                                        v-if="isMultiPageDoc"
-                                        class="flex flex-wrap items-center justify-center gap-1 py-3"
-                                    >
-                                        <button
-                                            type="button"
-                                            class="rounded-lg border border-sidebar-border/70 px-2.5 py-1.5 text-sm font-medium text-foreground hover:bg-muted/60 disabled:opacity-50 dark:border-sidebar-border"
-                                            :disabled="docPageCurrent <= 1"
-                                            @click="goToDocPage(docPageCurrent - 1)"
-                                        >
-                                            Previous
-                                        </button>
-                                        <template v-for="(slot, idx) in docPaginationSlots" :key="'bottom-' + idx">
-                                            <button
-                                                v-if="slot !== 'ellipsis'"
-                                                type="button"
-                                                class="min-w-[2.25rem] rounded-lg border px-2.5 py-1.5 text-sm font-medium transition-colors"
-                                                :class="docPageCurrent === slot ? 'border-primary bg-primary text-primary-foreground' : 'border-sidebar-border/70 text-foreground hover:bg-muted/60 dark:border-sidebar-border'"
-                                                @click="goToDocPage(slot)"
-                                            >
-                                                {{ slot }}
-                                            </button>
-                                            <span v-else class="px-1 text-muted-foreground">…</span>
-                                        </template>
-                                        <button
-                                            type="button"
-                                            class="rounded-lg border border-sidebar-border/70 px-2.5 py-1.5 text-sm font-medium text-foreground hover:bg-muted/60 disabled:opacity-50 dark:border-sidebar-border"
-                                            :disabled="docPageCurrent >= docPageCount"
-                                            @click="goToDocPage(docPageCurrent + 1)"
-                                        >
-                                            Next
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <!-- Table: paginated, searchable, editable (always white background) -->
-                                <div v-else-if="tableData" class="table-paper space-y-4 rounded-xl bg-white p-4 text-gray-900 shadow-sm sm:p-5">
-                                    <div class="flex flex-wrap items-center gap-2 sm:gap-3">
-                                        <div class="relative min-w-0 flex-1 basis-full sm:basis-0 sm:max-w-sm">
-                                            <Search
-                                                class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
-                                            />
-                                            <input
-                                                v-model="tableSearch"
-                                                type="search"
-                                                placeholder="Search for anything in the table"
-                                                class="w-full rounded-lg border-2 border-gray-400 bg-gray-50 py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary focus:ring-offset-0"
-                                            />
-                                        </div>
-                                        <span
-                                            v-if="rowsMeta"
-                                            class="text-sm text-gray-600"
-                                        >
-                                            {{ rowsMeta.total.toLocaleString() }} row{{ rowsMeta.total !== 1 ? 's' : '' }}
-                                        </span>
-                                        <div v-if="rowsMeta && rowsMeta.total > 0" class="flex items-center gap-1.5 text-sm">
-                                            <label for="table-per-page" class="text-gray-600">Rows per page</label>
-                                            <select
-                                                id="table-per-page"
-                                                v-model.number="tablePerPage"
-                                                class="rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary"
-                                            >
-                                                <option :value="25">25</option>
-                                                <option :value="50">50</option>
-                                                <option :value="100">100</option>
-                                            </select>
-                                        </div>
-                                        <div class="ml-auto flex items-center gap-2">
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                class="gap-1.5 border-gray-300 text-gray-900 hover:bg-gray-100"
-                                                @click="openAddRow"
-                                            >
-                                                <TableIcon class="h-3.5 w-3.5" />
-                                                Add rows
-                                            </Button>
-                                            <Tooltip
-                                                :open="copyTableTooltipOpen"
-                                                @update:open="(v) => { if (!copyTableFeedback) copyTableTooltipOpen = v }"
-                                            >
-                                                <TooltipTrigger as-child>
-                                                    <button
-                                                        type="button"
-                                                        class="inline-flex items-center gap-1.5 rounded border border-gray-300 px-2 py-1.5 text-sm text-gray-500 hover:bg-gray-200 hover:text-gray-900"
-                                                        @click="copyTableToClipboard"
-                                                    >
-                                                        Copy
-                                                        <Copy class="h-3.5 w-3.5" />
-                                                    </button>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    {{ copyTableFeedback ? 'Copied to clipboard' : 'Copy to clipboard' }}
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </div>
-                                    </div>
-                                    <p v-if="rowsError" class="text-sm text-destructive">
-                                        {{ rowsError }}
-                                    </p>
-                                    <!-- Table page pills (top) -->
-                                    <div
-                                        v-if="rowsMeta && rowsMeta.last_page > 1"
-                                        class="flex flex-wrap items-center justify-center gap-1 py-2"
-                                    >
-                                        <button
-                                            type="button"
-                                            class="rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-sm font-medium text-gray-900 hover:bg-gray-100 disabled:opacity-50"
-                                            :disabled="tablePage <= 1"
-                                            @click="goToTablePage(tablePage - 1)"
-                                        >
-                                            Previous
-                                        </button>
-                                        <template v-for="(slot, idx) in tablePaginationSlots" :key="idx">
-                                            <button
-                                                v-if="slot !== 'ellipsis'"
-                                                type="button"
-                                                class="min-w-[2.25rem] rounded-lg border px-2.5 py-1.5 text-sm font-medium transition-colors"
-                                                :class="tablePage === slot ? 'border-primary bg-primary text-primary-foreground' : 'border-gray-300 bg-white text-gray-900 hover:bg-gray-100'"
-                                                @click="goToTablePage(slot)"
-                                            >
-                                                {{ slot }}
-                                            </button>
-                                            <span v-else class="px-1 text-gray-500">…</span>
-                                        </template>
-                                        <button
-                                            type="button"
-                                            class="rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-sm font-medium text-gray-900 hover:bg-gray-100 disabled:opacity-50"
-                                            :disabled="tablePage >= rowsMeta.last_page"
-                                            @click="goToTablePage(tablePage + 1)"
-                                        >
-                                            Next
-                                        </button>
-                                    </div>
-                                    <div v-if="rowsLoading" class="py-8 text-center text-sm text-gray-600">
-                                        Loading rows…
-                                    </div>
-                                    <div class="-mx-3 overflow-x-auto overscroll-x-contain sm:mx-0">
-                                        <table
-                                            class="w-full min-w-[280px] border-collapse text-left text-sm text-gray-900 sm:min-w-[300px]"
-                                        >
-                                            <thead>
-                                                <tr class="border-b border-gray-200 bg-gray-100">
-                                                    <th
-                                                        v-for="(h, i) in tableHeaders"
-                                                        :key="i"
-                                                        class="px-2 py-2 font-medium text-gray-900 sm:px-4 sm:py-3"
-                                                    >
-                                                        {{ h }}
-                                                    </th>
-                                                    <th
-                                                        class="w-20 px-2 py-2 font-medium text-gray-900 sm:w-24 sm:px-4 sm:py-3"
-                                                    >
-                                                        Actions
-                                                    </th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <tr
-                                                    v-for="row in tableRows"
-                                                    :key="row.id"
-                                                    class="border-b border-gray-200 hover:bg-gray-50"
-                                                >
-                                                    <td
-                                                        v-for="(cell, ci) in (row.cells ?? [])"
-                                                        :key="ci"
-                                                        class="max-w-[120px] truncate px-2 py-2 text-gray-700 sm:max-w-none sm:px-4 sm:py-3"
-                                                        :title="cell != null ? String(cell) : undefined"
-                                                    >
-                                                        {{ cell == null ? '—' : cell }}
-                                                    </td>
-                                                    <td class="px-2 py-2 sm:px-4">
-                                                        <div class="flex items-center gap-0.5 sm:gap-1">
-                                                            <button
-                                                                type="button"
-                                                                class="min-h-[44px] min-w-[44px] rounded p-2 text-gray-500 hover:bg-gray-200 hover:text-gray-900 sm:min-h-0 sm:min-w-0 sm:p-1.5"
-                                                                title="Edit row"
-                                                                @click="openEditRow(row)"
-                                                            >
-                                                                <Pencil class="h-4 w-4" />
-                                                            </button>
-                                                            <button
-                                                                type="button"
-                                                                class="min-h-[44px] min-w-[44px] rounded p-2 text-gray-500 hover:bg-red-50 hover:text-red-600 sm:min-h-0 sm:min-w-0 sm:p-1.5"
-                                                                title="Delete row"
-                                                                @click="openDeleteRow(row)"
-                                                            >
-                                                                <Trash2 class="h-4 w-4" />
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    <!-- Table page pills (bottom) -->
-                                    <div
-                                        v-if="rowsMeta && rowsMeta.last_page > 1"
-                                        class="flex flex-wrap items-center justify-center gap-1 py-3 text-sm"
-                                    >
-                                        <button
-                                            type="button"
-                                            class="rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 font-medium text-gray-900 hover:bg-gray-100 disabled:opacity-50"
-                                            :disabled="tablePage <= 1"
-                                            @click="goToTablePage(tablePage - 1)"
-                                        >
-                                            Previous
-                                        </button>
-                                        <template v-for="(slot, idx) in tablePaginationSlots" :key="'bottom-' + idx">
-                                            <button
-                                                v-if="slot !== 'ellipsis'"
-                                                type="button"
-                                                class="min-w-[2.25rem] rounded-lg border px-2.5 py-1.5 font-medium transition-colors"
-                                                :class="tablePage === slot ? 'border-primary bg-primary text-primary-foreground' : 'border-gray-300 bg-white text-gray-900 hover:bg-gray-100'"
-                                                @click="goToTablePage(slot)"
-                                            >
-                                                {{ slot }}
-                                            </button>
-                                            <span v-else class="px-1 text-gray-500">…</span>
-                                        </template>
-                                        <button
-                                            type="button"
-                                            class="rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 font-medium text-gray-900 hover:bg-gray-100 disabled:opacity-50"
-                                            :disabled="tablePage >= rowsMeta.last_page"
-                                            @click="goToTablePage(tablePage + 1)"
-                                        >
-                                            Next
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <p v-else class="text-muted-foreground">
-                                    No content to display.
-                                </p>
-                            </div>
-                        </TabsContent>
-
-                        <!-- Ask AI: ChatGPT-style (chat up, input down), table only -->
-                        <TabsContent value="ask" class="mt-0 rounded-b-xl">
-                            <div class="flex min-h-[320px] flex-col p-3 sm:min-h-[420px] sm:p-4">
-                                <div
-                                    ref="chatScrollRef"
-                                    class="flex flex-1 flex-col gap-3 overflow-y-auto rounded-lg py-2"
+                                <TabsTrigger
+                                    value="data"
+                                    class="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm sm:gap-2 sm:px-3"
                                 >
-                                    <template v-if="messages.length > 0">
-                                        <div
-                                            v-for="(msg, i) in messages"
-                                            :key="i"
-                                            class="px-2"
-                                            :class="msg.role === 'user' ? 'text-right' : ''"
-                                        >
-                                            <span
-                                                class="inline-block max-w-[85%] rounded-lg px-3 py-2 text-left text-sm"
-                                                :class="
-                                                    msg.role === 'user'
-                                                        ? 'bg-primary text-primary-foreground'
-                                                        : 'bg-muted/60 text-foreground dark:bg-muted/50'
-                                                "
-                                            >
-                                                <template v-if="msg.role === 'user'">
-                                                    <span class="whitespace-pre-wrap">{{ msg.content }}</span>
-                                                </template>
-                                                <template v-else>
-                                                    <div
-                                                        v-if="!msg.content && askLoading"
-                                                        class="flex items-center gap-1 text-muted-foreground"
-                                                    >
-                                                        <span class="inline-block size-1.5 animate-pulse rounded-full bg-current" />
-                                                        <span class="inline-block size-1.5 animate-pulse rounded-full bg-current" style="animation-delay: 0.2s" />
-                                                        <span class="inline-block size-1.5 animate-pulse rounded-full bg-current" style="animation-delay: 0.4s" />
-                                                    </div>
-                                                    <div
-                                                        v-else
-                                                        class="prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-headings:my-2 first:prose-p:mt-0 last:prose-p:mb-0"
-                                                        v-html="renderMarkdown(msg.content)"
-                                                    />
-                                                </template>
-                                            </span>
-                                        </div>
-                                    </template>
-                                </div>
-                                <div class="mt-4 shrink-0 space-y-4 sm:mt-3 sm:space-y-3">
-                                    <template v-if="messages.length === 0">
-                                        <p class="hidden px-2 pt-1 pb-2 text-center text-sm text-muted-foreground sm:block sm:pb-1">
-                                            Ask anything about
-                                            <span class="inline-block font-bold text-lg text-foreground">{{ record?.name ?? 'this data' }}</span>
-                                            . Type below or click a suggestion below.
-                                        </p>
-                                        <div
-                                            v-if="suggestedPrompts.length > 0"
-                                            class="flex flex-wrap justify-center gap-1.5 px-1 py-1.5 sm:gap-2.5 sm:px-2 sm:py-2"
-                                        >
-                                            <button
-                                                v-for="(p, i) in suggestedPrompts"
-                                                :key="i"
-                                                type="button"
-                                                class="inline-flex cursor-pointer items-center rounded border border-gray-300 bg-muted/50 px-2 py-1 text-[11px] leading-tight text-foreground transition-colors hover:bg-muted hover:border-primary/50 dark:border-gray-600 dark:hover:border-primary/50 sm:rounded-lg sm:border-2 sm:px-3 sm:py-1.5 sm:text-sm"
-                                                @click="askAi(p)"
-                                            >
-                                                {{ p }}
-                                            </button>
-                                        </div>
-                                        <div
-                                            v-if="insights.length > 0"
-                                            class="hidden sm:mx-2 sm:flex sm:flex-wrap sm:justify-center sm:gap-1.5 sm:border-t sm:border-border/60 sm:pt-3 sm:pb-1"
-                                        >
-                                            <span
-                                                v-for="(insight, i) in insights"
-                                                :key="i"
-                                                class="rounded-md bg-muted/40 px-2 py-1 text-xs text-muted-foreground"
-                                            >
-                                                {{ insight }}
-                                            </span>
-                                        </div>
-                                    </template>
-                                    <div class="flex flex-col gap-3 pt-1 sm:gap-2 sm:pt-0">
-                                        <textarea
-                                            v-model="question"
-                                            class="min-h-[44px] w-full flex-1 rounded-lg border-2 border-gray-300 bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring dark:border-gray-600"
-                                            placeholder="Ask about this data..."
-                                            rows="1"
-                                            @keydown.enter.exact.prevent="askAi()"
-                                        />
-                                        <button
-                                            type="button"
-                                            class="min-h-[44px] w-full shrink-0 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 sm:h-fit sm:w-auto sm:self-end sm:py-2"
-                                            :disabled="askLoading || !question.trim()"
-                                            @click="askAi()"
-                                        >
-                                            {{ askLoading ? '…' : 'Send' }}
-                                        </button>
-                                    </div>
-                                    <p v-if="askError" class="text-sm text-destructive">
-                                        {{ askError }}
-                                    </p>
-                                </div>
-                            </div>
-                        </TabsContent>
-
-                        <!-- Charts: dynamic chart builder, table only -->
-                        <TabsContent value="charts" class="mt-0 rounded-b-xl">
-                            <div class="flex flex-col gap-4 p-3 pt-4 sm:p-6">
-                                <div class="flex flex-wrap items-center gap-2">
-                                    <button
-                                        type="button"
-                                        class="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-lg border-2 border-gray-300 px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted/60 hover:border-gray-400 dark:border-gray-600 dark:hover:border-gray-500 sm:min-h-0"
-                                        :class="showSpecificChartRequest ? 'bg-muted/50' : 'bg-transparent'"
-                                        @click="showSpecificChartRequest = !showSpecificChartRequest"
-                                    >
-                                        Ask for Specific Chart
-                                    </button>
-                                    <button
-                                        type="button"
-                                        class="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 sm:w-fit"
-                                        :disabled="!canChart || chartSuggestionLoading"
-                                        @click="suggestChartFromAi"
-                                    >
-                                        <BarChart3 class="h-4 w-4" />
-                                        {{ chartSuggestionLoading ? '…' : chartSuggestion ? 'Generate Another Chart' : 'Generate Chart' }}
-                                    </button>
-                                </div>
-                                <div
-                                    v-show="showSpecificChartRequest"
-                                    class="flex flex-col gap-2 sm:flex-row sm:items-end"
+                                    <TableIcon class="h-4 w-4" />
+                                    Data
+                                </TabsTrigger>
+                                <TabsTrigger
+                                    value="ask"
+                                    class="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm sm:gap-2 sm:px-3"
                                 >
-                                    <input
-                                        v-model="chartRequest"
-                                        type="text"
-                                        class="min-h-[44px] w-full flex-1 rounded-lg border border-sidebar-border/70 bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring dark:border-sidebar-border sm:max-w-md"
-                                        placeholder="e.g. bar chart of sales by region, pie chart of market share"
-                                        @keydown.enter.prevent="suggestChartFromAi()"
-                                    />
-                                    <button
-                                        type="button"
-                                        class="min-h-[44px] w-full rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 sm:h-fit sm:w-auto"
-                                        :disabled="!canChart || chartSuggestionLoading"
-                                        @click="suggestChartFromAi"
-                                    >
-                                        Send
-                                    </button>
-                                </div>
-                                <div v-if="!chartSuggestion" class="rounded-lg border border-dashed border-sidebar-border/70 py-12 text-center text-sm text-muted-foreground dark:border-sidebar-border">
-                                    Click “Generate Chart” to have AI pick the best chart type and columns. Use “Ask for Specific Chart” to describe the chart you want.
-                                </div>
-                                <div v-else class="space-y-2">
-                                    <p
-                                        v-if="effectiveChartConfig?.title"
-                                        class="text-sm font-medium text-foreground"
-                                    >
-                                        {{ effectiveChartConfig.title }}
-                                    </p>
-                                    <div class="h-[240px] w-full min-w-0 sm:h-[280px]">
-                                        <Chart
-                                            v-if="effectiveChartConfig?.chartType"
-                                            :type="effectiveChartConfig.chartType"
-                                            :data="chartData"
-                                            :options="chartOptions"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        </TabsContent>
+                                    <MessageSquare class="h-4 w-4" />
+                                    Ask AI
+                                </TabsTrigger>
+                                <TabsTrigger
+                                    v-if="isTableData"
+                                    value="charts"
+                                    class="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm sm:gap-2 sm:px-3"
+                                >
+                                    <BarChart3 class="h-4 w-4" />
+                                    Charts
+                                </TabsTrigger>
+                                <TabsTrigger
+                                    value="export"
+                                    class="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm sm:gap-2 sm:px-3"
+                                >
+                                    <FileSpreadsheet class="h-4 w-4" />
+                                    Export
+                                </TabsTrigger>
+                            </TabsList>
 
-                        <TabsContent value="export" class="mt-0 rounded-b-xl">
-                            <div class="flex flex-col gap-4 p-3 pt-4 sm:p-6">
-                                <p class="text-sm text-muted-foreground">
-                                    Download this data to your device.
-                                </p>
-                                <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-3">
-                                    <button
-                                        v-if="isTableData"
-                                        type="button"
-                                        class="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg border border-sidebar-border/70 bg-muted/30 px-3 py-2.5 text-sm font-medium text-foreground hover:bg-muted/60 dark:border-sidebar-border disabled:opacity-50 sm:w-auto sm:py-2"
-                                        :disabled="!canExportExcel"
-                                        @click="exportToExcel"
-                                    >
-                                        <FileSpreadsheet class="h-4 w-4 shrink-0" />
-                                        Export to Excel
-                                    </button>
-                                    <button
-                                        v-if="isTableData"
-                                        type="button"
-                                        class="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg border border-sidebar-border/70 bg-muted/30 px-3 py-2.5 text-sm font-medium text-foreground hover:bg-muted/60 dark:border-sidebar-border disabled:opacity-50 sm:w-auto sm:py-2"
-                                        :disabled="!canExportExcel"
-                                        @click="exportToJson"
-                                    >
-                                        <FileJson class="h-4 w-4 shrink-0" />
-                                        Export to JSON
-                                    </button>
-                                    <button
+                            <TabsContent value="data" class="mt-0 rounded-b-xl">
+                                <div class="p-3 pt-4 sm:p-6">
+                                    <DataShowDocView
                                         v-if="isDocData"
-                                        type="button"
-                                        class="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg border border-sidebar-border/70 bg-muted/30 px-3 py-2.5 text-sm font-medium text-foreground hover:bg-muted/60 dark:border-sidebar-border disabled:opacity-50 sm:w-auto sm:py-2"
-                                        :disabled="!canExportDoc"
-                                        @click="exportToDoc"
-                                    >
-                                        <FileText class="h-4 w-4 shrink-0" />
-                                        Export to Doc
-                                    </button>
-                                    <button
-                                        v-if="isTableData || isDocData"
-                                        type="button"
-                                        class="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg border border-sidebar-border/70 bg-muted/30 px-3 py-2.5 text-sm font-medium text-foreground hover:bg-muted/60 dark:border-sidebar-border disabled:opacity-50 sm:w-auto sm:py-2"
-                                        :disabled="!canExportPdf"
-                                        @click="exportToPdfAsync"
-                                    >
-                                        <FileOutput class="h-4 w-4 shrink-0" />
-                                        Export as PDF
-                                    </button>
-                                </div>
-                                <p
-                                    v-if="!isTableData && !isDocData"
-                                    class="text-sm text-muted-foreground"
-                                >
-                                    No content to export.
-                                </p>
-                            </div>
-                        </TabsContent>
-                    </TabsRoot>
-
-                    <!-- Edit row dialog -->
-                    <Dialog :open="editRowOpen" @update:open="editRowOpen = $event">
-                        <DialogContent class="sm:max-w-lg">
-                            <DialogHeader>
-                                <DialogTitle>Edit row</DialogTitle>
-                            </DialogHeader>
-                            <div
-                                v-if="editRow && tableHeaders.length"
-                                class="grid gap-3 py-2"
-                            >
-                                <div
-                                    v-for="(header, i) in tableHeaders"
-                                    :key="i"
-                                    class="grid gap-1.5"
-                                >
-                                    <Label :for="`edit-cell-${i}`">{{ header }}</Label>
-                                    <Input
-                                        :id="`edit-cell-${i}`"
-                                        v-model="editCells[i]"
-                                        class="w-full"
+                                        :doc-search="docSearch"
+                                        :displayed-content="displayedDocContentFiltered"
+                                        :doc-page-count="docPageCount"
+                                        :doc-page-current="docPageCurrent"
+                                        :is-multi-page="isMultiPageDoc"
+                                        :doc-page-loading="docPageLoading"
+                                        :doc-page-error="docPageError"
+                                        :doc-editing="docEditing"
+                                        :doc-edit-content="docEditContent"
+                                        :doc-edit-saving="docEditSaving"
+                                        :doc-edit-error="docEditError"
+                                        :copy-feedback="copyDocFeedback"
+                                        :copy-tooltip-open="copyDocTooltipOpen"
+                                        @update:doc-search="docSearch = $event"
+                                        @start-edit="startDocEdit"
+                                        @cancel-edit="cancelDocEdit"
+                                        @save-edit="saveDocEdit"
+                                        @go-to-page="goToDocPage"
+                                        @copy="copyDocToClipboard"
+                                        @update:copy-tooltip-open="(v) => { if (!copyDocFeedback) copyDocTooltipOpen = v === false ? undefined : v }"
+                                        @update:doc-edit-content="docEditContent = $event"
                                     />
-                                </div>
-                            </div>
-                            <DialogFooter class="gap-2">
-                                <DialogClose as-child>
-                                    <Button variant="secondary" @click="closeEditRow">
-                                        Cancel
-                                    </Button>
-                                </DialogClose>
-                                <Button
-                                    :disabled="editSaving"
-                                    @click="saveEditRow"
-                                >
-                                    {{ editSaving ? 'Saving…' : 'Save' }}
-                                </Button>
-                            </DialogFooter>
-                        </DialogContent>
-                    </Dialog>
-
-                    <!-- Add rows dialog: Manual or From photo/video -->
-                    <Dialog :open="addRowOpen" @update:open="addRowOpen = $event">
-                        <DialogContent class="sm:max-w-lg">
-                            <DialogHeader>
-                                <DialogTitle>Add rows</DialogTitle>
-                            </DialogHeader>
-                            <TabsRoot v-model="addRowsTab" class="w-full">
-                                <TabsList class="grid w-full grid-cols-2">
-                                    <TabsTrigger value="manual">Manual</TabsTrigger>
-                                    <TabsTrigger value="upload">From photo or video</TabsTrigger>
-                                </TabsList>
-                                <TabsContent value="manual" class="mt-3">
-                                    <div
-                                        v-if="tableHeaders.length"
-                                        class="grid gap-3 py-2"
-                                    >
-                                        <div
-                                            v-for="(header, i) in tableHeaders"
-                                            :key="i"
-                                            class="grid gap-1.5"
-                                        >
-                                            <Label :for="`add-cell-${i}`">{{ header }}</Label>
-                                            <Input
-                                                :id="`add-cell-${i}`"
-                                                v-model="addRowCells[i]"
-                                                class="w-full"
-                                            />
-                                        </div>
-                                    </div>
-                                    <DialogFooter class="mt-4 gap-2">
-                                        <DialogClose as-child>
-                                            <Button variant="secondary" @click="closeAddRow">
-                                                Cancel
-                                            </Button>
-                                        </DialogClose>
-                                        <Button
-                                            :disabled="addRowSaving"
-                                            @click="saveAddRow"
-                                        >
-                                            {{ addRowSaving ? 'Adding…' : 'Add row' }}
-                                        </Button>
-                                    </DialogFooter>
-                                </TabsContent>
-                                <TabsContent value="upload" class="mt-3">
-                                    <p class="mb-3 text-sm text-muted-foreground">
-                                        Upload a photo or video of a table — we'll extract the rows and append them to this table.
+                                    <DataShowTableView
+                                        v-else-if="tableData"
+                                        :table-search="tableSearch"
+                                        :table-headers="tableHeaders"
+                                        :table-rows="tableRows"
+                                        :rows-meta="rowsMeta"
+                                        :rows-loading="rowsLoading"
+                                        :rows-error="rowsError"
+                                        :table-page="tablePage"
+                                        :table-per-page="tablePerPage"
+                                        :copy-feedback="copyTableFeedback"
+                                        :copy-tooltip-open="copyTableTooltipOpen"
+                                        @update:table-search="tableSearch = $event"
+                                        @update:table-page="tablePage = $event"
+                                        @update:table-per-page="tablePerPage = $event"
+                                        @go-to-page="goToTablePage"
+                                        @add-rows="openAddRow"
+                                        @copy="copyTableToClipboard"
+                                        @edit-row="openEditRow"
+                                        @delete-row="openDeleteRow"
+                                        @update:copy-tooltip-open="(v) => { if (!copyTableFeedback) copyTableTooltipOpen = v === false ? undefined : v }"
+                                    />
+                                    <p v-else class="text-muted-foreground">
+                                        No content to display.
                                     </p>
-                                    <input
-                                        ref="appendFileInput"
-                                        type="file"
-                                        :accept="ACCEPT_TABLE_UPLOAD"
-                                        class="hidden"
-                                        @change="onAppendFileChange"
-                                    />
-                                    <input
-                                        ref="appendCameraPhoto"
-                                        type="file"
-                                        accept="image/*"
-                                        capture="environment"
-                                        class="hidden"
-                                        aria-label="Take a picture"
-                                        @change="onAppendFileChange"
-                                    />
-                                    <input
-                                        ref="appendCameraVideo"
-                                        type="file"
-                                        accept="video/*"
-                                        capture="environment"
-                                        class="hidden"
-                                        aria-label="Record video"
-                                        @change="onAppendFileChange"
-                                    />
-                                    <div class="mb-3 flex flex-wrap gap-2">
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            size="sm"
-                                            :disabled="appendLoading"
-                                            @click="openAppendCameraPhoto"
-                                        >
-                                            <Camera class="mr-1.5 h-4 w-4" />
-                                            Take a picture
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            size="sm"
-                                            :disabled="appendLoading"
-                                            @click="openAppendCameraVideo"
-                                        >
-                                            <Video class="mr-1.5 h-4 w-4" />
-                                            Record video
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            size="sm"
-                                            :disabled="appendLoading"
-                                            @click="openAppendFilePicker"
-                                        >
-                                            <Upload class="mr-1.5 h-4 w-4" />
-                                            Choose a file
-                                        </Button>
-                                    </div>
-                                    <div
-                                        class="cursor-pointer rounded-lg border-2 border-dashed border-sidebar-border/70 bg-muted/30 p-4 text-center transition-colors dark:border-sidebar-border"
-                                        :class="{ 'border-primary/50 bg-primary/5': appendLoading }"
-                                        role="button"
-                                        tabindex="0"
-                                        @click="openAppendFilePicker"
-                                        @drop.prevent="onAppendDrop"
-                                        @dragover.prevent
-                                        @keydown.enter="openAppendFilePicker"
-                                        @keydown.space.prevent="openAppendFilePicker"
-                                    >
-                                        <Upload class="mx-auto mb-2 h-6 w-6 text-muted-foreground" />
-                                        <p class="mb-1 text-sm text-muted-foreground">
-                                            Or drag a file here
-                                        </p>
-                                        <p v-if="appendFile" class="mb-2 text-sm font-medium text-foreground">
-                                            {{ appendFile.name }}
-                                        </p>
-                                        <p class="mb-2 text-xs text-muted-foreground">
-                                            Images: JPEG, PNG, GIF, WebP. Video: MP4, WebM. Max 20 MB.
-                                        </p>
-                                        <div v-if="appendLoading" class="mt-2 space-y-2">
-                                            <div class="flex justify-between text-sm text-muted-foreground">
-                                                <span>{{ appendPhase === 'uploading' ? `Uploading… ${appendProgress}%` : 'Extracting…' }}</span>
-                                                <span v-if="appendPhase === 'uploading'" class="tabular-nums">{{ appendProgress }}%</span>
-                                            </div>
-                                            <div class="h-2 w-full overflow-hidden rounded-full bg-muted">
-                                                <div
-                                                    class="h-full rounded-full bg-primary transition-[width] duration-300"
-                                                    :style="{ width: appendPhase === 'extracting' ? '100%' : `${appendProgress}%` }"
-                                                />
-                                            </div>
-                                        </div>
-                                        <p v-else-if="appendError" class="text-sm text-destructive">
-                                            {{ appendError }}
-                                        </p>
-                                        <p v-else-if="appendSuccess" class="text-sm text-green-600 dark:text-green-400">
-                                            Rows appended. They appear in the table.
-                                        </p>
-                                    </div>
-                                    <DialogFooter class="mt-2 gap-2">
-                                        <DialogClose as-child>
-                                            <Button variant="secondary" @click="closeAddRow">
-                                                Close
-                                            </Button>
-                                        </DialogClose>
-                                        <Button
-                                            :disabled="!appendFile || appendLoading"
-                                            @click="submitAppendUpload"
-                                        >
-                                            {{ appendLoading ? 'Adding…' : 'Add rows from file' }}
-                                        </Button>
-                                    </DialogFooter>
-                                </TabsContent>
-                            </TabsRoot>
-                        </DialogContent>
-                    </Dialog>
+                                </div>
+                            </TabsContent>
 
-                    <!-- Delete row confirmation -->
-                    <Dialog :open="deleteRowOpen" @update:open="deleteRowOpen = $event">
-                        <DialogContent class="sm:max-w-md">
-                            <DialogHeader>
-                                <DialogTitle>Delete row?</DialogTitle>
-                            </DialogHeader>
-                            <p class="text-sm text-muted-foreground">
-                                This row will be permanently removed. This cannot be undone.
-                            </p>
-                            <DialogFooter class="gap-2">
-                                <DialogClose as-child>
-                                    <Button variant="secondary" @click="closeDeleteRow">
-                                        Cancel
-                                    </Button>
-                                </DialogClose>
-                                <Button
-                                    variant="destructive"
-                                    :disabled="deleteConfirming"
-                                    @click="confirmDeleteRow"
-                                >
-                                    {{ deleteConfirming ? 'Deleting…' : 'Delete' }}
-                                </Button>
-                            </DialogFooter>
-                        </DialogContent>
-                    </Dialog>
+                            <TabsContent value="ask" class="mt-0 rounded-b-xl">
+                                <DataShowAskAi
+                                    :record-name="record?.name ?? ''"
+                                    :messages="messages"
+                                    :suggested-prompts="suggestedPrompts"
+                                    :insights="insights"
+                                    :ask-loading="askLoading"
+                                    :ask-error="askError"
+                                    @ask="askAi"
+                                />
+                            </TabsContent>
+
+                            <TabsContent value="charts" class="mt-0 rounded-b-xl">
+                                <DataShowCharts
+                                    :table-data="tableData"
+                                    :chart-suggestion="chartSuggestion"
+                                    :chart-request="chartRequest"
+                                    :show-specific-chart-request="showSpecificChartRequest"
+                                    :chart-suggestion-loading="chartSuggestionLoading"
+                                    :can-chart="!!canChart"
+                                    @update:chart-request="chartRequest = $event"
+                                    @update:show-specific-chart-request="showSpecificChartRequest = $event"
+                                    @suggest-chart="suggestChartFromAi"
+                                />
+                            </TabsContent>
+
+                            <TabsContent value="export" class="mt-0 rounded-b-xl">
+                                <DataShowExport
+                                    :is-table-data="isTableData"
+                                    :is-doc-data="isDocData"
+                                    :can-export-excel="canExportExcel"
+                                    :can-export-doc="canExportDoc"
+                                    :can-export-pdf="canExportPdf"
+                                    @export-excel="exportToExcel"
+                                    @export-json="exportToJson"
+                                    @export-doc="exportToDoc"
+                                    @export-pdf="exportToPdfAsync"
+                                />
+                            </TabsContent>
+                        </TabsRoot>
+
+                        <DataEditRowDialog
+                            :open="editRowOpen"
+                            :edit-row="editRow"
+                            :table-headers="tableHeaders"
+                            :edit-cells="editCells"
+                            :edit-saving="editSaving"
+                            @update:open="editRowOpen = $event"
+                            @update:edit-cells="editCells = $event"
+                            @save="saveEditRow"
+                            @close="closeEditRow"
+                        />
+
+                        <DataAddRowsDialog
+                            :open="addRowOpen"
+                            :table-headers="tableHeaders"
+                            :add-row-cells="addRowCells"
+                            :add-row-saving="addRowSaving"
+                            :add-rows-tab="addRowsTab"
+                            :append-file="appendFile"
+                            :append-loading="appendLoading"
+                            :append-progress="appendProgress"
+                            :append-phase="appendPhase"
+                            :append-error="appendError"
+                            :append-success="appendSuccess"
+                            @update:open="addRowOpen = $event"
+                            @update:add-row-cells="addRowCells = $event"
+                            @update:add-rows-tab="addRowsTab = $event"
+                            @save-add-row="saveAddRow"
+                            @close="closeAddRow"
+                            @append-file-change="onAppendFileChange"
+                            @append-drop="onAppendDrop"
+                            @open-append-file-picker="openAppendFilePicker"
+                            @open-append-camera-photo="openAppendCameraPhoto"
+                            @open-append-camera-video="openAppendCameraVideo"
+                            @submit-append-upload="submitAppendUpload"
+                        >
+                            <template #file-inputs>
+                                <input
+                                    ref="appendFileInput"
+                                    type="file"
+                                    :accept="ACCEPT_TABLE_UPLOAD"
+                                    class="hidden"
+                                    @change="onAppendFileChange"
+                                />
+                                <input
+                                    ref="appendCameraPhoto"
+                                    type="file"
+                                    accept="image/*"
+                                    capture="environment"
+                                    class="hidden"
+                                    aria-label="Take a picture"
+                                    @change="onAppendFileChange"
+                                />
+                                <input
+                                    ref="appendCameraVideo"
+                                    type="file"
+                                    accept="video/*"
+                                    capture="environment"
+                                    class="hidden"
+                                    aria-label="Record video"
+                                    @change="onAppendFileChange"
+                                />
+                            </template>
+                        </DataAddRowsDialog>
+
+                        <DataDeleteRowDialog
+                            :open="deleteRowOpen"
+                            :row-to-delete="rowToDelete"
+                            :delete-confirming="deleteConfirming"
+                            @update:open="deleteRowOpen = $event"
+                            @confirm="confirmDeleteRow"
+                            @close="closeDeleteRow"
+                        />
+                    </div>
+                </div>
+
+                <div
+                    v-else
+                    class="rounded-xl border border-sidebar-border/70 bg-card p-6 shadow-sm dark:border-sidebar-border"
+                >
+                    <div v-if="loading" class="py-8 text-center text-muted-foreground">
+                        Loading…
+                    </div>
+                    <div v-else-if="error" class="py-8 text-center text-destructive">
+                        {{ error }}
+                    </div>
                 </div>
             </div>
-
-            <div
-                v-else
-                class="rounded-xl border border-sidebar-border/70 bg-card p-6 shadow-sm dark:border-sidebar-border"
-            >
-                <div v-if="loading" class="py-8 text-center text-muted-foreground">
-                    Loading…
-                </div>
-                <div v-else-if="error" class="py-8 text-center text-destructive">
-                    {{ error }}
-                </div>
-            </div>
-        </div>
         </TooltipProvider>
     </AppLayout>
 </template>

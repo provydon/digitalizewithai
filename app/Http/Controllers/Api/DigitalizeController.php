@@ -31,10 +31,13 @@ class DigitalizeController extends Controller
         $allowedMimes = array_merge(self::IMAGE_MIMES, self::VIDEO_MIMES);
         $mimeRule = 'in:'.implode(',', $allowedMimes);
 
+        $digitalizeProviders = array_keys(config('ai.digitalize_providers', []));
         if ($request->hasFile('file')) {
             $request->validate([
                 'file' => ['required', 'file', 'mimetypes:'.implode(',', $allowedMimes), 'max:20480'],
                 'name' => 'nullable|string|max:255',
+                'ai_provider' => 'nullable|string|in:'.implode(',', $digitalizeProviders),
+                'ai_model' => 'nullable|string|max:255',
             ]);
             $uploaded = $request->file('file');
             $mimeType = $uploaded->getMimeType();
@@ -49,6 +52,8 @@ class DigitalizeController extends Controller
                 'file' => 'required|string',
                 'name' => 'nullable|string|max:255',
                 'mime_type' => 'nullable|string|'.$mimeRule,
+                'ai_provider' => 'nullable|string|in:'.implode(',', $digitalizeProviders),
+                'ai_model' => 'nullable|string|max:255',
             ]);
 
             $fileInput = $request->input('file');
@@ -84,14 +89,19 @@ class DigitalizeController extends Controller
             ? Image::fromBase64($base64, $mimeType)
             : Document::fromBase64($base64, $mimeType);
 
-        $agent = $this->digitalizeAgent();
+        $requestProvider = $request->input('ai_provider');
+        $requestModel = $request->input('ai_model') ?: null;
+        $agent = $this->digitalizeAgentForProvider($requestProvider);
         $response = $agent->prompt(
             'Extract all content from this image or video (e.g. handwritten or printed text, tables). Return structured JSON with type (doc or table) and content as described in your instructions.',
             attachments: [$attachment],
+            provider: $requestProvider ?: null,
+            model: $requestModel,
         );
         $response = $this->digitalizeResponseToArray($response);
 
-        if (config('ai.default') === 'nova') {
+        $effectiveProvider = $requestProvider ?: config('ai.default');
+        if ($effectiveProvider === 'nova') {
             $response = $this->normalizeDigitalizeResponse($response);
         }
 
@@ -128,7 +138,7 @@ class DigitalizeController extends Controller
         // 2. In one transaction: store file, create Data, sync table rows. Roll back all on failure.
         $disk = config('filesystems.default');
         $path = null;
-        [$aiProvider, $aiModel] = $this->defaultAiProviderAndModel();
+        [$aiProvider, $aiModel] = $this->resolveProviderAndModelForStorage($requestProvider, $requestModel);
 
         try {
             DB::beginTransaction();
@@ -191,8 +201,11 @@ class DigitalizeController extends Controller
         }
 
         $allowedMimes = array_merge(self::IMAGE_MIMES, self::VIDEO_MIMES);
+        $digitalizeProviders = array_keys(config('ai.digitalize_providers', []));
         $request->validate([
             'file' => ['required', 'file', 'mimetypes:'.implode(',', $allowedMimes), 'max:20480'],
+            'ai_provider' => 'nullable|string|in:'.implode(',', $digitalizeProviders),
+            'ai_model' => 'nullable|string|max:255',
         ]);
         $uploaded = $request->file('file');
         $mimeType = $uploaded->getMimeType();
@@ -206,14 +219,19 @@ class DigitalizeController extends Controller
             ? Image::fromBase64($base64, $mimeType)
             : Document::fromBase64($base64, $mimeType);
 
-        $agent = $this->digitalizeAgent();
+        $requestProvider = $request->input('ai_provider');
+        $requestModel = $request->input('ai_model') ?: null;
+        $agent = $this->digitalizeAgentForProvider($requestProvider);
         $response = $agent->prompt(
             'Extract all content from this image or video (e.g. handwritten or printed text, tables). Return structured JSON with type (doc or table) and content as described in your instructions.',
             attachments: [$attachment],
+            provider: $requestProvider ?: null,
+            model: $requestModel,
         );
         $response = $this->digitalizeResponseToArray($response);
 
-        if (config('ai.default') === 'nova') {
+        $effectiveProvider = $requestProvider ?: config('ai.default');
+        if ($effectiveProvider === 'nova') {
             $response = $this->normalizeDigitalizeResponse($response);
         }
 
@@ -267,6 +285,31 @@ class DigitalizeController extends Controller
             'added' => $added,
             'message' => $added === 1 ? '1 row added.' : "{$added} rows added.",
         ], 201);
+    }
+
+    /**
+     * Return available AI providers and models for digitalize (frontend selector).
+     */
+    public function digitalizeOptions(): JsonResponse
+    {
+        $config = config('ai.digitalize_providers', []);
+        $defaultProvider = config('ai.default');
+        $options = [];
+        foreach ($config as $id => $entry) {
+            $name = is_array($entry) ? ($entry['name'] ?? $id) : (string) $entry;
+            $item = ['id' => $id, 'name' => $name, 'models' => []];
+            if (is_array($entry) && ! empty($entry['models'])) {
+                foreach ($entry['models'] as $modelId => $modelName) {
+                    $item['models'][] = ['id' => $modelId, 'name' => $modelName];
+                }
+            }
+            $options[] = $item;
+        }
+
+        return response()->json([
+            'providers' => $options,
+            'default_provider' => $defaultProvider,
+        ]);
     }
 
     /**
@@ -346,13 +389,39 @@ class DigitalizeController extends Controller
     }
 
     /**
-     * Resolve the digitalize agent: Nova-specific agent when default provider is Nova, else default agent.
+     * Resolve the digitalize agent: Nova-specific agent when provider is Nova, else default agent.
+     *
+     * @param  string|null  $provider  Requested provider key (e.g. nova, openai) or null for config default
      */
-    private function digitalizeAgent(): DigitalizeAgent|DigitalizeAgentNova
+    private function digitalizeAgentForProvider(?string $provider): DigitalizeAgent|DigitalizeAgentNova
     {
-        return config('ai.default') === 'nova'
+        $effective = $provider ?: config('ai.default');
+
+        return $effective === 'nova'
             ? new DigitalizeAgentNova
             : new DigitalizeAgent;
+    }
+
+    /**
+     * Provider and model for storage: from request or config default for the chosen provider.
+     *
+     * @return array{0: string|null, 1: string|null} [provider, model]
+     */
+    private function resolveProviderAndModelForStorage(?string $requestProvider, ?string $requestModel): array
+    {
+        $provider = $requestProvider ?: config('ai.default');
+        if (! is_string($provider) || $provider === '') {
+            return [null, null];
+        }
+        if ($requestModel !== null && $requestModel !== '') {
+            return [$provider, $requestModel];
+        }
+        $providerConfig = config('ai.providers.'.$provider, []);
+        $model = $providerConfig['models']['text']['default']
+            ?? $providerConfig['deployment']
+            ?? null;
+
+        return [$provider, is_string($model) ? $model : null];
     }
 
     /**
@@ -362,16 +431,7 @@ class DigitalizeController extends Controller
      */
     private function defaultAiProviderAndModel(): array
     {
-        $provider = config('ai.default');
-        if (! is_string($provider) || $provider === '') {
-            return [null, null];
-        }
-        $providerConfig = config('ai.providers.'.$provider, []);
-        $model = $providerConfig['models']['text']['default']
-            ?? $providerConfig['deployment']
-            ?? null;
-
-        return [$provider, is_string($model) ? $model : null];
+        return $this->resolveProviderAndModelForStorage(null, null);
     }
 
     private function mimeToExt(string $mime): string

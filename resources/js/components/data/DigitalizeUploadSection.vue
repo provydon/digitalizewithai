@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { nextTick, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { ChevronDown, Plus, Upload } from 'lucide-vue-next';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+
+export type DigitalizeProviderOption = { id: string; name: string };
+export type DigitalizeOptionsResponse = { providers: DigitalizeProviderOption[]; default_provider: string };
 
 const props = withDefaults(
     defineProps<{
@@ -31,6 +34,11 @@ const fileInput = ref<HTMLInputElement | null>(null);
 const uploadNameInput = ref<InstanceType<typeof Input> | null>(null);
 const pendingFile = ref<File | null>(null);
 const uploadName = ref('');
+
+const digitalizeOptions = ref<DigitalizeOptionsResponse | null>(null);
+const selectedProvider = ref('');
+
+const providerOptions = computed(() => digitalizeOptions.value?.providers ?? []);
 
 function openFilePicker() {
     uploadError.value = null;
@@ -106,6 +114,9 @@ async function doUpload(file: File, nameOverride?: string) {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('name', name);
+    if (selectedProvider.value) {
+        formData.append('ai_provider', selectedProvider.value);
+    }
 
     try {
         await api.post<{ id: number; name: string }>('/dashboard/digitalize', formData, {
@@ -142,10 +153,25 @@ watch(uploadSectionOpen, (open: boolean) => {
     if (open) nextTick(() => (uploadNameInput.value as { $el?: HTMLInputElement } | null)?.$el?.focus());
 });
 
+async function fetchDigitalizeOptions() {
+    try {
+        const { data } = await api.get<DigitalizeOptionsResponse>('/dashboard/api/digitalize-options');
+        digitalizeOptions.value = data;
+        if (selectedProvider.value) return;
+        const defaultId = data.providers.some((p: DigitalizeProviderOption) => p.id === data.default_provider)
+            ? data.default_provider
+            : data.providers[0]?.id ?? '';
+        selectedProvider.value = defaultId;
+    } catch {
+        digitalizeOptions.value = { providers: [], default_provider: '' };
+    }
+}
+
 onMounted(() => {
     if (props.storageKey && typeof localStorage !== 'undefined') {
         localStorage.setItem(props.storageKey, '1');
     }
+    fetchDigitalizeOptions();
     if (uploadSectionOpen.value) {
         nextTick(() => (uploadNameInput.value as { $el?: HTMLInputElement } | null)?.$el?.focus());
     }
@@ -186,6 +212,17 @@ onMounted(() => {
                     :disabled="uploadLoading"
                     @keydown.enter.prevent="uploadName.trim() && pendingFile && startUpload()"
                 />
+            </div>
+            <div v-if="providerOptions.length > 0" class="mb-4 w-full">
+                <Label for="upload-ai-provider" class="text-xs font-medium text-muted-foreground">AI provider</Label>
+                <select
+                    id="upload-ai-provider"
+                    v-model="selectedProvider"
+                    class="mt-1 block w-full rounded-lg border-2 border-primary/50 bg-background px-3 py-2 text-sm ring-2 ring-primary/20 focus:border-primary focus:outline-none focus:ring-primary/40 disabled:opacity-50"
+                    :disabled="uploadLoading"
+                >
+                    <option v-for="p in providerOptions" :key="p.id" :value="p.id">{{ p.name }}</option>
+                </select>
             </div>
             <input
                 ref="fileInput"

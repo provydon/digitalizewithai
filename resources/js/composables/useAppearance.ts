@@ -70,20 +70,22 @@ const handleSystemThemeChange = () => {
     updateTheme(currentAppearance || 'system');
 };
 
+const DEFAULT_APPEARANCE: Appearance = 'dark';
+
 export function initializeTheme(): void {
     if (typeof window === 'undefined') {
         return;
     }
 
-    // Initialize theme from saved preference or default to system...
+    // Initialize theme from saved preference or default to dark (users can toggle in dashboard)
     const savedAppearance = getStoredAppearance();
-    updateTheme(savedAppearance || 'system');
+    updateTheme(savedAppearance || DEFAULT_APPEARANCE);
 
-    // Set up system theme change listener...
+    // Set up system theme change listener (only matters when user selects "System")
     mediaQuery()?.addEventListener('change', handleSystemThemeChange);
 }
 
-const appearance = ref<Appearance>('system');
+const appearance = ref<Appearance>(DEFAULT_APPEARANCE);
 
 export function useAppearance(): UseAppearanceReturn {
     onMounted(() => {
@@ -91,9 +93,7 @@ export function useAppearance(): UseAppearanceReturn {
             'appearance',
         ) as Appearance | null;
 
-        if (savedAppearance) {
-            appearance.value = savedAppearance;
-        }
+        appearance.value = savedAppearance ?? DEFAULT_APPEARANCE;
     });
 
     const resolvedAppearance = computed<ResolvedAppearance>(() => {

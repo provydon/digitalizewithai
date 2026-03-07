@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { ChevronDown, Plus, Upload } from 'lucide-vue-next';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 export type DigitalizeProviderOption = { id: string; name: string };
@@ -31,9 +30,7 @@ const uploadPhase = ref<'uploading' | 'extracting'>('uploading');
 const uploadError = ref<string | null>(null);
 const uploadSuccess = ref(false);
 const fileInput = ref<HTMLInputElement | null>(null);
-const uploadNameInput = ref<InstanceType<typeof Input> | null>(null);
 const pendingFile = ref<File | null>(null);
-const uploadName = ref('');
 
 const digitalizeOptions = ref<DigitalizeOptionsResponse | null>(null);
 const selectedProvider = ref('');
@@ -51,9 +48,6 @@ function onFileChange(e: Event) {
     const file = input.files?.[0];
     if (!file) return;
     pendingFile.value = file;
-    if (!uploadName.value?.trim()) {
-        uploadName.value = file.name.replace(/\.[^.]+$/, '') || file.name;
-    }
 }
 
 function onDrop(e: DragEvent) {
@@ -63,29 +57,24 @@ function onDrop(e: DragEvent) {
     uploadError.value = null;
     uploadSuccess.value = false;
     pendingFile.value = file;
-    if (!uploadName.value?.trim()) {
-        uploadName.value = file.name.replace(/\.[^.]+$/, '') || file.name;
-    }
 }
 
 function resetUploadForm() {
     pendingFile.value = null;
-    uploadName.value = '';
     if (fileInput.value) fileInput.value.value = '';
 }
 
 function startUpload() {
     const file = pendingFile.value;
-    const name = uploadName.value?.trim();
-    if (!file || !name) return;
-    doUpload(file, name);
+    if (!file) return;
+    doUpload(file);
 }
 
 function onDragOver(e: DragEvent) {
     e.preventDefault();
 }
 
-async function doUpload(file: File, nameOverride?: string) {
+async function doUpload(file: File) {
     const allowed = [
         'image/jpeg',
         'image/png',
@@ -109,11 +98,8 @@ async function doUpload(file: File, nameOverride?: string) {
     uploadError.value = null;
     uploadSuccess.value = false;
 
-    const base = nameOverride ?? (file.name.replace(/\.[^.]+$/, '') || file.name);
-    const name = (base && base.trim()) ? base.trim() : file.name;
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('name', name);
     if (selectedProvider.value) {
         formData.append('ai_provider', selectedProvider.value);
     }
@@ -149,10 +135,6 @@ async function doUpload(file: File, nameOverride?: string) {
     }
 }
 
-watch(uploadSectionOpen, (open: boolean) => {
-    if (open) nextTick(() => (uploadNameInput.value as { $el?: HTMLInputElement } | null)?.$el?.focus());
-});
-
 async function fetchDigitalizeOptions() {
     try {
         const { data } = await api.get<DigitalizeOptionsResponse>('/dashboard/api/digitalize-options');
@@ -172,9 +154,6 @@ onMounted(() => {
         localStorage.setItem(props.storageKey, '1');
     }
     fetchDigitalizeOptions();
-    if (uploadSectionOpen.value) {
-        nextTick(() => (uploadNameInput.value as { $el?: HTMLInputElement } | null)?.$el?.focus());
-    }
 });
 </script>
 
@@ -199,20 +178,8 @@ onMounted(() => {
             class="upload-card mt-4 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6"
         >
             <p class="mb-4 text-sm text-muted-foreground">
-                Add a photo or video — we’ll extract the text or table.
+                Add a photo or video — we’ll extract the text or table and name it for you.
             </p>
-            <div class="mb-4">
-                <Label for="upload-name-inline" class="text-xs font-medium text-muted-foreground">Name</Label>
-                <Input
-                    ref="uploadNameInput"
-                    id="upload-name-inline"
-                    v-model="uploadName"
-                    placeholder="e.g. Sales log March 2024"
-                    class="mt-1 rounded-lg border-2 border-primary/50 ring-2 ring-primary/20 focus-visible:border-primary focus-visible:ring-primary/40"
-                    :disabled="uploadLoading"
-                    @keydown.enter.prevent="uploadName.trim() && pendingFile && startUpload()"
-                />
-            </div>
             <div v-if="providerOptions.length > 0" class="mb-4 w-full">
                 <Label for="upload-ai-provider" class="text-xs font-medium text-muted-foreground">AI provider</Label>
                 <select
@@ -232,10 +199,13 @@ onMounted(() => {
                 @change="onFileChange"
             />
             <div
-                class="upload-zone cursor-pointer rounded-xl border-2 border-dashed border-primary/60 bg-primary/5 p-6 text-center transition-colors hover:border-primary hover:bg-primary/10"
-                :class="{ 'border-primary bg-primary/10': uploadLoading }"
+                class="upload-zone rounded-xl border-2 border-dashed border-primary/60 bg-primary/5 p-6 text-center transition-colors"
+                :class="[
+                    uploadLoading ? 'cursor-not-allowed border-primary bg-primary/10 pointer-events-none' : 'cursor-pointer hover:border-primary hover:bg-primary/10',
+                ]"
+                :aria-disabled="uploadLoading"
                 role="button"
-                tabindex="0"
+                :tabindex="uploadLoading ? -1 : 0"
                 @click="openFilePicker"
                 @drop="onDrop"
                 @dragover="onDragOver"
@@ -272,7 +242,7 @@ onMounted(() => {
                 <Button
                     type="button"
                     class="rounded-lg"
-                    :disabled="!uploadName.trim() || !pendingFile || uploadLoading"
+                    :disabled="!pendingFile || uploadLoading"
                     @click="startUpload"
                 >
                     {{ pendingFile ? 'Extract & add' : 'Upload' }}

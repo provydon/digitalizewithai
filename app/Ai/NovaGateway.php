@@ -18,6 +18,7 @@ use Laravel\Ai\Responses\Data\Meta;
 use Laravel\Ai\Responses\Data\Usage;
 use Laravel\Ai\Responses\StructuredTextResponse;
 use Laravel\Ai\Responses\TextResponse;
+use Laravel\Ai\Tools\Request;
 use Laravel\Ai\Streaming\Events\StreamEnd;
 use Laravel\Ai\Streaming\Events\StreamStart;
 use Laravel\Ai\Streaming\Events\TextDelta;
@@ -89,24 +90,85 @@ class NovaGateway implements Gateway
             $body['tool_choice'] = 'auto';
         }
 
-        $response = $this->client
-            ->timeout($timeout ?? 60)
-            ->withHeaders(['Authorization' => 'Bearer '.$this->apiKey])
-            ->post($this->baseUrl.'/chat/completions', $body);
+        $totalInputTokens = 0;
+        $totalOutputTokens = 0;
+        $allAssistantMessages = [];
 
-        $response->throw();
+        do {
+            $response = $this->client
+                ->timeout($timeout ?? 60)
+                ->withHeaders(['Authorization' => 'Bearer '.$this->apiKey])
+                ->post($this->baseUrl.'/chat/completions', $body);
 
-        $data = $response->json();
-        $content = $data['choices'][0]['message']['content'] ?? '';
-        $usage = $data['usage'] ?? [];
-        $usageObj = new Usage(
-            (int) ($usage['prompt_tokens'] ?? 0),
-            (int) ($usage['completion_tokens'] ?? 0),
-            0,
-            0,
-            0,
-        );
+            $response->throw();
 
+            $data = $response->json();
+            $message = $data['choices'][0]['message'] ?? [];
+            $content = $message['content'] ?? '';
+            $toolCalls = $message['tool_calls'] ?? [];
+
+            $usage = $data['usage'] ?? [];
+            $totalInputTokens += (int) ($usage['prompt_tokens'] ?? 0);
+            $totalOutputTokens += (int) ($usage['completion_tokens'] ?? 0);
+
+            if (count($toolCalls) === 0) {
+                break;
+            }
+
+            $openAiMessages[] = [
+                'role' => 'assistant',
+                'content' => $content !== '' ? $content : null,
+                'tool_calls' => array_map(function (array $tc) {
+                    $fn = $tc['function'] ?? [];
+                    return [
+                        'id' => $tc['id'] ?? '',
+                        'type' => 'function',
+                        'function' => [
+                            'name' => $fn['name'] ?? '',
+                            'arguments' => $fn['arguments'] ?? '{}',
+                        ],
+                    ];
+                }, $toolCalls),
+            ];
+
+            $toolsByName = [];
+            foreach ($tools as $tool) {
+                if ($tool instanceof Tool && method_exists($tool, 'name')) {
+                    $toolsByName[$tool->name()] = $tool;
+                }
+            }
+
+            foreach ($toolCalls as $tc) {
+                $id = $tc['id'] ?? '';
+                $fn = $tc['function'] ?? [];
+                $name = $fn['name'] ?? '';
+                $argsJson = $fn['arguments'] ?? '{}';
+                $arguments = is_string($argsJson) ? (json_decode($argsJson, true) ?: []) : $argsJson;
+
+                $tool = $toolsByName[$name] ?? null;
+                if (! $tool instanceof Tool) {
+                    $openAiMessages[] = ['role' => 'tool', 'content' => "Error: unknown tool \"{$name}\".", 'tool_call_id' => $id];
+                    continue;
+                }
+
+                ($this->invokingToolCallback)($tool, $arguments);
+
+                try {
+                    $result = $tool->handle(new Request($arguments));
+                    $resultStr = $result instanceof \Stringable || is_string($result) ? (string) $result : json_encode($result);
+                } catch (\Throwable $e) {
+                    $resultStr = 'Error: '.$e->getMessage();
+                }
+
+                ($this->toolInvokedCallback)($tool, $arguments, $resultStr);
+
+                $openAiMessages[] = ['role' => 'tool', 'content' => $resultStr, 'tool_call_id' => $id];
+            }
+
+            $body['messages'] = $openAiMessages;
+        } while (true);
+
+        $usageObj = new Usage($totalInputTokens, $totalOutputTokens, 0, 0, 0);
         $meta = new Meta($provider->name(), $model);
 
         if ($schema !== null) {

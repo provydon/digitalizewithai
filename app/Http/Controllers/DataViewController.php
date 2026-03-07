@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Ai\Agents\ChartSuggestionAgent;
 use App\Ai\Agents\DataInsightAgent;
+use App\Ai\Agents\DataInsightAgenticAgent;
 use App\Ai\Agents\DataInsightStreamingAgent;
 use App\Models\Data;
 use App\Models\SavedDataChart;
@@ -188,6 +189,7 @@ class DataViewController extends Controller
 
     /**
      * Stream AI response for this data record. Expects JSON: { "question": "..." }.
+     * For table data, uses an agentic agent with tools (add/update/delete rows) and streams the final answer.
      */
     public function askStream(Request $request, Data $data)
     {
@@ -207,8 +209,39 @@ class DataViewController extends Controller
         }
 
         $prompt = "Here is the user's data:\n\n---\n{$context}\n---\n\nUser question or request:\n{$question}";
-        $agent = new DataInsightStreamingAgent;
 
+        $dataType = $digitalData['type'] ?? '';
+        $isTable = is_array($digitalData) && $dataType === 'table';
+        $isDoc = is_array($digitalData) && $dataType === 'doc';
+        $useAgentic = $isTable || $isDoc;
+
+        if ($useAgentic) {
+            $agent = new DataInsightAgenticAgent($data);
+            $response = $agent->prompt($prompt, [], $data->ai_provider, $data->ai_model);
+            $text = (string) $response;
+            $dataUpdated = true;
+            $viewDataUrl = '/dashboard/data/'.$data->id;
+
+            return response()->stream(function () use ($text, $dataUpdated, $viewDataUrl) {
+                $chunk = json_encode([
+                    'content' => $text,
+                    'data_updated' => $dataUpdated,
+                    'view_data_url' => $viewDataUrl,
+                ]);
+                echo "data: {$chunk}\n\n";
+                echo "data: [DONE]\n\n";
+                if (ob_get_level()) {
+                    ob_flush();
+                }
+                flush();
+            }, 200, [
+                'Content-Type' => 'text/event-stream',
+                'Cache-Control' => 'no-cache',
+                'X-Accel-Buffering' => 'no',
+            ]);
+        }
+
+        $agent = new DataInsightStreamingAgent;
         return $agent->stream($prompt, [], $data->ai_provider, $data->ai_model);
     }
 
@@ -357,6 +390,38 @@ class DataViewController extends Controller
             'created_at' => $chat->created_at?->toIso8601String(),
             'updated_at' => $chat->updated_at?->toIso8601String(),
         ], 201);
+    }
+
+    /** Update a saved chat. PATCH body: { "name": "optional", "messages": [...] }. */
+    public function savedChatUpdate(Request $request, Data $data, SavedDataChat $saved_chat): JsonResponse
+    {
+        if ($data->user_id !== auth()->id() || $saved_chat->data_id !== $data->id || $saved_chat->user_id !== auth()->id()) {
+            abort(404);
+        }
+
+        $updates = [];
+        $messages = $request->input('messages');
+        if (is_array($messages) && count($messages) > 0) {
+            $updates['messages'] = $messages;
+        }
+        $name = $request->input('name');
+        if (array_key_exists('name', $request->all())) {
+            $updates['name'] = is_string($name) ? trim($name) : null;
+            if ($updates['name'] === '') {
+                $updates['name'] = null;
+            }
+        }
+        if ($updates !== []) {
+            $saved_chat->update($updates);
+        }
+
+        return response()->json([
+            'id' => $saved_chat->id,
+            'name' => $saved_chat->name,
+            'messages' => $saved_chat->messages,
+            'created_at' => $saved_chat->created_at?->toIso8601String(),
+            'updated_at' => $saved_chat->updated_at?->toIso8601String(),
+        ]);
     }
 
     /** Delete a saved chat. */

@@ -31,6 +31,7 @@ function onUploaded() {
                     <li>Add a photo or video of Data.</li>
                     <li>We’ll use AI to extract it into Digital items (text, tables, books, logs, Records, etc.).</li>
                     <li>Search, copy, edit, and export your digitalized items.</li>
+                    <li>Get insights, charts, etc about your Data with AI or even ask AI to do something for you on or with your Data.</li>
                 </ul>
             </header>
 

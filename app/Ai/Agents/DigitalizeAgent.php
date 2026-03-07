@@ -23,7 +23,8 @@ class DigitalizeAgent implements Agent, HasStructuredOutput
             .'If the source has multiple pages, also return "doc_page_count" (integer) and "doc_pages" (array of strings, one per page). If single page, set "doc_page_count" to 1 and omit "doc_pages". '
             .'For type "table" also return "table_row_count" (integer, number of data rows). '
             .'Always return "suggested_prompts": an array of 2–5 very short prompts (few words each). For type "table" include 1–2 chat-style prompts e.g. "What is the trend?", "Compare top 3". '
-            .'Always return "insights": an array of 0–5 very short insight strings (one phrase each).';
+            .'Always return "insights": an array of 0–5 very short insight strings (one phrase each). '
+            .'Always return "suggested_name": a short, human-readable display name for this document or table (e.g. "Invoice March 2024", "Receipt – Office supplies", "Meeting notes 12 Jan"). Use the actual content to pick a fitting title; avoid generic names like "Document" or the filename.';
     }
 
     public function schema(JsonSchema $schema): array
@@ -36,6 +37,7 @@ class DigitalizeAgent implements Agent, HasStructuredOutput
             'doc_pages' => $schema->array()->items($schema->string())->required()->nullable(),
             'suggested_prompts' => $schema->array()->items($schema->string())->required()->nullable(),
             'insights' => $schema->array()->items($schema->string())->required()->nullable(),
+            'suggested_name' => $schema->string()->required()->nullable(),
         ];
     }
 }

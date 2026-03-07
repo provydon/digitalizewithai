@@ -27,7 +27,8 @@ class DigitalizeAgentNova implements Agent, HasStructuredOutput
             .'Return a single JSON object with: "type" ("doc" or "table"), "content" (string). '
             .'For type "doc": content = full text as markdown—verbatim transcription only, no additions or changes. If multiple pages: "doc_page_count" (integer), "doc_pages" (array of strings). Single page: doc_page_count = 1, omit doc_pages. '
             .'For type "table": also return "table_row_count" (integer). '
-            .'Always return "suggested_prompts" (array of 2–5 short strings) and "insights" (array of 0–5 short strings).';
+            .'Always return "suggested_prompts" (array of 2–5 short strings) and "insights" (array of 0–5 short strings). '
+            .'Always return "suggested_name": a short, human-readable display name for this document or table (e.g. "Invoice March 2024", "Receipt – Office supplies", "Meeting notes 12 Jan"). Use the actual content to pick a fitting title; avoid generic names like "Document" or the filename.';
     }
 
     public function schema(JsonSchema $schema): array
@@ -40,6 +41,7 @@ class DigitalizeAgentNova implements Agent, HasStructuredOutput
             'doc_pages' => $schema->array()->items($schema->string())->required()->nullable(),
             'suggested_prompts' => $schema->array()->items($schema->string())->required()->nullable(),
             'insights' => $schema->array()->items($schema->string())->required()->nullable(),
+            'suggested_name' => $schema->string()->required()->nullable(),
         ];
     }
 }

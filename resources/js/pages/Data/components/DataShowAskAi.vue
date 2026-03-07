@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Bookmark, ChevronDown, ChevronRight, Loader2, MessageSquarePlus, Trash2 } from 'lucide-vue-next';
+import { Bookmark, ChevronDown, ChevronRight, ExternalLink, Loader2, MessageSquarePlus, Trash2 } from 'lucide-vue-next';
 import { nextTick, ref, watch } from 'vue';
 import { renderMarkdown } from '@/lib/markdown';
 import type { ChatMessage, SavedChat } from '../types';
@@ -115,6 +115,14 @@ function chatTitle(chat: SavedChat): string {
                                 class="prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-headings:my-2 first:prose-p:mt-0 last:prose-p:mb-0"
                                 v-html="renderMarkdown(msg.content)"
                             />
+                            <a
+                                v-if="(msg as ChatMessage).view_data_url"
+                                :href="(msg as ChatMessage).view_data_url"
+                                class="mt-3 inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                            >
+                                <ExternalLink class="h-4 w-4 shrink-0" />
+                                View data
+                            </a>
                         </template>
                     </span>
                 </div>

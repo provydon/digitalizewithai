@@ -32,6 +32,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('dashboard/api/data/{data}/doc-content', [DataViewController::class, 'updateDocContent'])->name('dashboard.api.data.doc-content.update');
     Route::get('dashboard/api/data/{data}/saved-chats', [DataViewController::class, 'savedChatsIndex'])->name('dashboard.api.data.saved-chats.index');
     Route::post('dashboard/api/data/{data}/saved-chats', [DataViewController::class, 'savedChatStore'])->name('dashboard.api.data.saved-chats.store');
+    Route::patch('dashboard/api/data/{data}/saved-chats/{saved_chat}', [DataViewController::class, 'savedChatUpdate'])->name('dashboard.api.data.saved-chats.update');
     Route::delete('dashboard/api/data/{data}/saved-chats/{saved_chat}', [DataViewController::class, 'savedChatDestroy'])->name('dashboard.api.data.saved-chats.destroy');
     Route::get('dashboard/api/data/{data}/saved-charts', [DataViewController::class, 'savedChartsIndex'])->name('dashboard.api.data.saved-charts.index');
     Route::post('dashboard/api/data/{data}/saved-charts', [DataViewController::class, 'savedChartStore'])->name('dashboard.api.data.saved-charts.store');

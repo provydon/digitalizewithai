@@ -135,6 +135,24 @@ class DigitalizeController extends Controller
             ? array_values(array_filter(array_map('strval', $rawInsights)))
             : [];
 
+        // Resolve display name: AI suggested_name first, then request name, then filename.
+        $suggestedName = isset($response['suggested_name']) && is_scalar($response['suggested_name'])
+            ? trim((string) $response['suggested_name'])
+            : '';
+        if ($suggestedName !== '') {
+            $suggestedName = str_replace(["\r", "\n", "/", "\\"], [' ', ' ', ' ', ' '], $suggestedName);
+            $suggestedName = trim(preg_replace('/\s+/', ' ', $suggestedName));
+        }
+        if ($suggestedName !== '' && mb_strlen($suggestedName) <= 255) {
+            $resolvedName = $suggestedName;
+        } elseif ($nameFromRequest !== null && $nameFromRequest !== '') {
+            $resolvedName = trim((string) $nameFromRequest);
+        } else {
+            $resolvedName = 'document';
+        }
+        $resolvedName = mb_strlen($resolvedName) > 255 ? mb_substr($resolvedName, 0, 255) : $resolvedName;
+        $resolvedName = $resolvedName !== '' ? $resolvedName : 'document';
+
         // 2. In one transaction: store file, create Data, sync table rows. Roll back all on failure.
         $disk = config('filesystems.default');
         $path = null;
@@ -152,7 +170,7 @@ class DigitalizeController extends Controller
                 'path' => $path,
             ];
 
-            $name = $nameFromRequest ?: pathinfo($path, PATHINFO_FILENAME);
+            $name = $resolvedName;
             $data = Data::create([
                 'user_id' => $request->user()->id,
                 'name' => pathinfo($name, PATHINFO_FILENAME),

@@ -512,6 +512,8 @@ const askError = ref<string | null>(null);
 const savedChats = ref<SavedChat[]>([]);
 const saveChatLoading = ref(false);
 const savedChatError = ref<string | null>(null);
+/** When set, autosave updates this chat; when null, autosave creates a new one. */
+const currentChatId = ref<number | null>(null);
 
 function getCsrfToken(): string {
     const meta = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
@@ -561,12 +563,21 @@ async function askAi(prompt?: string) {
                     const data = line.slice(6).trim();
                     if (data === '[DONE]' || data === '') continue;
                     try {
-                        const parsed = JSON.parse(data) as { content?: string; delta?: string; text?: string };
+                        const parsed = JSON.parse(data) as { content?: string; delta?: string; text?: string; data_updated?: boolean; view_data_url?: string };
                         const chunk =
                             parsed.content ?? parsed.delta ?? parsed.text ?? (typeof parsed === 'string' ? parsed : '');
                         if (chunk && typeof chunk === 'string') {
                             const last = messages.value[assistantIndex];
                             if (last && last.role === 'assistant') last.content += chunk;
+                        }
+                        if (parsed.view_data_url) {
+                            const last = messages.value[assistantIndex];
+                            if (last && last.role === 'assistant') (last as ChatMessage).view_data_url = parsed.view_data_url;
+                        }
+                        if (parsed.data_updated && record.value) {
+                            await fetchRecord();
+                            if (isTableData.value) await fetchTableRows();
+                            if (isDocData.value && isMultiPageDoc.value) await fetchDocPage(docPageCurrent.value);
                         }
                     } catch {
                         if (data && data !== '[DONE]') {
@@ -582,12 +593,21 @@ async function askAi(prompt?: string) {
             const data = buffer.slice(6).trim();
             if (data && data !== '[DONE]') {
                 try {
-                    const parsed = JSON.parse(data) as { content?: string; delta?: string; text?: string };
+                    const parsed = JSON.parse(data) as { content?: string; delta?: string; text?: string; data_updated?: boolean; view_data_url?: string };
                     const chunk =
                         parsed.content ?? parsed.delta ?? parsed.text ?? (typeof parsed === 'string' ? parsed : '');
                     if (chunk && typeof chunk === 'string') {
                         const last = messages.value[assistantIndex];
                         if (last && last.role === 'assistant') last.content += chunk;
+                    }
+                    if (parsed.view_data_url) {
+                        const last = messages.value[assistantIndex];
+                        if (last && last.role === 'assistant') (last as ChatMessage).view_data_url = parsed.view_data_url;
+                    }
+                    if (parsed.data_updated && record.value) {
+                        await fetchRecord();
+                        if (isTableData.value) await fetchTableRows();
+                        if (isDocData.value && isMultiPageDoc.value) await fetchDocPage(docPageCurrent.value);
                     }
                 } catch {
                     const last = messages.value[assistantIndex];
@@ -595,6 +615,7 @@ async function askAi(prompt?: string) {
                 }
             }
         }
+        autosaveChat();
     } catch (e: unknown) {
         const err = e as Error;
         askError.value = err.message ?? 'Request failed';
@@ -603,6 +624,34 @@ async function askAi(prompt?: string) {
         if (last?.role === 'assistant' && last.content === '') messages.value.pop();
     } finally {
         askLoading.value = false;
+    }
+}
+
+async function autosaveChat() {
+    if (!record.value || messages.value.length < 2) return;
+    saveChatLoading.value = true;
+    savedChatError.value = null;
+    try {
+        const payload = { messages: messages.value };
+        if (currentChatId.value != null) {
+            const { data } = await api.patch<SavedChat>(
+                `/dashboard/api/data/${record.value.id}/saved-chats/${currentChatId.value}`,
+                payload,
+            );
+            const idx = savedChats.value.findIndex((c) => c.id === data.id);
+            if (idx >= 0) savedChats.value.splice(idx, 1, data);
+        } else {
+            const { data } = await api.post<SavedChat>(
+                `/dashboard/api/data/${record.value.id}/saved-chats`,
+                payload,
+            );
+            currentChatId.value = data.id;
+            savedChats.value = [data, ...savedChats.value];
+        }
+    } catch {
+        savedChatError.value = 'Autosave failed';
+    } finally {
+        saveChatLoading.value = false;
     }
 }
 
@@ -822,6 +871,7 @@ async function suggestChartFromAi() {
 function startNewChat() {
     messages.value = [];
     askError.value = null;
+    currentChatId.value = null;
 }
 
 async function saveCurrentChat(name?: string) {
@@ -844,6 +894,7 @@ async function saveCurrentChat(name?: string) {
 
 function loadSavedChat(chat: SavedChat) {
     messages.value = Array.isArray(chat.messages) ? [...chat.messages] : [];
+    currentChatId.value = chat.id;
 }
 
 async function deleteSavedChat(chat: SavedChat) {
@@ -851,6 +902,7 @@ async function deleteSavedChat(chat: SavedChat) {
     try {
         await api.delete(`/dashboard/api/data/${record.value.id}/saved-chats/${chat.id}`);
         savedChats.value = savedChats.value.filter((c) => c.id !== chat.id);
+        if (currentChatId.value === chat.id) currentChatId.value = null;
     } catch {
         await fetchSavedChats();
     }

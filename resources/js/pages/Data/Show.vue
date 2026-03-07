@@ -7,7 +7,7 @@ import {
     Table as TableIcon,
 } from 'lucide-vue-next';
 import { TabsContent, TabsList, TabsRoot, TabsTrigger } from 'reka-ui';
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import {
     TooltipProvider,
 } from '@/components/ui/tooltip';
@@ -83,6 +83,20 @@ async function fetchSavedCharts() {
     }
 }
 
+let processingPollTimer: ReturnType<typeof setInterval> | null = null;
+
+const isProcessing = computed(() => {
+    const dd = record.value?.digital_data;
+    return !!dd && (dd as { status?: string }).status === 'processing';
+});
+const processingBatches = computed(() => {
+    const dd = record.value?.digital_data as { processing_batches_done?: number; processing_batches_total?: number } | undefined;
+    if (!dd) return null;
+    const total = dd.processing_batches_total ?? 0;
+    if (total === 0) return null;
+    return { done: dd.processing_batches_done ?? 0, total };
+});
+
 onMounted(async () => {
     try {
         const { data } = await api.get<DataRecord>(`/dashboard/api/data/${props.id}`);
@@ -93,6 +107,33 @@ onMounted(async () => {
         error.value = err.response?.data?.message ?? err.message ?? 'Failed to load';
     } finally {
         loading.value = false;
+    }
+});
+
+async function pollWhileProcessing() {
+    await fetchRecord();
+    if (record.value && isDocData.value && isMultiPageDoc.value) {
+        await fetchDocPage(docPageCurrent.value);
+    }
+    await fetchTableRows();
+}
+
+watch(isProcessing, (processing) => {
+    if (processingPollTimer) {
+        clearInterval(processingPollTimer);
+        processingPollTimer = null;
+    }
+    if (processing) {
+        processingPollTimer = setInterval(() => {
+            void pollWhileProcessing();
+        }, 2000);
+    }
+});
+
+onBeforeUnmount(() => {
+    if (processingPollTimer) {
+        clearInterval(processingPollTimer);
+        processingPollTimer = null;
     }
 });
 
@@ -348,6 +389,21 @@ async function confirmDeleteRow() {
         rowsError.value = err.response?.data?.message ?? err.message ?? 'Failed to delete';
     } finally {
         deleteConfirming.value = false;
+    }
+}
+
+async function deleteSelectedRows(rows: TableRowRecord[]) {
+    if (!record.value || !rows.length) return;
+    rowsError.value = null;
+    try {
+        for (const row of rows) {
+            await api.delete(`/dashboard/api/data/${record.value.id}/rows/${row.id}`);
+        }
+        await fetchRecord();
+        await fetchTableRows();
+    } catch (e: unknown) {
+        const err = e as { response?: { data?: { message?: string } }; message?: string };
+        rowsError.value = err.response?.data?.message ?? err.message ?? 'Failed to delete rows';
     }
 }
 
@@ -1001,6 +1057,17 @@ const aiModelLabel = computed(() => {
                             @update:name="(name) => { if (record) record.name = name }"
                         />
 
+                        <div
+                            v-if="isProcessing"
+                            class="mx-3 mb-2 flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-sm text-primary sm:mx-4"
+                        >
+                            <span class="shrink-0">Extracting…</span>
+                            <span v-if="processingBatches" class="tabular-nums">
+                                {{ processingBatches.done }}/{{ processingBatches.total }} batches — content will update as more is extracted.
+                            </span>
+                            <span v-else>Content will update shortly.</span>
+                        </div>
+
                         <TabsRoot v-model="activeTab" class="w-full">
                             <TabsList
                                 class="flex h-10 w-full items-center justify-start gap-1 overflow-x-auto overflow-y-hidden rounded-lg bg-muted/50 p-1 text-muted-foreground [-webkit-overflow-scrolling:touch]"
@@ -1083,6 +1150,7 @@ const aiModelLabel = computed(() => {
                                         @copy="copyTableToClipboard"
                                         @edit-row="openEditRow"
                                         @delete-row="openDeleteRow"
+                                        @delete-selected-rows="deleteSelectedRows"
                                         @update:copy-tooltip-open="(v) => { if (!copyTableFeedback) copyTableTooltipOpen = v === false ? undefined : v }"
                                     />
                                     <p v-else class="text-muted-foreground">

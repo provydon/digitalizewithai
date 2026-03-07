@@ -18,12 +18,12 @@ use Laravel\Ai\Responses\Data\Meta;
 use Laravel\Ai\Responses\Data\Usage;
 use Laravel\Ai\Responses\StructuredTextResponse;
 use Laravel\Ai\Responses\TextResponse;
-use Laravel\Ai\Tools\Request;
 use Laravel\Ai\Streaming\Events\StreamEnd;
 use Laravel\Ai\Streaming\Events\StreamStart;
 use Laravel\Ai\Streaming\Events\TextDelta;
 use Laravel\Ai\Streaming\Events\TextEnd;
 use Laravel\Ai\Streaming\Events\TextStart;
+use Laravel\Ai\Tools\Request;
 
 /**
  * Gateway for Amazon Nova API (api.nova.amazon.com) using the Chat Completions endpoint.
@@ -120,6 +120,7 @@ class NovaGateway implements Gateway
                 'content' => $content !== '' ? $content : null,
                 'tool_calls' => array_map(function (array $tc) {
                     $fn = $tc['function'] ?? [];
+
                     return [
                         'id' => $tc['id'] ?? '',
                         'type' => 'function',
@@ -148,6 +149,7 @@ class NovaGateway implements Gateway
                 $tool = $toolsByName[$name] ?? null;
                 if (! $tool instanceof Tool) {
                     $openAiMessages[] = ['role' => 'tool', 'content' => "Error: unknown tool \"{$name}\".", 'tool_call_id' => $id];
+
                     continue;
                 }
 

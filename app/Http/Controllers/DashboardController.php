@@ -43,14 +43,25 @@ class DashboardController extends Controller
 
         $paginator = $query->paginate($perPage);
 
-        $items = collect($paginator->items())->map(fn (Data $d) => [
-            'id' => $d->id,
-            'name' => $d->name,
-            'type' => $d->digital_data['type'] ?? null,
-            'ai_provider' => $d->ai_provider,
-            'ai_model' => $d->ai_model,
-            'created_at' => $d->created_at?->toIso8601String(),
-        ])->all();
+        $items = collect($paginator->items())->map(function (Data $d) {
+            $dd = $d->digital_data;
+            $processing = is_array($dd) && ($dd['status'] ?? null) === 'processing';
+            $failed = is_array($dd) && ($dd['status'] ?? null) === 'failed';
+            $status = $d->status ?? ($failed ? 'failed' : ($processing ? 'processing' : 'ready'));
+
+            return [
+                'id' => $d->id,
+                'name' => $d->name,
+                'type' => $dd['type'] ?? null,
+                'status' => $status,
+                'processing' => $processing,
+                'processing_batches_done' => $processing ? (int) ($dd['processing_batches_done'] ?? 0) : null,
+                'processing_batches_total' => $processing ? (int) ($dd['processing_batches_total'] ?? 0) : null,
+                'ai_provider' => $d->ai_provider,
+                'ai_model' => $d->ai_model,
+                'created_at' => $d->created_at?->toIso8601String(),
+            ];
+        })->all();
 
         return response()->json([
             'data' => $items,

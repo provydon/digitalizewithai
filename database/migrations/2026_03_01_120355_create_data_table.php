@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('data', function (Blueprint $table) {
             $table->id();
             $table->string('name');
+            $table->string('status', 32)->default('ready');
             $table->json('raw_data')->nullable();
             $table->json('digital_data')->nullable();
             $table->string('ai_provider', 64)->nullable();

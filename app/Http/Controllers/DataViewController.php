@@ -46,9 +46,15 @@ class DataViewController extends Controller
             }
         }
 
+        $dd = $data->digital_data;
+        $processing = is_array($dd) && ($dd['status'] ?? null) === 'processing';
+        $failed = is_array($dd) && ($dd['status'] ?? null) === 'failed';
+        $status = $data->status ?? ($failed ? 'failed' : ($processing ? 'processing' : 'ready'));
+
         return response()->json([
             'id' => $data->id,
             'name' => $data->name,
+            'status' => $status,
             'raw_data' => $data->raw_data,
             'digital_data' => $digitalData,
             'ai_provider' => $data->ai_provider,
@@ -242,6 +248,7 @@ class DataViewController extends Controller
         }
 
         $agent = new DataInsightStreamingAgent;
+
         return $agent->stream($prompt, [], $data->ai_provider, $data->ai_model);
     }
 

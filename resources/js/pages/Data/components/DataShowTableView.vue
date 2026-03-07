@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { ref, watch } from 'vue';
 import { Copy, Pencil, Search, Table as TableIcon, Trash2 } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
     Tooltip,
     TooltipContent,
@@ -31,11 +33,58 @@ const emit = defineEmits<{
     'copy': [];
     'edit-row': [row: TableRowRecord];
     'delete-row': [row: TableRowRecord];
+    'delete-selected-rows': [rows: TableRowRecord[]];
     'update:copyTooltipOpen': [v: boolean | undefined];
 }>();
 
+const selectedRowIds = ref<Set<number>>(new Set());
+
+watch(
+    () => props.tableRows.map((r) => r.id),
+    () => {
+        selectedRowIds.value = new Set();
+    },
+);
+
+const selectedRows = () => props.tableRows.filter((r) => selectedRowIds.value.has(r.id));
+const allRowsSelected = () =>
+    props.tableRows.length > 0 && selectedRowIds.value.size === props.tableRows.length;
+const someRowsSelected = () => selectedRowIds.value.size > 0;
+
+function headerCheckboxState(): boolean | 'indeterminate' {
+    if (allRowsSelected()) return true;
+    if (someRowsSelected()) return 'indeterminate';
+    return false;
+}
+
+function toggleSelectAllRows(checked: boolean | 'indeterminate') {
+    if (checked === true) {
+        selectedRowIds.value = new Set(props.tableRows.map((r) => r.id));
+    } else {
+        selectedRowIds.value = new Set();
+    }
+}
+
+function toggleSelectRow(id: number, checked: boolean) {
+    const next = new Set(selectedRowIds.value);
+    if (checked) next.add(id);
+    else next.delete(id);
+    selectedRowIds.value = next;
+}
+
+function onDeleteSelectedRows() {
+    const rows = selectedRows();
+    if (rows.length === 0) return;
+    emit('delete-selected-rows', rows);
+}
+
 function onTableSearchInput(e: Event) {
     emit('update:tableSearch', (e.target as HTMLInputElement).value);
+}
+
+function onTablePerPageChange(e: Event) {
+    const val = (e.target as HTMLSelectElement).value;
+    emit('update:tablePerPage', Number(val));
 }
 
 const tablePaginationSlots = () => {
@@ -83,7 +132,7 @@ const tablePaginationSlots = () => {
                     id="table-per-page"
                     :value="tablePerPage"
                     class="rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary"
-                    @change="emit('update:tablePerPage', Number(($event.target as HTMLSelectElement).value))"
+                    @change="onTablePerPageChange($event)"
                 >
                     <option :value="25">25</option>
                     <option :value="50">50</option>
@@ -91,6 +140,28 @@ const tablePaginationSlots = () => {
                 </select>
             </div>
             <div class="ml-auto flex items-center gap-2">
+                <div
+                    v-if="someRowsSelected()"
+                    class="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1"
+                >
+                    <span class="text-sm text-gray-700">{{ selectedRowIds.size }} selected</span>
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        class="h-7 border-gray-300 text-gray-700 hover:bg-gray-100"
+                        @click="toggleSelectAllRows(false)"
+                    >
+                        Clear
+                    </Button>
+                    <Button
+                        size="sm"
+                        variant="destructive"
+                        class="h-7"
+                        @click="onDeleteSelectedRows"
+                    >
+                        Delete selected
+                    </Button>
+                </div>
                 <Button
                     size="sm"
                     variant="outline"
@@ -165,6 +236,14 @@ const tablePaginationSlots = () => {
             >
                 <thead>
                     <tr class="border-b border-gray-200 bg-gray-100">
+                        <th class="w-10 px-2 py-2 sm:px-3 sm:py-3">
+                            <Checkbox
+                                class="table-view__checkbox"
+                                :checked="headerCheckboxState()"
+                                aria-label="Select all rows"
+                                @update:checked="(v) => toggleSelectAllRows(v === true)"
+                            />
+                        </th>
                         <th
                             v-for="(h, i) in tableHeaders"
                             :key="i"
@@ -184,7 +263,16 @@ const tablePaginationSlots = () => {
                         v-for="row in tableRows"
                         :key="row.id"
                         class="border-b border-gray-200 hover:bg-gray-50"
+                        :class="{ 'bg-primary/5': selectedRowIds.has(row.id) }"
                     >
+                        <td class="w-10 px-2 py-2 sm:px-3">
+                            <Checkbox
+                                class="table-view__checkbox"
+                                :checked="selectedRowIds.has(row.id)"
+                                aria-label="Select row"
+                                @update:checked="(v) => toggleSelectRow(row.id, !!v)"
+                            />
+                        </td>
                         <td
                             v-for="(cell, ci) in (row.cells ?? [])"
                             :key="ci"
@@ -252,3 +340,15 @@ const tablePaginationSlots = () => {
         </div>
     </div>
 </template>
+
+<style scoped>
+.table-view__checkbox {
+    background-color: white !important;
+    border-color: rgb(209 213 219) !important;
+}
+.table-view__checkbox[data-state='checked'],
+.table-view__checkbox[data-state='indeterminate'] {
+    background-color: var(--color-primary) !important;
+    border-color: var(--color-primary) !important;
+}
+</style>

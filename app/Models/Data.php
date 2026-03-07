@@ -11,7 +11,7 @@ class Data extends Model
 {
     protected $table = 'data';
 
-    protected $fillable = ['user_id', 'name', 'raw_data', 'digital_data', 'ai_provider', 'ai_model'];
+    protected $fillable = ['user_id', 'name', 'status', 'raw_data', 'digital_data', 'ai_provider', 'ai_model'];
 
     protected $casts = [
         'raw_data' => 'array',

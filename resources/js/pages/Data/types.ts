@@ -7,6 +7,10 @@ export type DigitalData = {
     table_row_count?: number;
     suggested_prompts?: string[];
     insights?: string[];
+    status?: string;
+    processing_batches_done?: number;
+    processing_batches_total?: number;
+    error?: string;
 };
 
 export type DataRecord = {

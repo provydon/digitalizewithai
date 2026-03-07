@@ -67,6 +67,7 @@ class AppendDocContentTool implements Tool
         }
 
         $this->data->update(['digital_data' => $digital]);
+
         return 'Content appended successfully.';
     }
 }

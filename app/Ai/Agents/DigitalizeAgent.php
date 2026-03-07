@@ -14,7 +14,8 @@ class DigitalizeAgent implements Agent, HasStructuredOutput
 
     public function instructions(): Stringable|string
     {
-        return 'You extract handwritten or printed content from the attached image or video. '
+        return 'You extract handwritten or printed content from the attached image(s). '
+            .'When you receive MULTIPLE images (e.g. one frame per second from a video): treat them as a time-ordered sequence. Extract content from every image, but do NOT repeat or duplicate content—if the same text, table, or data appears in more than one image, include it only once in your output. '
             .'EXTRACT ONLY what is actually visible: transcribe text exactly as written. Do not summarize, paraphrase, or substitute placeholder or example text. Preserve all names, numbers, dates, addresses, and wording exactly as shown. '
             .'Classify the content as either "doc" (prose, notes, paragraphs) or "table" (tabular data with columns and rows). '
             .'CRITICAL — Tabular data: If the image contains a grid, columns and rows, balance sheet, income statement, cash flow statement, spreadsheet, or any tabular layout, you MUST set type to "table". For type "table", content MUST be a JSON string of an object with "headers" (array of column names) and "rows" (array of arrays, each inner array is a row of cell values). Use the exact cell values as shown—do not normalize, correct, or substitute. Do not use type "doc" or markdown for tabular data. '

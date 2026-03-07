@@ -70,6 +70,7 @@ class ReplaceDocContentTool implements Tool
         }
 
         $this->data->update(['digital_data' => $digital]);
+
         return 'Document content replaced successfully.';
     }
 }

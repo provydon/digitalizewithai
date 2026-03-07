@@ -1,9 +1,18 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { onMounted, ref, watch } from 'vue';
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { FileText, Search } from 'lucide-vue-next';
 import api from '@/lib/api';
 import type { DataListMeta, DigitalizedItem } from '@/types';
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { Trash2 } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import DataListTable from '@/components/data/DataListTable.vue';
 import DeleteDataModal from '@/components/data/DeleteDataModal.vue';
@@ -42,6 +51,11 @@ let listSearchDebounce: ReturnType<typeof setTimeout> | null = null;
 
 const deleteModalOpen = ref(false);
 const itemToDelete = ref<DigitalizedItem | null>(null);
+const deleteSelectedModalOpen = ref(false);
+const selectedItemsToDelete = ref<DigitalizedItem[]>([]);
+const deleteSelectedLoading = ref(false);
+const deleteSelectedError = ref<string | null>(null);
+const selectedIds = ref<number[]>([]);
 
 const effectivePerPage = props.mode === 'preview' ? 10 : props.perPage;
 
@@ -67,6 +81,7 @@ async function loadList() {
     }>(`/dashboard/api/data?${params}`);
     items.value = Array.isArray(data?.data) ? data.data : [];
     listMeta.value = data?.meta ?? null;
+    selectedIds.value = selectedIds.value.filter((id) => items.value.some((i) => i.id === id));
     } catch (e: unknown) {
     const err = e as { response?: { data?: { message?: string } }; message?: string };
     error.value =
@@ -92,6 +107,44 @@ function onDeleted() {
     emit('refreshed');
 }
 
+function openDeleteSelectedModal(items: DigitalizedItem[]) {
+    selectedItemsToDelete.value = items;
+    deleteSelectedError.value = null;
+    deleteSelectedModalOpen.value = true;
+}
+
+function selectedItemsForBulkDelete(): DigitalizedItem[] {
+    return items.value.filter((i) => selectedIds.value.includes(i.id));
+}
+
+function openBulkDeleteFromHeader() {
+    const toDelete = selectedItemsForBulkDelete();
+    if (toDelete.length === 0) return;
+    openDeleteSelectedModal(toDelete);
+}
+
+async function confirmDeleteSelected() {
+    const toDelete = selectedItemsToDelete.value;
+    if (!toDelete.length) return;
+    deleteSelectedLoading.value = true;
+    deleteSelectedError.value = null;
+    try {
+        for (const item of toDelete) {
+            await api.delete(`/dashboard/api/data/${item.id}`);
+        }
+        deleteSelectedModalOpen.value = false;
+        selectedItemsToDelete.value = [];
+        selectedIds.value = [];
+        loadList();
+        emit('refreshed');
+    } catch (e: unknown) {
+        const err = e as { response?: { data?: { message?: string } }; message?: string };
+        deleteSelectedError.value = err.response?.data?.message ?? err.message ?? 'Failed to delete';
+    } finally {
+        deleteSelectedLoading.value = false;
+    }
+}
+
 watch(listPage, () => loadList());
 
 watch(listSearch, () => {
@@ -102,8 +155,42 @@ watch(listSearch, () => {
     }, 300);
 });
 
+let processingPollTimer: ReturnType<typeof setInterval> | null = null;
+
+function startProcessingPoll() {
+    if (processingPollTimer) return;
+    processingPollTimer = setInterval(() => {
+        const hasProcessing = items.value.some((i) => i.processing);
+        if (hasProcessing) {
+            loadList();
+        } else {
+            stopProcessingPoll();
+        }
+    }, 2000);
+}
+
+function stopProcessingPoll() {
+    if (processingPollTimer) {
+        clearInterval(processingPollTimer);
+        processingPollTimer = null;
+    }
+}
+
 onMounted(() => {
     loadList();
+});
+
+watch(items, (newItems) => {
+    const hasProcessing = newItems.some((i) => i.processing);
+    if (hasProcessing) {
+        startProcessingPoll();
+    } else {
+        stopProcessingPoll();
+    }
+}, { deep: true });
+
+onBeforeUnmount(() => {
+    stopProcessingPoll();
 });
 
 defineExpose({
@@ -113,7 +200,7 @@ defineExpose({
 
 <template>
     <section class="data-section rounded-2xl border border-border bg-card shadow-sm" aria-labelledby="data-heading">
-        <div class="flex flex-col gap-4 border-b border-border/80 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-5 sm:py-4">
+        <div class="flex flex-col gap-3 border-b border-border/80 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-5 sm:py-4">
             <div class="flex min-w-0 flex-1 flex-wrap items-center gap-3 sm:max-w-[50%]">
                 <div class="relative min-w-0 flex-1 sm:min-w-[180px]">
                     <Search
@@ -142,6 +229,21 @@ defineExpose({
             >
                 View All
             </Link>
+            <div
+                v-if="selectedIds.length > 0"
+                class="flex items-center gap-2 sm:ml-0"
+            >
+                <span class="text-sm text-muted-foreground">{{ selectedIds.length }} selected</span>
+                <button
+                    type="button"
+                    class="inline-flex items-center gap-1.5 rounded-lg p-2 text-destructive hover:bg-destructive/10"
+                    title="Delete selected"
+                    aria-label="Delete selected items"
+                    @click="openBulkDeleteFromHeader"
+                >
+                    <Trash2 class="h-4 w-4" />
+                </button>
+            </div>
         </div>
         <div class="p-4 sm:px-5 sm:pb-5">
             <div
@@ -169,8 +271,11 @@ defineExpose({
             <template v-else>
                 <DataListTable
                     :items="items"
+                    :selected-ids="selectedIds"
                     :view-url="viewUrl"
+                    @update:selected-ids="selectedIds = $event"
                     @delete-request="openDeleteModal"
+                    @delete-selected-request="openDeleteSelectedModal"
                 />
                 <!-- Preview: See more -->
                 <div
@@ -220,4 +325,33 @@ defineExpose({
         @update:open="deleteModalOpen = $event"
         @deleted="onDeleted"
     />
+
+    <Dialog :open="deleteSelectedModalOpen" @update:open="deleteSelectedModalOpen = $event">
+        <DialogContent class="sm:max-w-md">
+            <DialogHeader>
+                <DialogTitle>Delete selected items?</DialogTitle>
+            </DialogHeader>
+            <p class="text-sm text-muted-foreground">
+                {{ selectedItemsToDelete.length }} item{{ selectedItemsToDelete.length !== 1 ? 's' : '' }} will be
+                permanently deleted. This cannot be undone.
+            </p>
+            <p v-if="deleteSelectedError" class="text-sm text-destructive">
+                {{ deleteSelectedError }}
+            </p>
+            <DialogFooter class="gap-2">
+                <DialogClose as-child>
+                    <Button variant="secondary" @click="deleteSelectedModalOpen = false">
+                        Cancel
+                    </Button>
+                </DialogClose>
+                <Button
+                    variant="destructive"
+                    :disabled="deleteSelectedLoading"
+                    @click="confirmDeleteSelected"
+                >
+                    {{ deleteSelectedLoading ? 'Deleting…' : 'Delete' }}
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
 </template>

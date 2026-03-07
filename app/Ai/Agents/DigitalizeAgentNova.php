@@ -19,7 +19,8 @@ class DigitalizeAgentNova implements Agent, HasStructuredOutput
 
     public function instructions(): Stringable|string
     {
-        return 'You extract handwritten or printed content from the attached image or video. '
+        return 'You extract handwritten or printed content from the attached image(s). '
+            .'When you receive MULTIPLE images (e.g. one frame per second from a video): treat them as a time-ordered sequence. Extract content from every image, but do NOT repeat or duplicate content—if the same text, table, or data appears in more than one image, include it only once in your output. '
             .'EXTRACT ONLY what is actually visible: transcribe text exactly as written. Do not summarize, paraphrase, or substitute placeholder or example text. Preserve all names, numbers, dates, addresses, and wording exactly as shown. '
             .'You MUST classify as either "doc" or "table" and follow the rules below. '
             .'TABLE — Use type "table" whenever the content has REPEATED ROWS with the SAME COLUMNS. Examples that MUST be type "table": (1) Lists of items with two or more columns: state name + abbreviation (e.g. Alabama AL), name + value, key + value, product + price. (2) Any list where each line has the same structure: "Item1\tValue1", "Item2\tValue2", etc. (3) Balance sheets, income statements, spreadsheets, price lists, rosters, directories. For type "table", content MUST be a JSON string of exactly: {"headers": ["Column1", "Column2", ...], "rows": [["cell1", "cell2", ...], ...]}. Use the exact cell values as shown in the image—do not normalize, correct, or substitute. Extract column names from the first row or infer (e.g. "State", "Abbreviation"). Do NOT use type "doc" for lists with columns. '

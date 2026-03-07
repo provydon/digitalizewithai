@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import { Copy, Pencil, Search } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { computed } from 'vue';
 import { Button } from '@/components/ui/button';
 import {
     Tooltip,
     TooltipContent,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { renderMarkdown } from '@/lib/markdown';
 import PaginationPills from './PaginationPills.vue';
 
-withDefaults(
+const props = withDefaults(
     defineProps<{
         docSearch: string;
         displayedContent: string;
@@ -46,47 +47,51 @@ function onDocSearchInput(e: Event) {
 function onDocEditInput(e: Event) {
     emit('update:docEditContent', (e.target as HTMLTextAreaElement).value);
 }
+
+const renderedContent = computed(() => renderMarkdown(props.displayedContent || ''));
 </script>
 
 <template>
-    <div class="content-paper space-y-4 rounded-xl bg-white p-4 text-gray-900 shadow-sm sm:p-5">
-        <div class="flex flex-wrap items-center justify-between gap-2">
-            <div class="relative min-w-0 flex-1 basis-full sm:basis-0 sm:max-w-sm">
+    <div class="content-paper space-y-5 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="relative min-w-0 flex-1 basis-full sm:basis-0 sm:max-w-xs">
                 <Search
-                    class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500"
+                    class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500"
                 />
                 <input
                     :value="docSearch"
                     type="search"
-                    placeholder="Search for anything in the document"
-                    class="w-full rounded-lg border-2 border-gray-300 bg-gray-50 py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                    placeholder="Search in document"
+                    class="content-paper__search w-full rounded-lg border border-gray-300 bg-gray-50 py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-500 focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-400/30"
                     @input="onDocSearchInput"
                 />
             </div>
-            <div class="ml-auto flex items-center gap-2">
-                <button
+            <div class="flex items-center gap-2">
+                <Button
                     v-if="!docEditing"
-                    type="button"
-                    class="inline-flex items-center gap-1.5 rounded border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
+                    variant="outline"
+                    size="sm"
                     title="Edit"
+                    class="content-paper__btn"
                     @click="emit('start-edit')"
                 >
+                    <Pencil class="mr-1.5 h-3.5 w-3.5" />
                     Edit
-                    <Pencil class="h-3.5 w-3.5" />
-                </button>
+                </Button>
                 <Tooltip
                     :open="copyTooltipOpen"
                     @update:open="(v) => emit('update:copyTooltipOpen', v === false ? undefined : v)"
                 >
                     <TooltipTrigger as-child>
-                        <button
-                            type="button"
-                            class="inline-flex items-center gap-1.5 rounded border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            class="content-paper__btn"
                             @click="emit('copy')"
                         >
+                            <Copy class="mr-1.5 h-3.5 w-3.5" />
                             Copy
-                            <Copy class="h-3.5 w-3.5" />
-                        </button>
+                        </Button>
                     </TooltipTrigger>
                     <TooltipContent>
                         {{ copyFeedback ? 'Copied to clipboard' : 'Copy to clipboard' }}
@@ -94,19 +99,20 @@ function onDocEditInput(e: Event) {
                 </Tooltip>
             </div>
         </div>
-        <p v-if="docPageError" class="text-sm text-destructive">
+        <p v-if="docPageError" class="text-sm text-red-600">
             {{ docPageError }}
         </p>
-        <PaginationPills
-            v-if="isMultiPage"
-            :current="docPageCurrent"
-            :total="docPageCount"
-            slot-key-prefix="doc-top-"
-            @go-to="emit('go-to-page', $event)"
-        />
+        <div v-if="isMultiPage" class="content-paper__pagination">
+            <PaginationPills
+                :current="docPageCurrent"
+                :total="docPageCount"
+                slot-key-prefix="doc-top-"
+                @go-to="emit('go-to-page', $event)"
+            />
+        </div>
         <div
             v-if="docPageLoading && isMultiPage"
-            class="py-8 text-center text-sm text-gray-600"
+            class="py-12 text-center text-sm text-gray-500"
         >
             Loading page…
         </div>
@@ -114,12 +120,12 @@ function onDocEditInput(e: Event) {
             <div v-if="docEditing" class="space-y-3">
                 <textarea
                     :value="docEditContent"
-                    class="min-h-[240px] w-full max-w-full resize-y rounded-lg border border-gray-300 bg-white p-3 font-sans text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-0 sm:p-4 sm:text-base"
+                    class="min-h-[280px] w-full max-w-full resize-y rounded-lg border border-gray-300 bg-gray-50 p-4 text-sm text-gray-900 focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-400/30 sm:text-base"
                     placeholder="Document content…"
                     spellcheck="false"
                     @input="onDocEditInput"
                 />
-                <p v-if="docEditError" class="text-sm text-destructive">
+                <p v-if="docEditError" class="text-sm text-red-600">
                     {{ docEditError }}
                 </p>
                 <div class="flex flex-wrap gap-2">
@@ -133,6 +139,7 @@ function onDocEditInput(e: Event) {
                     <Button
                         size="sm"
                         variant="secondary"
+                        class="content-paper__btn"
                         :disabled="docEditSaving"
                         @click="emit('cancel-edit')"
                     >
@@ -140,19 +147,111 @@ function onDocEditInput(e: Event) {
                     </Button>
                 </div>
             </div>
-            <template v-else>
-                <pre
-                    class="max-w-full overflow-x-auto whitespace-pre-wrap rounded-lg border border-gray-200 bg-gray-50 p-3 font-sans text-sm text-gray-900 sm:p-4 sm:text-base"
-                >{{ displayedContent || ' ' }}</pre>
-            </template>
+            <div
+                v-else
+                class="doc-prose max-w-full overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 px-4 py-5 sm:px-6 sm:py-6"
+            >
+                <div
+                    v-if="renderedContent"
+                    class="doc-prose__content text-gray-900"
+                    v-html="renderedContent"
+                />
+                <p v-else class="text-gray-500">No content.</p>
+            </div>
         </div>
-        <PaginationPills
-            v-if="isMultiPage"
-            :current="docPageCurrent"
-            :total="docPageCount"
-            slot-key-prefix="doc-bottom-"
-            class="py-3"
-            @go-to="emit('go-to-page', $event)"
-        />
+        <div v-if="isMultiPage" class="content-paper__pagination py-3">
+            <PaginationPills
+                :current="docPageCurrent"
+                :total="docPageCount"
+                slot-key-prefix="doc-bottom-"
+                @go-to="emit('go-to-page', $event)"
+            />
+        </div>
     </div>
 </template>
+
+<style scoped>
+.content-paper__btn {
+    border-color: rgb(209 213 219) !important;
+    background-color: white !important;
+    color: rgb(55 65 81) !important;
+}
+.content-paper__btn:hover:not(:disabled) {
+    background-color: rgb(243 244 246) !important;
+    color: rgb(17 24 39) !important;
+}
+
+.content-paper__pagination :deep(button) {
+    border-color: rgb(209 213 219);
+    color: rgb(17 24 39);
+}
+.content-paper__pagination :deep(button:hover:not(:disabled)) {
+    background: rgb(243 244 246);
+}
+.content-paper__pagination :deep(button[class*='bg-primary']) {
+    border-color: var(--color-primary);
+    background: var(--color-primary);
+    color: var(--color-primary-foreground);
+}
+
+.doc-prose__content :deep(h1) {
+    font-size: 1.75rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+    margin-bottom: 0.5rem;
+    margin-top: 0;
+}
+.doc-prose__content :deep(h2) {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    margin-top: 1.25rem;
+}
+.doc-prose__content :deep(h3),
+.doc-prose__content :deep(h4) {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.375rem;
+    margin-top: 1rem;
+}
+.doc-prose__content :deep(p) {
+    margin-bottom: 0.75rem;
+    margin-top: 0;
+    line-height: 1.6;
+}
+.doc-prose__content :deep(p:last-child) {
+    margin-bottom: 0;
+}
+.doc-prose__content :deep(strong) {
+    font-weight: 600;
+}
+.doc-prose__content :deep(ul),
+.doc-prose__content :deep(ol) {
+    margin-bottom: 0.75rem;
+    margin-top: 0;
+    padding-left: 1.5rem;
+}
+.doc-prose__content :deep(li) {
+    margin-bottom: 0.25rem;
+    line-height: 1.5;
+}
+.doc-prose__content :deep(blockquote) {
+    border-left: 4px solid rgb(209 213 219);
+    margin: 0.75rem 0;
+    padding-left: 1rem;
+    color: rgb(107 114 128);
+}
+.doc-prose__content :deep(pre),
+.doc-prose__content :deep(code) {
+    font-family: ui-monospace, monospace;
+    font-size: 0.9em;
+}
+.doc-prose__content :deep(pre) {
+    background: rgb(229 231 235);
+    border-radius: 0.5rem;
+    overflow-x: auto;
+    padding: 0.75rem 1rem;
+    margin: 0.75rem 0;
+}
+</style>

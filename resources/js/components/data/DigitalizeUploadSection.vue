@@ -17,6 +17,8 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{
+    /** Emitted when backend creates a new data row (202) – parent should refresh list so the new row appears. */
+    'item-created': [];
     uploaded: [];
 }>();
 
@@ -29,13 +31,33 @@ const uploadProgress = ref(0);
 const uploadPhase = ref<'uploading' | 'extracting'>('uploading');
 const uploadError = ref<string | null>(null);
 const uploadSuccess = ref(false);
+const uploadCount = ref<{ done: number; total: number }>({ done: 0, total: 0 });
+const extractingBatches = ref<{ done: number; total: number } | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
-const pendingFile = ref<File | null>(null);
+const pendingFiles = ref<File[]>([]);
 
 const digitalizeOptions = ref<DigitalizeOptionsResponse | null>(null);
 const selectedProvider = ref('');
 
 const providerOptions = computed(() => digitalizeOptions.value?.providers ?? []);
+
+const ALLOWED_TYPES = [
+    'image/jpeg',
+    'image/png',
+    'image/gif',
+    'image/webp',
+    'video/mp4',
+    'video/webm',
+] as const;
+const MAX_SIZE = 20 * 1024 * 1024;
+
+function filterFiles(files: FileList | File[]): File[] {
+    return Array.from(files).filter((file) => {
+        if (!ALLOWED_TYPES.includes(file.type as typeof ALLOWED_TYPES[number])) return false;
+        if (file.size > MAX_SIZE) return false;
+        return true;
+    });
+}
 
 function openFilePicker() {
     uploadError.value = null;
@@ -45,49 +67,121 @@ function openFilePicker() {
 
 function onFileChange(e: Event) {
     const input = e.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) return;
-    pendingFile.value = file;
+    const files = input.files;
+    if (!files?.length) return;
+    const valid = filterFiles(files);
+    if (valid.length) {
+        pendingFiles.value = valid;
+        uploadError.value = null;
+    }
+    input.value = '';
 }
 
 function onDrop(e: DragEvent) {
     e.preventDefault();
-    const file = e.dataTransfer?.files?.[0];
-    if (!file) return;
-    uploadError.value = null;
-    uploadSuccess.value = false;
-    pendingFile.value = file;
+    const files = e.dataTransfer?.files;
+    if (!files?.length) return;
+    const valid = filterFiles(files);
+    if (valid.length) {
+        uploadError.value = null;
+        uploadSuccess.value = false;
+        pendingFiles.value = valid;
+    }
+}
+
+function removePendingFile(index: number) {
+    pendingFiles.value = pendingFiles.value.filter((_f: File, i: number) => i !== index);
 }
 
 function resetUploadForm() {
-    pendingFile.value = null;
+    pendingFiles.value = [];
     if (fileInput.value) fileInput.value.value = '';
 }
 
 function startUpload() {
-    const file = pendingFile.value;
-    if (!file) return;
-    doUpload(file);
+    const files = pendingFiles.value;
+    if (!files.length) return;
+    if (files.length === 1) {
+        doUpload(files[0]);
+        return;
+    }
+    doUploadMultiple(files);
 }
 
 function onDragOver(e: DragEvent) {
     e.preventDefault();
 }
 
+type DigitalizeResponse = {
+    id: number;
+    name: string;
+    status?: string;
+    digital_data?: {
+        type?: string;
+        status?: string;
+        error?: string;
+        processing_batches_done?: number;
+        processing_batches_total?: number;
+    };
+};
+
+async function postOneFile(file: File): Promise<{ status: number; data: DigitalizeResponse }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (selectedProvider.value) {
+        formData.append('ai_provider', selectedProvider.value);
+    }
+    const res = await api.post<DigitalizeResponse>('/dashboard/digitalize', formData, {
+        timeout: 120000,
+        onUploadProgress(ev: { loaded: number; total?: number }) {
+            if (ev.total && ev.total > 0) {
+                uploadProgress.value = Math.round((ev.loaded / ev.total) * 100);
+                if (uploadProgress.value >= 100) {
+                    uploadPhase.value = 'extracting';
+                }
+            }
+        },
+    });
+    return { status: res.status, data: res.data };
+}
+
+async function pollUntilReady(dataId: number): Promise<void> {
+    const maxAttempts = 120;
+    const intervalMs = 2000;
+    extractingBatches.value = null;
+    for (let i = 0; i < maxAttempts; i++) {
+        const { data } = await api.get<DigitalizeResponse>(`/dashboard/api/data/${dataId}`);
+        const dd = data.digital_data ?? {};
+        const type = dd.type;
+        const status = dd.status;
+        const batchDone = dd.processing_batches_done ?? 0;
+        const batchTotal = dd.processing_batches_total ?? 0;
+        if (type === 'pending' && status === 'failed') {
+            extractingBatches.value = null;
+            throw new Error(dd.error ?? 'Extraction failed.');
+        }
+        if (batchTotal > 0) {
+            extractingBatches.value = { done: batchDone, total: batchTotal };
+        }
+        const isReady =
+            type !== 'pending' &&
+            (status !== 'processing' || batchDone >= batchTotal || batchTotal === 0);
+        if (isReady) {
+            extractingBatches.value = null;
+            return;
+        }
+        await new Promise((r) => setTimeout(r, intervalMs));
+    }
+    extractingBatches.value = null;
+    throw new Error('Processing is taking longer than expected. Check your list in a moment.');
+}
+
 async function doUpload(file: File) {
-    const allowed = [
-        'image/jpeg',
-        'image/png',
-        'image/gif',
-        'image/webp',
-        'video/mp4',
-        'video/webm',
-    ];
-    if (!allowed.includes(file.type)) {
+    if (!ALLOWED_TYPES.includes(file.type as typeof ALLOWED_TYPES[number])) {
         uploadError.value = 'Allowed: images (JPEG, PNG, GIF, WebP) or video (MP4, WebM).';
         return;
     }
-    if (file.size > 20 * 1024 * 1024) {
+    if (file.size > MAX_SIZE) {
         uploadError.value = 'File must be under 20 MB.';
         return;
     }
@@ -97,31 +191,18 @@ async function doUpload(file: File) {
     uploadPhase.value = 'uploading';
     uploadError.value = null;
     uploadSuccess.value = false;
-
-    const formData = new FormData();
-    formData.append('file', file);
-    if (selectedProvider.value) {
-        formData.append('ai_provider', selectedProvider.value);
-    }
+    uploadCount.value = { done: 0, total: 1 };
 
     try {
-        await api.post<{ id: number; name: string }>('/dashboard/digitalize', formData, {
-            timeout: 300000,
-            onUploadProgress(ev: { loaded: number; total?: number }) {
-                if (ev.total && ev.total > 0) {
-                    uploadProgress.value = Math.round((ev.loaded / ev.total) * 100);
-                    if (uploadProgress.value >= 100) {
-                        uploadPhase.value = 'extracting';
-                    }
-                }
-            },
-        });
+        const { status, data } = await postOneFile(file);
         uploadProgress.value = 100;
-        uploadPhase.value = 'extracting';
+        if (status === 202 && data.id) {
+            emit('item-created');
+        }
         uploadSuccess.value = true;
         resetUploadForm();
         emit('uploaded');
-        setTimeout(() => { uploadSuccess.value = false; }, 3000);
+        setTimeout(() => { uploadSuccess.value = false; }, 2000);
     } catch (e: unknown) {
         const err = e as { response?: { data?: { message?: string } }; message?: string };
         uploadError.value =
@@ -132,6 +213,49 @@ async function doUpload(file: File) {
         uploadLoading.value = false;
         uploadProgress.value = 0;
         uploadPhase.value = 'uploading';
+        extractingBatches.value = null;
+    }
+}
+
+async function doUploadMultiple(files: File[]) {
+    uploadLoading.value = true;
+    uploadError.value = null;
+    uploadSuccess.value = false;
+    uploadCount.value = { done: 0, total: files.length };
+
+    let done = 0;
+    const errors: string[] = [];
+
+    for (const file of files) {
+        uploadPhase.value = 'uploading';
+        uploadProgress.value = 0;
+        try {
+            const { status, data } = await postOneFile(file);
+            if (status === 202 && data.id) {
+                emit('item-created');
+            }
+            done += 1;
+            uploadCount.value = { done, total: files.length };
+        } catch (e: unknown) {
+            const err = e as { response?: { data?: { message?: string } }; message?: string };
+            const msg = err.response?.data?.message || err.message || 'Upload failed';
+            errors.push(`${file.name}: ${msg}`);
+        }
+    }
+
+    uploadLoading.value = false;
+    uploadProgress.value = 0;
+    uploadPhase.value = 'uploading';
+    resetUploadForm();
+    emit('uploaded');
+
+    if (errors.length === 0) {
+        uploadSuccess.value = true;
+        setTimeout(() => { uploadSuccess.value = false; }, 3000);
+    } else if (done > 0) {
+        uploadError.value = `${done} added, ${errors.length} failed. ${errors.slice(0, 2).join(' ')}${errors.length > 2 ? ' …' : ''}`;
+    } else {
+        uploadError.value = errors[0] ?? 'All uploads failed.';
     }
 }
 
@@ -195,6 +319,7 @@ onMounted(() => {
                 ref="fileInput"
                 type="file"
                 :accept="ACCEPT"
+                multiple
                 class="hidden"
                 @change="onFileChange"
             />
@@ -214,20 +339,41 @@ onMounted(() => {
             >
                 <Upload class="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
                 <p class="text-sm font-medium text-foreground">
-                    {{ pendingFile ? pendingFile.name : 'Drop a photo or video here, or click to choose' }}
+                    {{ pendingFiles.length ? (pendingFiles.length === 1 ? pendingFiles[0].name : `${pendingFiles.length} files selected`) : 'Drop photos, videos, or click to choose' }}
                 </p>
-                <p v-if="!pendingFile" class="mt-1 text-xs text-muted-foreground">
-                    Images, MP4, WebM · max 20 MB
+                <p v-if="!pendingFiles.length" class="mt-1 text-xs text-muted-foreground">
+                    Images, MP4, WebM · max 20 MB each · multiple allowed
                 </p>
+                <ul v-else-if="pendingFiles.length > 1 && !uploadLoading" class="mt-3 max-h-32 list-inside list-disc overflow-y-auto text-left text-xs text-muted-foreground">
+                    <li v-for="(f, i) in pendingFiles" :key="i" class="flex items-center justify-between gap-2">
+                        <span class="truncate">{{ f.name }}</span>
+                        <button
+                            type="button"
+                            class="shrink-0 rounded p-0.5 text-destructive hover:bg-destructive/10"
+                            aria-label="Remove"
+                            @click.stop="removePendingFile(i)"
+                        >
+                            ×
+                        </button>
+                    </li>
+                </ul>
                 <div v-if="uploadLoading" class="mt-4 space-y-2">
                     <div class="flex items-center justify-between text-sm text-muted-foreground">
-                        <span>{{ uploadPhase === 'uploading' ? `Uploading… ${uploadProgress}%` : 'Extracting…' }}</span>
-                        <span v-if="uploadPhase === 'uploading'" class="tabular-nums">{{ uploadProgress }}%</span>
+                        <span>
+                            {{ uploadCount.total > 1
+                                ? (uploadPhase === 'uploading' ? `Uploading ${uploadCount.done + (uploadProgress >= 100 ? 1 : 0)} of ${uploadCount.total}…` : (extractingBatches ? `Extracting… ${extractingBatches.done}/${extractingBatches.total} batches` : `Extracting… ${uploadCount.done}/${uploadCount.total}`))
+                                : (uploadPhase === 'uploading' ? `Uploading… ${uploadProgress}%` : (extractingBatches ? `Extracting… ${extractingBatches.done}/${extractingBatches.total} batches` : 'Extracting…'))
+                            }}
+                        </span>
+                        <span v-if="uploadPhase === 'uploading' && uploadCount.total <= 1" class="tabular-nums">{{ uploadProgress }}%</span>
+                        <span v-else-if="extractingBatches && extractingBatches.total > 0" class="tabular-nums">{{ extractingBatches.done }}/{{ extractingBatches.total }}</span>
                     </div>
                     <div class="h-1.5 w-full overflow-hidden rounded-full bg-muted">
                         <div
                             class="h-full rounded-full bg-primary transition-[width] duration-300 ease-out"
-                            :style="{ width: uploadPhase === 'extracting' ? '100%' : `${uploadProgress}%` }"
+                            :style="{ width: extractingBatches && extractingBatches.total > 0
+                                ? `${(extractingBatches.done / extractingBatches.total) * 100}%`
+                                : (uploadCount.total > 1 ? `${(uploadCount.done / uploadCount.total) * 100}%` : (uploadPhase === 'extracting' ? '100%' : `${uploadProgress}%`)) }"
                         />
                     </div>
                 </div>
@@ -235,19 +381,19 @@ onMounted(() => {
                     {{ uploadError }}
                 </p>
                 <p v-else-if="uploadSuccess" class="mt-3 text-sm font-medium text-success">
-                    ✓ Added below.
+                    {{ uploadCount.total > 1 ? `✓ ${uploadCount.done} item${uploadCount.done !== 1 ? 's' : ''} added.` : '✓ Added below.' }}
                 </p>
             </div>
             <div class="mt-4 flex flex-col justify-center items-center gap-3">
                 <Button
                     type="button"
                     class="rounded-lg"
-                    :disabled="!pendingFile || uploadLoading"
+                    :disabled="!pendingFiles.length || uploadLoading"
                     @click="startUpload"
                 >
-                    {{ pendingFile ? 'Extract & save' : 'Upload' }}
+                    {{ pendingFiles.length ? (pendingFiles.length === 1 ? 'Extract & save' : `Extract & save ${pendingFiles.length} files`) : 'Upload' }}
                 </Button>
-                <span v-if="!pendingFile" class="text-xs text-muted-foreground">
+                <span v-if="!pendingFiles.length" class="text-xs text-muted-foreground">
                     Tip: Multiple pages? One photo per page or pause 1–2 sec per page in video.
                 </span>
             </div>

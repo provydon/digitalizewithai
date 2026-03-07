@@ -16,6 +16,10 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const dataListRef = ref<InstanceType<typeof DataListSection> | null>(null);
 
+function onItemCreated() {
+    dataListRef.value?.loadList();
+}
+
 function onUploaded() {
     dataListRef.value?.loadList();
 }
@@ -39,6 +43,7 @@ function onUploaded() {
                 <div class="flex justify-center">
                     <DigitalizeUploadSection
                         storage-key="dashboard_upload_seen"
+                        @item-created="onItemCreated"
                         @uploaded="onUploaded"
                     />
                 </div>

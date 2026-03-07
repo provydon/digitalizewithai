@@ -1,17 +1,56 @@
 <script setup lang="ts">
 import { Link, router } from '@inertiajs/vue3';
-import { FileText, Table as TableIcon, Trash2 } from 'lucide-vue-next';
+import { ref, watch } from 'vue';
+import { AlertCircle, Check, FileText, Loader2, Table as TableIcon, Trash2 } from 'lucide-vue-next';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Button } from '@/components/ui/button';
 import type { DigitalizedItem } from '@/types';
 
 const props = defineProps<{
     items: DigitalizedItem[];
+    /** Selected item IDs (controlled by parent). */
+    selectedIds: number[];
     /** Function to get view URL for an item, e.g. (id) => `/dashboard/data/${id}` */
     viewUrl: (id: number) => string;
 }>();
 
 const emit = defineEmits<{
+    'update:selectedIds': [ids: number[]];
     deleteRequest: [item: DigitalizedItem];
+    deleteSelectedRequest: [items: DigitalizedItem[]];
 }>();
+
+const selectedItems = () => props.items.filter((i) => props.selectedIds.includes(i.id));
+const allSelected = () => props.items.length > 0 && props.selectedIds.length === props.items.length;
+const someSelected = () => props.selectedIds.length > 0;
+
+/** Header checkbox state: true | false | 'indeterminate' for tri-state. */
+function headerCheckboxState(): boolean | 'indeterminate' {
+    if (allSelected()) return true;
+    if (someSelected()) return 'indeterminate';
+    return false;
+}
+
+function toggleSelectAll(checked: boolean | 'indeterminate') {
+    if (checked === true) {
+        emit('update:selectedIds', props.items.map((i) => i.id));
+    } else {
+        emit('update:selectedIds', []);
+    }
+}
+
+function toggleSelect(id: number, checked: boolean) {
+    const next = new Set(props.selectedIds);
+    if (checked) next.add(id);
+    else next.delete(id);
+    emit('update:selectedIds', Array.from(next));
+}
+
+function onDeleteSelected() {
+    const items = selectedItems();
+    if (items.length === 0) return;
+    emit('deleteSelectedRequest', items);
+}
 
 function formatDate(iso: string | null): string {
     if (!iso) return '—';
@@ -27,12 +66,34 @@ function onRowClick(item: DigitalizedItem) {
 
 <template>
     <div class="-mx-1 overflow-x-auto overscroll-x-contain sm:mx-0">
+        <div
+            v-if="someSelected()"
+            class="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2"
+        >
+            <span class="text-sm font-medium text-foreground">
+                {{ selectedIds.length }} selected
+            </span>
+            <Button variant="outline" size="sm" class="h-8" @click="toggleSelectAll(false)">
+                Clear
+            </Button>
+            <Button variant="destructive" size="sm" class="h-8" @click="onDeleteSelected">
+                Delete selected
+            </Button>
+        </div>
         <table class="w-full min-w-[320px] text-left text-sm text-foreground sm:min-w-[400px]" role="grid">
             <thead>
                 <tr class="border-b border-border">
+                    <th class="w-10 pb-3 pr-2 font-medium text-muted-foreground sm:pr-3">
+                        <Checkbox
+                            :checked="headerCheckboxState()"
+                            aria-label="Select all"
+                            @update:checked="(v) => toggleSelectAll(v === true)"
+                        />
+                    </th>
                     <th class="pb-3 pr-3 font-medium text-muted-foreground sm:pr-4">ID</th>
                     <th class="pb-3 pr-3 font-medium text-muted-foreground sm:pr-4">Name</th>
                     <th class="pb-3 pr-3 font-medium text-muted-foreground sm:pr-4">Type</th>
+                    <th class="pb-3 pr-3 font-medium text-muted-foreground sm:pr-4">Status</th>
                     <th class="hidden pb-3 pr-3 font-medium text-muted-foreground md:table-cell sm:pr-4">AI</th>
                     <th class="hidden pb-3 pr-3 font-medium text-muted-foreground sm:table-cell sm:pr-4">Created</th>
                     <th class="w-10 pb-3 pl-0 font-medium text-muted-foreground" aria-label="Actions"> </th>
@@ -43,9 +104,16 @@ function onRowClick(item: DigitalizedItem) {
                     v-for="(item, index) in items"
                     :key="item.id"
                     class="group border-b border-border/80 transition-colors last:border-b-0 hover:bg-muted/40 cursor-pointer"
-                    :class="{ 'bg-muted/20': index % 2 === 1 }"
+                    :class="{ 'bg-muted/20': index % 2 === 1, 'bg-primary/5': selectedIds.includes(item.id) }"
                     @click="onRowClick(item)"
                 >
+                    <td class="w-10 py-3.5 pr-2" @click.stop>
+                        <Checkbox
+                            :checked="selectedIds.includes(item.id)"
+                            aria-label="Select row"
+                            @update:checked="(v) => toggleSelect(item.id, !!v)"
+                        />
+                    </td>
                     <td class="py-3.5 pr-3 font-mono text-xs text-muted-foreground sm:pr-4">
                         {{ item.id }}
                     </td>
@@ -74,6 +142,29 @@ function onRowClick(item: DigitalizedItem) {
                             table
                         </span>
                         <span v-else class="text-muted-foreground">—</span>
+                    </td>
+                    <td class="py-3.5 pr-3 sm:pr-4">
+                        <span
+                            v-if="item.status === 'failed'"
+                            class="inline-flex items-center gap-1.5 rounded-lg bg-red-100 px-2 py-1 text-xs font-medium text-red-800 dark:bg-red-900/40 dark:text-red-300"
+                        >
+                            <AlertCircle class="h-3.5 w-3.5" />
+                            Failed
+                        </span>
+                        <span
+                            v-else-if="item.status === 'processing'"
+                            class="inline-flex items-center gap-1.5 rounded-lg bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
+                        >
+                            <Loader2 class="h-3.5 w-3.5 shrink-0 animate-spin" />
+                            {{ (item.processing_batches_total ?? 0) > 0 ? `Extracting… ${item.processing_batches_done ?? 0}/${item.processing_batches_total}` : 'Processing…' }}
+                        </span>
+                        <span
+                            v-else
+                            class="inline-flex items-center gap-1.5 rounded-lg bg-green-100 px-2 py-1 text-xs font-medium text-green-800 dark:bg-green-900/40 dark:text-green-300"
+                        >
+                            <Check class="h-3.5 w-3.5" />
+                            Ready
+                        </span>
                     </td>
                     <td class="hidden py-3.5 pr-3 text-muted-foreground md:table-cell sm:pr-4">
                         <span v-if="item.ai_provider || item.ai_model" class="text-xs">

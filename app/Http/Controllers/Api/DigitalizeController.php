@@ -5,10 +5,13 @@ namespace App\Http\Controllers\Api;
 use App\Ai\Agents\DigitalizeAgent;
 use App\Ai\Agents\DigitalizeAgentNova;
 use App\Http\Controllers\Controller;
+use App\Jobs\DigitalizeOrchestratorJob;
 use App\Models\Data;
+use App\Services\VideoFrameExtractor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Laravel\Ai\Files\Document;
@@ -83,80 +86,18 @@ class DigitalizeController extends Controller
             $nameFromRequest = $request->input('name');
         }
 
-        // 1. Run AI extraction first (no persistence yet). If it fails, nothing is created.
         $isImage = in_array($mimeType, self::IMAGE_MIMES, true);
-        $attachment = $isImage
-            ? Image::fromBase64($base64, $mimeType)
-            : Document::fromBase64($base64, $mimeType);
-
         $requestProvider = $request->input('ai_provider');
         $requestModel = $request->input('ai_model') ?: null;
-        $agent = $this->digitalizeAgentForProvider($requestProvider);
-        $response = $agent->prompt(
-            'Extract all content from this image or video (e.g. handwritten or printed text, tables). Return structured JSON with type (doc or table) and content as described in your instructions.',
-            attachments: [$attachment],
-            provider: $requestProvider ?: null,
-            model: $requestModel,
-        );
-        $response = $this->digitalizeResponseToArray($response);
 
-        $effectiveProvider = $requestProvider ?: config('ai.default');
-        if ($effectiveProvider === 'nova') {
-            $response = $this->normalizeDigitalizeResponse($response);
-        }
+        Log::info('[digitalize] store: start (async)', [
+            'mime' => $mimeType,
+            'size_bytes' => strlen($decoded),
+            'input_type' => $isImage ? 'image' : 'video',
+        ]);
 
-        $type = $response['type'] ?? 'doc';
-        $content = $response['content'] ?? '';
-        if ($type === 'table' && is_array($content)) {
-            $content = json_encode($content);
-        }
-        $digitalData = [
-            'type' => $type,
-            'content' => is_string($content) ? $content : (string) json_encode($content),
-        ];
-        if ($type === 'table' && isset($response['table_row_count'])) {
-            $digitalData['table_row_count'] = (int) $response['table_row_count'];
-        }
-        if ($type === 'doc') {
-            $docPages = $response['doc_pages'] ?? null;
-            $docPageCount = isset($response['doc_page_count']) ? (int) $response['doc_page_count'] : 1;
-            $digitalData['doc_page_count'] = $docPageCount;
-            if (is_array($docPages) && $docPageCount > 1) {
-                $digitalData['doc_pages'] = array_values($docPages);
-                $digitalData['content'] = implode("\n\n", $digitalData['doc_pages']);
-            }
-        }
-        $rawSuggested = $response['suggested_prompts'] ?? null;
-        $digitalData['suggested_prompts'] = is_array($rawSuggested)
-            ? array_values(array_filter(array_map('strval', $rawSuggested)))
-            : [];
-        $rawInsights = $response['insights'] ?? null;
-        $digitalData['insights'] = is_array($rawInsights)
-            ? array_values(array_filter(array_map('strval', $rawInsights)))
-            : [];
-
-        // Resolve display name: AI suggested_name first, then request name, then filename.
-        $suggestedName = isset($response['suggested_name']) && is_scalar($response['suggested_name'])
-            ? trim((string) $response['suggested_name'])
-            : '';
-        if ($suggestedName !== '') {
-            $suggestedName = str_replace(["\r", "\n", "/", "\\"], [' ', ' ', ' ', ' '], $suggestedName);
-            $suggestedName = trim(preg_replace('/\s+/', ' ', $suggestedName));
-        }
-        if ($suggestedName !== '' && mb_strlen($suggestedName) <= 255) {
-            $resolvedName = $suggestedName;
-        } elseif ($nameFromRequest !== null && $nameFromRequest !== '') {
-            $resolvedName = trim((string) $nameFromRequest);
-        } else {
-            $resolvedName = 'document';
-        }
-        $resolvedName = mb_strlen($resolvedName) > 255 ? mb_substr($resolvedName, 0, 255) : $resolvedName;
-        $resolvedName = $resolvedName !== '' ? $resolvedName : 'document';
-
-        // 2. In one transaction: store file, create Data, sync table rows. Roll back all on failure.
         $disk = config('filesystems.default');
         $path = null;
-        [$aiProvider, $aiModel] = $this->resolveProviderAndModelForStorage($requestProvider, $requestModel);
 
         try {
             DB::beginTransaction();
@@ -165,33 +106,48 @@ class DigitalizeController extends Controller
             $path = 'digitalize/'.Str::uuid().'.'.$ext;
             Storage::disk($disk)->put($path, $decoded);
 
+            $initialName = $nameFromRequest !== null && $nameFromRequest !== '' ? pathinfo(trim($nameFromRequest), PATHINFO_FILENAME) : 'Processing…';
             $rawData = [
                 'disk' => $disk,
                 'path' => $path,
+                'mime_type' => $mimeType,
+                'name_from_request' => $nameFromRequest,
+                'ai_provider' => $requestProvider,
+                'ai_model' => $requestModel,
             ];
 
-            $name = $resolvedName;
+            $pendingDigitalData = [
+                'type' => 'pending',
+                'status' => 'processing',
+            ];
+
             $data = Data::create([
                 'user_id' => $request->user()->id,
-                'name' => pathinfo($name, PATHINFO_FILENAME),
+                'name' => $initialName,
+                'status' => 'processing',
                 'raw_data' => $rawData,
-                'digital_data' => $digitalData,
-                'ai_provider' => $aiProvider,
-                'ai_model' => $aiModel,
+                'digital_data' => $pendingDigitalData,
+                'ai_provider' => null,
+                'ai_model' => null,
             ]);
 
-            if (($digitalData['type'] ?? '') === 'table') {
-                $data->syncTableRowsFromDigitalData();
-            }
-
             DB::commit();
+
+            DigitalizeOrchestratorJob::dispatch($data->id);
+
+            Log::info('[digitalize] store: job dispatched', ['data_id' => $data->id]);
 
             return response()->json([
                 'id' => $data->id,
                 'name' => $data->name,
+                'status' => 'processing',
                 'digital_data' => $data->digital_data,
-            ], 201);
+            ], 202);
         } catch (\Throwable $e) {
+            Log::error('[digitalize] store: failed', [
+                'error' => $e->getMessage(),
+                'path_stored' => $path,
+            ]);
             DB::rollBack();
             if ($path !== null) {
                 try {
@@ -231,29 +187,35 @@ class DigitalizeController extends Controller
             return response()->json(['message' => 'Allowed: images (JPEG, PNG, GIF, WebP) or video (MP4, WebM).'], 422);
         }
 
-        $base64 = base64_encode($uploaded->get());
+        $decoded = $uploaded->get();
+        $base64 = base64_encode($decoded);
         $isImage = in_array($mimeType, self::IMAGE_MIMES, true);
-        $attachment = $isImage
-            ? Image::fromBase64($base64, $mimeType)
-            : Document::fromBase64($base64, $mimeType);
+
+        Log::info('[digitalize] appendToTable: start', [
+            'data_id' => $data->id,
+            'mime' => $mimeType,
+            'size_bytes' => strlen($decoded),
+            'input_type' => $isImage ? 'image' : 'video',
+        ]);
+
+        $attachments = $this->attachmentsForDigitalize($isImage, $decoded, $base64, $mimeType);
+        Log::info('[digitalize] appendToTable: attachments prepared', [
+            'attachment_count' => count($attachments),
+        ]);
 
         $requestProvider = $request->input('ai_provider');
         $requestModel = $request->input('ai_model') ?: null;
         $agent = $this->digitalizeAgentForProvider($requestProvider);
-        $response = $agent->prompt(
-            'Extract all content from this image or video (e.g. handwritten or printed text, tables). Return structured JSON with type (doc or table) and content as described in your instructions.',
-            attachments: [$attachment],
-            provider: $requestProvider ?: null,
-            model: $requestModel,
-        );
-        $response = $this->digitalizeResponseToArray($response);
+        $response = $this->runDigitalizeExtraction($agent, $attachments, $requestProvider, $requestModel);
 
         $effectiveProvider = $requestProvider ?: config('ai.default');
         if ($effectiveProvider === 'nova') {
             $response = $this->normalizeDigitalizeResponse($response);
+            Log::info('[digitalize] appendToTable: Nova response normalized');
         }
 
         $type = $response['type'] ?? 'doc';
+        Log::info('[digitalize] appendToTable: AI response', ['type' => $type]);
         if ($type !== 'table') {
             return response()->json(['message' => 'The upload did not contain table data. Use a photo or video of a table to add rows.'], 422);
         }
@@ -298,6 +260,11 @@ class DigitalizeController extends Controller
         }
 
         $data->rebuildDigitalDataRowsFromTableRows();
+
+        Log::info('[digitalize] appendToTable: complete', [
+            'data_id' => $data->id,
+            'rows_added' => $added,
+        ]);
 
         return response()->json([
             'added' => $added,
@@ -366,6 +333,212 @@ class DigitalizeController extends Controller
             'created_at' => $data->created_at,
             'updated_at' => $data->updated_at,
         ]);
+    }
+
+    /**
+     * Run digitalize extraction: one AI call, or batched calls when frame count exceeds batch_size.
+     *
+     * @param  array<int, \Laravel\Ai\Files\Image|\Laravel\Ai\Files\Document>  $attachments
+     * @return array<string, mixed>
+     */
+    private function runDigitalizeExtraction(DigitalizeAgent|DigitalizeAgentNova $agent, array $attachments, ?string $requestProvider, ?string $requestModel): array
+    {
+        $batchSize = (int) config('video_extract.batch_size', 20);
+        $useBatches = $batchSize > 0 && count($attachments) > $batchSize;
+
+        if (! $useBatches) {
+            Log::info('[digitalize] AI extraction: single request', [
+                'attachment_count' => count($attachments),
+                'provider' => $requestProvider,
+            ]);
+            $prompt = $this->digitalizePrompt($attachments);
+            $response = $agent->prompt(
+                $prompt,
+                attachments: $attachments,
+                provider: $requestProvider,
+                model: $requestModel,
+            );
+            $out = $this->digitalizeResponseToArray($response);
+            Log::info('[digitalize] AI extraction: single response received', [
+                'type' => $out['type'] ?? null,
+            ]);
+
+            return $out;
+        }
+
+        $batches = array_chunk($attachments, $batchSize);
+        $totalBatches = count($batches);
+        Log::info('[digitalize] AI extraction: batched', [
+            'total_attachments' => count($attachments),
+            'batch_size' => $batchSize,
+            'batch_count' => $totalBatches,
+            'provider' => $requestProvider,
+        ]);
+
+        $responses = [];
+        foreach ($batches as $i => $batch) {
+            $start = $i * $batchSize + 1;
+            $end = $i * $batchSize + count($batch);
+            Log::info('[digitalize] AI extraction: batch request', [
+                'batch_index' => $i + 1,
+                'batch_total' => $totalBatches,
+                'frame_range' => "{$start}-{$end}",
+                'images_in_batch' => count($batch),
+            ]);
+            $prompt = 'Extract all content from these images (frames '.$start.'–'.$end.' of a video, one frame per second). Return structured JSON with type (doc or table) and content as described in your instructions. Do not repeat or duplicate content that appears in more than one image.';
+            $response = $agent->prompt(
+                $prompt,
+                attachments: $batch,
+                provider: $requestProvider,
+                model: $requestModel,
+            );
+            $parsed = $this->digitalizeResponseToArray($response);
+            $responses[] = $parsed;
+            Log::info('[digitalize] AI extraction: batch response received', [
+                'batch_index' => $i + 1,
+                'type' => $parsed['type'] ?? null,
+            ]);
+        }
+
+        Log::info('[digitalize] AI extraction: merging batched responses');
+
+        return $this->mergeDigitalizeResponses($responses);
+    }
+
+    /**
+     * Merge multiple digitalize responses (from batched video frames) into one.
+     *
+     * @param  array<int, array<string, mixed>>  $responses
+     * @return array<string, mixed>
+     */
+    private function mergeDigitalizeResponses(array $responses): array
+    {
+        if ($responses === []) {
+            Log::info('[digitalize] merge: no responses, returning empty');
+
+            return ['type' => 'doc', 'content' => '', 'suggested_prompts' => [], 'insights' => [], 'suggested_name' => ''];
+        }
+        if (count($responses) === 1) {
+            return $responses[0];
+        }
+
+        $first = $responses[0];
+        $type = $first['type'] ?? 'doc';
+        Log::info('[digitalize] merge: merging responses', [
+            'response_count' => count($responses),
+            'merged_type' => $type,
+        ]);
+
+        $allPrompts = [];
+        $allInsights = [];
+        foreach ($responses as $r) {
+            foreach ((array) ($r['suggested_prompts'] ?? []) as $p) {
+                if (is_string($p) && $p !== '') {
+                    $allPrompts[$p] = true;
+                }
+            }
+            foreach ((array) ($r['insights'] ?? []) as $i) {
+                if (is_string($i) && $i !== '') {
+                    $allInsights[$i] = true;
+                }
+            }
+        }
+
+        if ($type === 'table') {
+            $headers = $first['content'] ?? '{}';
+            $decoded = is_string($headers) ? json_decode($headers, true) : $headers;
+            $mergedHeaders = $decoded['headers'] ?? [];
+            $mergedRows = [];
+            foreach ($responses as $r) {
+                $content = $r['content'] ?? '';
+                $data = is_string($content) ? json_decode($content, true) : $content;
+                $rows = $data['rows'] ?? [];
+                if (is_array($rows)) {
+                    foreach ($rows as $row) {
+                        $mergedRows[] = is_array($row) ? array_values($row) : [];
+                    }
+                }
+            }
+            $content = json_encode(['headers' => $mergedHeaders, 'rows' => $mergedRows]);
+            Log::info('[digitalize] merge: table merged', ['total_rows' => count($mergedRows), 'header_count' => count($mergedHeaders)]);
+
+            return array_merge($first, [
+                'content' => $content,
+                'table_row_count' => count($mergedRows),
+                'suggested_prompts' => array_keys($allPrompts),
+                'insights' => array_keys($allInsights),
+            ]);
+        }
+
+        $docParts = [];
+        foreach ($responses as $r) {
+            $pages = $r['doc_pages'] ?? null;
+            if (is_array($pages) && $pages !== []) {
+                $docParts = array_merge($docParts, $pages);
+            } else {
+                $c = $r['content'] ?? '';
+                if (is_string($c) && $c !== '') {
+                    $docParts[] = $c;
+                }
+            }
+        }
+        $docPageCount = count($docParts) ?: 1;
+        $content = implode("\n\n", $docParts);
+        Log::info('[digitalize] merge: doc merged', ['doc_page_count' => $docPageCount]);
+
+        return array_merge($first, [
+            'content' => $content,
+            'doc_page_count' => $docPageCount,
+            'doc_pages' => $docParts,
+            'suggested_prompts' => array_keys($allPrompts),
+            'insights' => array_keys($allInsights),
+        ]);
+    }
+
+    /**
+     * Build prompt for digitalize; when multiple images (video frames), remind AI not to repeat content.
+     *
+     * @param  array<int, \Laravel\Ai\Files\Image|\Laravel\Ai\Files\Document>  $attachments
+     */
+    private function digitalizePrompt(array $attachments): string
+    {
+        $isMultipleFrames = count($attachments) > 1;
+        $base = 'Extract all content from this image or video (e.g. handwritten or printed text, tables). Return structured JSON with type (doc or table) and content as described in your instructions.';
+        if ($isMultipleFrames) {
+            $base .= ' These images are one frame per second from a video—extract from all frames but do not repeat or duplicate content that appears in more than one image.';
+        }
+
+        return $base;
+    }
+
+    /**
+     * Build attachments for AI: one image/document, or for video, one Image per second (via ffmpeg).
+     *
+     * @return array<int, \Laravel\Ai\Files\Image|\Laravel\Ai\Files\Document>
+     */
+    private function attachmentsForDigitalize(bool $isImage, string $decoded, string $base64, string $mimeType): array
+    {
+        if ($isImage) {
+            Log::info('[digitalize] attachmentsForDigitalize: single image');
+
+            return [Image::fromBase64($base64, $mimeType)];
+        }
+
+        Log::info('[digitalize] attachmentsForDigitalize: video, extracting frames');
+        $extractor = new VideoFrameExtractor;
+        $frames = $extractor->extractFramesPerSecond($decoded, $mimeType);
+        if ($frames === []) {
+            Log::warning('[digitalize] attachmentsForDigitalize: no frames extracted, falling back to video as document');
+
+            return [Document::fromBase64($base64, $mimeType)];
+        }
+
+        Log::info('[digitalize] attachmentsForDigitalize: using video frames as images', ['frame_count' => count($frames)]);
+
+        return array_map(
+            fn (array $f) => Image::fromBase64($f['base64'], $f['mime']),
+            $frames
+        );
     }
 
     /**

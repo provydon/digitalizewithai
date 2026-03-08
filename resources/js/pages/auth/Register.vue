@@ -3,6 +3,7 @@ import { Form, Head } from '@inertiajs/vue3';
 import InputError from '@/components/InputError.vue';
 import TextLink from '@/components/TextLink.vue';
 import { Button } from '@/components/ui/button';
+import PasswordInput from '@/components/PasswordInput.vue';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
@@ -56,13 +57,12 @@ import { store } from '@/routes/register';
 
                 <div class="grid gap-2">
                     <Label for="password">Password</Label>
-                    <Input
+                    <PasswordInput
                         id="password"
-                        type="password"
+                        name="password"
                         required
                         :tabindex="3"
                         autocomplete="new-password"
-                        name="password"
                         placeholder="Password"
                     />
                     <InputError :message="errors.password" />
@@ -70,13 +70,12 @@ import { store } from '@/routes/register';
 
                 <div class="grid gap-2">
                     <Label for="password_confirmation">Confirm password</Label>
-                    <Input
+                    <PasswordInput
                         id="password_confirmation"
-                        type="password"
+                        name="password_confirmation"
                         required
                         :tabindex="4"
                         autocomplete="new-password"
-                        name="password_confirmation"
                         placeholder="Confirm password"
                     />
                     <InputError :message="errors.password_confirmation" />

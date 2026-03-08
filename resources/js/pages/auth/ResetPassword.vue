@@ -3,6 +3,7 @@ import { Form, Head } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
+import PasswordInput from '@/components/PasswordInput.vue';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
@@ -47,9 +48,8 @@ const inputEmail = ref(props.email);
 
                 <div class="grid gap-2">
                     <Label for="password">Password</Label>
-                    <Input
+                    <PasswordInput
                         id="password"
-                        type="password"
                         name="password"
                         autocomplete="new-password"
                         class="mt-1 block w-full"
@@ -63,9 +63,8 @@ const inputEmail = ref(props.email);
                     <Label for="password_confirmation">
                         Confirm password
                     </Label>
-                    <Input
+                    <PasswordInput
                         id="password_confirmation"
-                        type="password"
                         name="password_confirmation"
                         autocomplete="new-password"
                         class="mt-1 block w-full"

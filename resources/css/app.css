@@ -121,3 +121,17 @@
     opacity: 1;
     transform: translateY(0);
 }
+
+/* Inertia / NProgress: make loader bar and spinner clearly visible */
+#nprogress .bar {
+    height: 4px !important;
+}
+#nprogress .spinner {
+    top: 15px !important;
+    right: 15px !important;
+}
+#nprogress .spinner-icon {
+    width: 22px !important;
+    height: 22px !important;
+    border-width: 3px !important;
+}

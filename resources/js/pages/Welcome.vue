@@ -38,7 +38,7 @@ useIntersectionObserver(
         <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
     </Head>
     <div
-        class="flex min-h-screen flex-col bg-background text-foreground"
+        class="flex min-h-screen flex-col bg-background text-foreground pb-72"
     >
         <header
             class="sticky top-0 z-10 w-full border-b border-border bg-background/95 px-4 py-3 backdrop-blur-sm sm:px-6 sm:py-4 lg:px-12"

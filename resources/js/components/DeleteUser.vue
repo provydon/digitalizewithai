@@ -15,7 +15,7 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
+import PasswordInput from '@/components/PasswordInput.vue';
 import { Label } from '@/components/ui/label';
 
 const passwordInput = useTemplateRef('passwordInput');
@@ -72,9 +72,8 @@ const passwordInput = useTemplateRef('passwordInput');
                             <Label for="password" class="sr-only"
                                 >Password</Label
                             >
-                            <Input
+                            <PasswordInput
                                 id="password"
-                                type="password"
                                 name="password"
                                 ref="passwordInput"
                                 placeholder="Password"

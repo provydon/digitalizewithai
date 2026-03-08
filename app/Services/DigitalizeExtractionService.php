@@ -69,6 +69,61 @@ class DigitalizeExtractionService
     }
 
     /**
+     * Extract content from multiple files as a single doc/table. Used for multi-file upload (one Data record).
+     *
+     * @param  array<int, array{decoded: string, mime_type: string, name_from_request: string|null}>  $filePayloads
+     * @return array{digital_data: array<string, mixed>, resolved_name: string, ai_provider: string|null, ai_model: string|null}
+     */
+    public function extractFromMultipleFiles(
+        array $filePayloads,
+        ?string $requestProvider,
+        ?string $requestModel
+    ): array {
+        $attachments = [];
+        $firstName = null;
+        foreach ($filePayloads as $payload) {
+            $decoded = $payload['decoded'] ?? '';
+            $mimeType = $payload['mime_type'] ?? 'application/octet-stream';
+            $nameFromRequest = $payload['name_from_request'] ?? null;
+            if ($firstName === null && $nameFromRequest !== null && $nameFromRequest !== '') {
+                $firstName = $nameFromRequest;
+            }
+            $base64 = base64_encode($decoded);
+            $isImage = in_array($mimeType, self::IMAGE_MIMES, true);
+            $parts = $this->attachmentsForDigitalize($isImage, $decoded, $base64, $mimeType);
+            foreach ($parts as $p) {
+                $attachments[] = $p;
+            }
+        }
+        if ($attachments === []) {
+            Log::warning('[digitalize] extractFromMultipleFiles: no attachments built');
+            [$aiProvider, $aiModel] = $this->resolveProviderAndModelForStorage($requestProvider, $requestModel);
+            return [
+                'digital_data' => ['type' => 'doc', 'content' => '', 'suggested_prompts' => [], 'insights' => []],
+                'resolved_name' => $firstName ?? 'document',
+                'ai_provider' => $aiProvider,
+                'ai_model' => $aiModel,
+            ];
+        }
+        Log::info('[digitalize] extraction: multi-file', ['file_count' => count($filePayloads), 'attachment_count' => count($attachments)]);
+        $agent = $this->agentForProvider($requestProvider);
+        $response = $this->runExtraction($agent, $attachments, $requestProvider, $requestModel);
+        $effectiveProvider = $requestProvider ?: config('ai.default');
+        if ($effectiveProvider === 'nova') {
+            $response = $this->normalizeNovaResponse($response);
+        }
+        $digitalData = $this->buildDigitalDataFromResponse($response);
+        $resolvedName = $this->resolveName($response, $firstName);
+        [$aiProvider, $aiModel] = $this->resolveProviderAndModelForStorage($requestProvider, $requestModel);
+        return [
+            'digital_data' => $digitalData,
+            'resolved_name' => $resolvedName,
+            'ai_provider' => $aiProvider,
+            'ai_model' => $aiModel,
+        ];
+    }
+
+    /**
      * Run extraction from pre-built frame data (base64 + mime). Used by first-frame and batch jobs.
      * Returns raw AI response (type, content, suggested_name, etc.).
      *

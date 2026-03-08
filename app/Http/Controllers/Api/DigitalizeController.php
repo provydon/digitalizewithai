@@ -163,6 +163,106 @@ class DigitalizeController extends Controller
     }
 
     /**
+     * Accept multiple files at once; store all and create a single Data record.
+     * All files are processed together as one extraction (one doc or table).
+     */
+    public function storeBatch(Request $request): JsonResponse
+    {
+        $allowedMimes = array_merge(self::IMAGE_MIMES, self::VIDEO_MIMES);
+        $digitalizeProviders = array_keys(config('ai.digitalize_providers', []));
+
+        $request->validate([
+            'files' => 'required|array',
+            'files.*' => ['required', 'file', 'mimetypes:'.implode(',', $allowedMimes), 'max:20480'],
+            'ai_provider' => 'nullable|string|in:'.implode(',', $digitalizeProviders),
+            'ai_model' => 'nullable|string|max:255',
+        ]);
+
+        $uploadedFiles = $request->file('files');
+        if (! is_array($uploadedFiles) || count($uploadedFiles) < 2) {
+            return response()->json(['message' => 'Use storeBatch only when uploading 2 or more files. Use the single-file upload for one file.'], 422);
+        }
+
+        $disk = config('filesystems.default');
+        $requestProvider = $request->input('ai_provider');
+        $requestModel = $request->input('ai_model') ?: null;
+        $storedPaths = [];
+        $firstName = null;
+
+        try {
+            DB::beginTransaction();
+
+            foreach ($uploadedFiles as $index => $uploaded) {
+                $mimeType = $uploaded->getMimeType();
+                if (! in_array($mimeType, $allowedMimes, true)) {
+                    throw new \InvalidArgumentException('Allowed mime types: '.implode(', ', $allowedMimes));
+                }
+                $decoded = $uploaded->get();
+                $ext = $this->mimeToExt($mimeType);
+                $path = 'digitalize/'.Str::uuid().'.'.$ext;
+                Storage::disk($disk)->put($path, $decoded);
+                $nameFromRequest = pathinfo($uploaded->getClientOriginalName(), PATHINFO_FILENAME);
+                if ($firstName === null && $nameFromRequest !== '') {
+                    $firstName = $nameFromRequest;
+                }
+                $storedPaths[] = [
+                    'disk' => $disk,
+                    'path' => $path,
+                    'mime_type' => $mimeType,
+                    'name_from_request' => $nameFromRequest,
+                ];
+            }
+
+            $initialName = $firstName !== null && $firstName !== '' ? $firstName : 'Processing…';
+            $rawData = [
+                'disk' => $disk,
+                'files' => $storedPaths,
+                'ai_provider' => $requestProvider,
+                'ai_model' => $requestModel,
+            ];
+            $pendingDigitalData = [
+                'type' => 'pending',
+                'status' => 'processing',
+            ];
+
+            $data = Data::create([
+                'user_id' => $request->user()->id,
+                'name' => $initialName,
+                'status' => 'processing',
+                'raw_data' => $rawData,
+                'digital_data' => $pendingDigitalData,
+                'ai_provider' => null,
+                'ai_model' => null,
+            ]);
+
+            DB::commit();
+
+            DigitalizeOrchestratorJob::dispatch($data->id);
+            StoreOriginalFileToS3Job::dispatch($data->id);
+
+            Log::info('[digitalize] storeBatch: jobs dispatched', ['data_id' => $data->id, 'file_count' => count($storedPaths)]);
+
+            return response()->json([
+                'id' => $data->id,
+                'name' => $data->name,
+                'status' => 'processing',
+                'digital_data' => $data->digital_data,
+            ], 202);
+        } catch (\Throwable $e) {
+            Log::error('[digitalize] storeBatch: failed', ['error' => $e->getMessage()]);
+            DB::rollBack();
+            foreach ($storedPaths as $entry) {
+                try {
+                    Storage::disk($entry['disk'])->delete($entry['path']);
+                } catch (\Throwable) {
+                    // ignore
+                }
+            }
+            throw $e;
+        }
+    }
+
+    /**
      * Append rows to an existing table from an uploaded photo or video.
      * Same allowed types as store(). Extracted data must be type "table"; rows are appended to match existing headers.
      */

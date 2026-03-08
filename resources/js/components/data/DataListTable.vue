@@ -3,7 +3,6 @@ import { Link, router } from '@inertiajs/vue3';
 import { ref, watch } from 'vue';
 import { AlertCircle, Check, FileText, Loader2, Table as TableIcon, Trash2 } from 'lucide-vue-next';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Button } from '@/components/ui/button';
 import type { DigitalizedItem } from '@/types';
 
 const props = defineProps<{
@@ -98,20 +97,6 @@ function onRowClick(item: DigitalizedItem) {
 
 <template>
     <div class="-mx-1 overflow-x-auto overscroll-x-contain sm:mx-0">
-        <div
-            v-if="someSelected()"
-            class="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2"
-        >
-            <span class="text-sm font-medium text-foreground">
-                {{ selectedIds.length }} selected
-            </span>
-            <Button variant="outline" size="sm" class="h-8" @click="toggleSelectAll(false)">
-                Clear
-            </Button>
-            <Button variant="destructive" size="sm" class="h-8" @click="onDeleteSelected">
-                Delete selected
-            </Button>
-        </div>
         <table class="w-full min-w-[320px] text-left text-sm text-foreground sm:min-w-[400px]" role="grid">
             <thead>
                 <tr class="border-b border-border">

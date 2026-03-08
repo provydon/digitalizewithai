@@ -110,6 +110,7 @@ class DigitalizeFirstFrameJob implements ShouldQueue
         }
         $data->update([
             'status' => 'failed',
+            'extraction_failure_message' => $message,
             'digital_data' => array_merge($digital, [
                 'type' => 'pending',
                 'status' => 'failed',

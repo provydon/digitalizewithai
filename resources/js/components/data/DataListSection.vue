@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isBroadcastingEnabled, subscribeDataRecord } from '@/lib/echo';
 import { Link } from '@inertiajs/vue3';
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { FileText, Search } from 'lucide-vue-next';
@@ -117,6 +118,10 @@ function selectedItemsForBulkDelete(): DigitalizedItem[] {
     return items.value.filter((i) => selectedIds.value.includes(i.id));
 }
 
+function updateSelectedIds(ids: number[]) {
+    selectedIds.value = ids;
+}
+
 function openBulkDeleteFromHeader() {
     const toDelete = selectedItemsForBulkDelete();
     if (toDelete.length === 0) return;
@@ -156,16 +161,13 @@ watch(listSearch, () => {
 });
 
 let processingPollTimer: ReturnType<typeof setInterval> | null = null;
+const broadcastUnsubs = ref<Map<number, () => void>>(new Map());
 
 function startProcessingPoll() {
     if (processingPollTimer) return;
     processingPollTimer = setInterval(() => {
-        const hasProcessing = items.value.some((i) => i.processing);
-        if (hasProcessing) {
-            loadList();
-        } else {
-            stopProcessingPoll();
-        }
+        if (items.value.some((i) => i.processing)) loadList();
+        else stopProcessingPoll();
     }, 2000);
 }
 
@@ -176,21 +178,90 @@ function stopProcessingPoll() {
     }
 }
 
+/** Map single-record API response to list row shape. */
+function recordToListItem(r: {
+    id: number;
+    name: string;
+    status: string;
+    digital_data?: { type?: string; status?: string; processing_batches_done?: number; processing_batches_total?: number } | null;
+    ai_provider: string | null;
+    ai_model: string | null;
+    created_at: string | null;
+    extraction_duration_seconds?: number | null;
+    extraction_started_at?: string | null;
+}): DigitalizedItem {
+    const dd = r.digital_data ?? {};
+    const processing = (dd.status ?? '') === 'processing';
+    return {
+        id: r.id,
+        name: r.name,
+        type: dd.type ?? null,
+        status: r.status as 'ready' | 'processing' | 'failed',
+        processing,
+        processing_batches_done: processing ? (dd.processing_batches_done ?? 0) : null,
+        processing_batches_total: processing ? (dd.processing_batches_total ?? 0) : null,
+        ai_provider: r.ai_provider,
+        ai_model: r.ai_model,
+        extraction_duration_seconds: r.extraction_duration_seconds ?? null,
+        extraction_started_at: r.extraction_started_at ?? null,
+        created_at: r.created_at,
+    };
+}
+
+async function patchRowFromApi(dataId: number) {
+    try {
+        const { data: record } = await api.get<Parameters<typeof recordToListItem>[0]>(`/dashboard/api/data/${dataId}`);
+        const idx = items.value.findIndex((i) => i.id === dataId);
+        if (idx === -1) return;
+        const next = [...items.value];
+        next[idx] = recordToListItem(record);
+        items.value = next;
+    } catch {
+        // Fallback: refresh full list if single fetch fails (e.g. 404)
+        await loadList();
+    }
+}
+
+function updateBroadcastSubscriptions() {
+    const processingIds = new Set(items.value.filter((i) => i.processing).map((i) => i.id));
+    const current = broadcastUnsubs.value;
+    current.forEach((unsub, id) => {
+        if (!processingIds.has(id)) {
+            unsub();
+            current.delete(id);
+        }
+    });
+    processingIds.forEach((id) => {
+        if (current.has(id)) return;
+        console.debug('[Echo] DataListSection: subscribing to record', id);
+        current.set(id, subscribeDataRecord(id, () => {
+            console.debug('[Echo] DataListSection: got update for record', id, '→ patching row');
+            void patchRowFromApi(id);
+        }));
+    });
+    broadcastUnsubs.value = new Map(current);
+}
+
 onMounted(() => {
     loadList();
 });
 
 watch(items, (newItems) => {
     const hasProcessing = newItems.some((i) => i.processing);
-    if (hasProcessing) {
-        startProcessingPoll();
-    } else {
+    if (isBroadcastingEnabled()) {
         stopProcessingPoll();
+        if (hasProcessing) updateBroadcastSubscriptions();
+        else broadcastUnsubs.value.forEach((unsub) => unsub()), broadcastUnsubs.value.clear();
+    } else {
+        if (hasProcessing) startProcessingPoll();
+        else stopProcessingPoll();
     }
 }, { deep: true });
 
 onBeforeUnmount(() => {
     stopProcessingPoll();
+    broadcastUnsubs.value.forEach((unsub) => unsub());
+    broadcastUnsubs.value.clear();
 });
 
 defineExpose({
@@ -200,40 +271,45 @@ defineExpose({
 
 <template>
     <section class="data-section rounded-2xl border border-border bg-card shadow-sm" aria-labelledby="data-heading">
-        <div class="flex flex-col gap-3 border-b border-border/80 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-5 sm:py-4">
-            <div class="flex min-w-0 flex-1 flex-wrap items-center gap-3 sm:max-w-[50%]">
-                <div class="relative min-w-0 flex-1 sm:min-w-[180px]">
-                    <Search
-                        class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 shrink-0 text-muted-foreground"
-                        aria-hidden
-                    />
-                    <input
-                        v-model="listSearch"
-                        type="search"
-                        placeholder="Search by name…"
-                        class="w-full rounded-lg border-2 border-primary/60 bg-primary/5 py-2 pl-9 pr-3 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-primary focus:bg-background dark:border-primary/50 dark:bg-primary/10 dark:focus:border-primary dark:focus:bg-background"
-                        aria-label="Search your items"
-                    />
+        <div class="flex flex-col gap-3 border-b border-border/80 p-4 sm:px-5 sm:py-4">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                <div class="flex min-w-0 flex-1 flex-wrap items-center gap-3 sm:max-w-[50%]">
+                    <div class="relative min-w-0 flex-1 sm:min-w-[180px]">
+                        <Search
+                            class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 shrink-0 text-muted-foreground"
+                            aria-hidden
+                        />
+                        <input
+                            v-model="listSearch"
+                            type="search"
+                            placeholder="Search by name…"
+                            class="w-full rounded-lg border-2 border-primary/60 bg-primary/5 py-2 pl-9 pr-3 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-primary focus:bg-background dark:border-primary/50 dark:bg-primary/10 dark:focus:border-primary dark:focus:bg-background"
+                            aria-label="Search your items"
+                        />
+                    </div>
+                    <span
+                        v-if="listMeta && !loading"
+                        class="text-sm text-muted-foreground"
+                    >
+                        {{ listMeta.total.toLocaleString() }} item{{ listMeta.total !== 1 ? 's' : '' }}
+                    </span>
                 </div>
-                <span
-                    v-if="listMeta && !loading"
-                    class="text-sm text-muted-foreground"
+                <Link
+                    v-if="seeMoreHref"
+                    :href="seeMoreHref"
+                    class="hidden shrink-0 text-sm font-bold text-primary underline-offset-4 hover:underline sm:inline sm:text-base"
                 >
-                    {{ listMeta.total.toLocaleString() }} item{{ listMeta.total !== 1 ? 's' : '' }}
-                </span>
+                    View All
+                </Link>
             </div>
-            <Link
-                v-if="seeMoreHref"
-                :href="seeMoreHref"
-                class="hidden shrink-0 text-sm font-bold text-primary underline-offset-4 hover:underline sm:inline sm:text-base"
-            >
-                View All
-            </Link>
             <div
                 v-if="selectedIds.length > 0"
-                class="flex items-center gap-2 sm:ml-0"
+                class="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2"
             >
-                <span class="text-sm text-muted-foreground">{{ selectedIds.length }} selected</span>
+                <span class="text-sm font-medium text-foreground">{{ selectedIds.length }} selected</span>
+                <Button variant="outline" size="sm" class="h-8" @click="updateSelectedIds([])">
+                    Clear
+                </Button>
                 <button
                     type="button"
                     class="inline-flex items-center gap-1.5 rounded-lg p-2 text-destructive hover:bg-destructive/10"
@@ -273,7 +349,7 @@ defineExpose({
                     :items="items"
                     :selected-ids="selectedIds"
                     :view-url="viewUrl"
-                    @update:selected-ids="selectedIds = $event"
+                    @update:selected-ids="updateSelectedIds"
                     @delete-request="openDeleteModal"
                     @delete-selected-request="openDeleteSelectedModal"
                 />

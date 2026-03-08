@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Events\DataRecordUpdated;
 use App\Models\Data;
 use App\Services\DigitalizeExtractionService;
 use Illuminate\Bus\Queueable;
@@ -110,10 +111,12 @@ class DigitalizeBatchJob implements ShouldQueue
             });
 
             $data = Data::find($this->dataId);
+            $done = (int) ($data?->digital_data['processing_batches_done'] ?? 0);
+            broadcast(new DataRecordUpdated($this->dataId, 'processing', $done, $this->totalBatches));
             Log::info('[digitalize] batch job: merged', [
                 'data_id' => $this->dataId,
                 'batch' => $this->batchIndex.'/'.$this->totalBatches,
-                'done' => $data?->digital_data['processing_batches_done'] ?? 0,
+                'done' => $done,
             ]);
 
             $this->incrementDoneAndMaybeFinish($data);
@@ -127,12 +130,14 @@ class DigitalizeBatchJob implements ShouldQueue
                 }
                 $data->update([
                     'status' => 'failed',
+                    'extraction_failure_message' => $e->getMessage(),
                     'digital_data' => array_merge($digital, [
                         'type' => 'pending',
                         'status' => 'failed',
                         'error' => $e->getMessage(),
                     ]),
                 ]);
+                broadcast(new DataRecordUpdated($this->dataId, 'failed'));
             }
             throw $e;
         }
@@ -175,6 +180,7 @@ class DigitalizeBatchJob implements ShouldQueue
             $data->syncTableRowsFromDigitalData();
         }
 
+        broadcast(new DataRecordUpdated($data->id, 'ready'));
         Log::info('[digitalize] batch job: all batches complete', ['data_id' => $data->id]);
     }
 

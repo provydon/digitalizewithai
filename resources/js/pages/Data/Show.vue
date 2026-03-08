@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/AppLayout.vue';
 import api from '@/lib/api';
+import { isBroadcastingEnabled, subscribeDataRecord } from '@/lib/echo';
 import { dashboard } from '@/routes';
 import type { BreadcrumbItem } from '@/types';
 import autoTable from 'jspdf-autotable';
@@ -96,6 +97,12 @@ const isProcessing = computed(() => {
     const dd = record.value?.digital_data;
     return !!dd && (dd as { status?: string }).status === 'processing';
 });
+const isFailed = computed(() => record.value?.status === 'failed');
+const extractionFailureMessage = computed(() => {
+    const r = record.value;
+    if (!r) return '';
+    return (r.extraction_failure_message ?? r.digital_data?.error ?? 'Extraction failed.').trim() || 'Extraction failed.';
+});
 const processingBatches = computed(() => {
     const dd = record.value?.digital_data as { processing_batches_done?: number; processing_batches_total?: number } | undefined;
     if (!dd) return null;
@@ -117,7 +124,7 @@ onMounted(async () => {
     }
 });
 
-async function pollWhileProcessing() {
+async function refreshAfterUpdate() {
     await fetchRecord();
     if (record.value && isDocData.value) {
         await fetchDocFullContent();
@@ -125,22 +132,41 @@ async function pollWhileProcessing() {
     await fetchTableRows();
 }
 
+let broadcastUnsub: (() => void) | null = null;
+
 watch(isProcessing, (processing) => {
+    if (broadcastUnsub) {
+        broadcastUnsub();
+        broadcastUnsub = null;
+    }
     if (processingPollTimer) {
         clearInterval(processingPollTimer);
         processingPollTimer = null;
     }
-    if (processing) {
-        processingPollTimer = setInterval(() => {
-            void pollWhileProcessing();
-        }, 2000);
+    if (!processing) return;
+    const id = record.value?.id;
+    if (id === undefined) return;
+    // Subscribe to Echo when broadcasting is configured (real-time when server uses Pusher/Reverb)
+    if (isBroadcastingEnabled()) {
+        console.debug('[Echo] Data/Show: subscribing to record', id);
+        broadcastUnsub = subscribeDataRecord(id, () => {
+            console.debug('[Echo] Data/Show: got update for record', id, '→ refreshing');
+            void refreshAfterUpdate();
+        });
     }
+    // Always poll while processing so we still get updates when server uses log driver or broadcast isn't configured
+    const pollIntervalMs = isBroadcastingEnabled() ? 3000 : 2000;
+    processingPollTimer = setInterval(() => void refreshAfterUpdate(), pollIntervalMs);
 });
 
 onBeforeUnmount(() => {
     if (processingPollTimer) {
         clearInterval(processingPollTimer);
         processingPollTimer = null;
+    }
+    if (broadcastUnsub) {
+        broadcastUnsub();
+        broadcastUnsub = null;
     }
     revokeAttachmentPreviews(messages.value);
 });
@@ -1499,7 +1525,15 @@ const aiModelLabel = computed(() => {
                             <span v-else>Content will update shortly.</span>
                         </div>
 
-                        <TabsRoot v-model="activeTab" class="w-full">
+                        <div
+                            v-if="isFailed"
+                            class="mx-3 mb-4 rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-4 text-sm text-destructive sm:mx-4"
+                        >
+                            <p class="font-medium">Upload or extraction failed</p>
+                            <p class="mt-1 whitespace-pre-wrap">{{ extractionFailureMessage }}</p>
+                        </div>
+
+                        <TabsRoot v-else v-model="activeTab" class="w-full">
                             <TabsList
                                 class="flex h-10 w-full items-center justify-start gap-1 overflow-x-auto overflow-y-hidden rounded-lg bg-muted/50 p-1 text-muted-foreground [-webkit-overflow-scrolling:touch]"
                                 aria-label="Data view tabs"

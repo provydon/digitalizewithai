@@ -16,6 +16,7 @@ export type DigitalData = {
 export type DataRecord = {
     id: number;
     name: string;
+    status?: string;
     raw_data: Record<string, unknown> | null;
     digital_data: DigitalData | null;
     ai_provider: string | null;
@@ -23,6 +24,7 @@ export type DataRecord = {
     created_at: string | null;
     updated_at: string | null;
     has_original_file?: boolean;
+    extraction_failure_message?: string | null;
 };
 
 export type TableRowRecord = { id: number; row_index: number; cells: unknown[] };

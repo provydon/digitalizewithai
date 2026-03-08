@@ -17,7 +17,8 @@
         "laravel/sanctum": "^4.3",
         "laravel/tinker": "^2.10.1",
         "laravel/wayfinder": "^0.1.9",
-        "provydon/laravel-pgsearch": "^1.6"
+        "provydon/laravel-pgsearch": "^1.6",
+        "pusher/pusher-php-server": "*"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

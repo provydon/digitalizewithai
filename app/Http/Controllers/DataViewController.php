@@ -67,6 +67,9 @@ class DataViewController extends Controller
             'created_at' => $data->created_at?->toIso8601String(),
             'updated_at' => $data->updated_at?->toIso8601String(),
             'has_original_file' => $hasOriginalFile,
+            'extraction_duration_seconds' => $data->extraction_duration_seconds,
+            'extraction_started_at' => $data->extraction_started_at?->toIso8601String(),
+            'extraction_failure_message' => $data->extraction_failure_message,
         ]);
     }
 
@@ -82,18 +85,26 @@ class DataViewController extends Controller
             abort(404);
         }
 
-        $path = $raw['s3_key'] ?? $raw['path'] ?? null;
+        $files = $raw['files'] ?? null;
+        if (is_array($files) && $files !== []) {
+            $first = $files[0];
+            $path = $first['s3_key'] ?? $first['path'] ?? null;
+            $disk = ! empty($first['s3_key']) ? 's3' : ($first['disk'] ?? $raw['disk'] ?? config('filesystems.default'));
+            $mime = $first['mime_type'] ?? 'application/octet-stream';
+            $name = $first['name_from_request'] ?? 'original';
+        } else {
+            $path = $raw['s3_key'] ?? $raw['path'] ?? null;
+            $disk = ! empty($raw['s3_key']) ? 's3' : ($raw['disk'] ?? config('filesystems.default'));
+            $mime = $raw['mime_type'] ?? 'application/octet-stream';
+            $name = $raw['name_from_request'] ?? 'original';
+        }
+
         if (! $path) {
             abort(404);
         }
-
-        $disk = ! empty($raw['s3_key']) ? 's3' : ($raw['disk'] ?? config('filesystems.default'));
         if (! Storage::disk($disk)->exists($path)) {
             abort(404);
         }
-
-        $mime = $raw['mime_type'] ?? 'application/octet-stream';
-        $name = $raw['name_from_request'] ?? 'original';
         $ext = pathinfo($path, PATHINFO_EXTENSION) ?: '';
         if ($ext && ! str_contains($name, '.')) {
             $name .= '.'.$ext;

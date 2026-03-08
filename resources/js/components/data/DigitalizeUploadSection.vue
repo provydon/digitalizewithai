@@ -145,6 +145,29 @@ async function postOneFile(file: File): Promise<{ status: number; data: Digitali
     return { status: res.status, data: res.data };
 }
 
+/** Upload multiple files as a single data record (one extraction for all). */
+async function postBatchFiles(files: File[]): Promise<{ status: number; data: DigitalizeResponse }> {
+    const formData = new FormData();
+    for (const file of files) {
+        formData.append('files[]', file);
+    }
+    if (selectedProvider.value) {
+        formData.append('ai_provider', selectedProvider.value);
+    }
+    const res = await api.post<DigitalizeResponse>('/dashboard/digitalize/batch', formData, {
+        timeout: 300000,
+        onUploadProgress(ev: { loaded: number; total?: number }) {
+            if (ev.total && ev.total > 0) {
+                uploadProgress.value = Math.round((ev.loaded / ev.total) * 100);
+                if (uploadProgress.value >= 100) {
+                    uploadPhase.value = 'extracting';
+                }
+            }
+        },
+    });
+    return { status: res.status, data: res.data };
+}
+
 async function pollUntilReady(dataId: number): Promise<void> {
     const maxAttempts = 120;
     const intervalMs = 2000;
@@ -219,43 +242,34 @@ async function doUpload(file: File) {
 
 async function doUploadMultiple(files: File[]) {
     uploadLoading.value = true;
+    uploadPhase.value = 'uploading';
+    uploadProgress.value = 0;
     uploadError.value = null;
     uploadSuccess.value = false;
     uploadCount.value = { done: 0, total: files.length };
 
-    let done = 0;
-    const errors: string[] = [];
-
-    for (const file of files) {
-        uploadPhase.value = 'uploading';
-        uploadProgress.value = 0;
-        try {
-            const { status, data } = await postOneFile(file);
-            if (status === 202 && data.id) {
-                emit('item-created');
-            }
-            done += 1;
-            uploadCount.value = { done, total: files.length };
-        } catch (e: unknown) {
-            const err = e as { response?: { data?: { message?: string } }; message?: string };
-            const msg = err.response?.data?.message || err.message || 'Upload failed';
-            errors.push(`${file.name}: ${msg}`);
+    try {
+        const { status, data } = await postBatchFiles(files);
+        uploadProgress.value = 100;
+        uploadPhase.value = 'extracting';
+        if (status === 202 && data.id) {
+            emit('item-created');
         }
-    }
-
-    uploadLoading.value = false;
-    uploadProgress.value = 0;
-    uploadPhase.value = 'uploading';
-    resetUploadForm();
-    emit('uploaded');
-
-    if (errors.length === 0) {
         uploadSuccess.value = true;
+        resetUploadForm();
+        emit('uploaded');
         setTimeout(() => { uploadSuccess.value = false; }, 3000);
-    } else if (done > 0) {
-        uploadError.value = `${done} added, ${errors.length} failed. ${errors.slice(0, 2).join(' ')}${errors.length > 2 ? ' …' : ''}`;
-    } else {
-        uploadError.value = errors[0] ?? 'All uploads failed.';
+    } catch (e: unknown) {
+        const err = e as { response?: { data?: { message?: string } }; message?: string };
+        uploadError.value =
+            err.response?.data?.message ||
+            err.message ||
+            'Upload failed. All files are processed together as one item.';
+    } finally {
+        uploadLoading.value = false;
+        uploadProgress.value = 0;
+        uploadPhase.value = 'uploading';
+        uploadCount.value = { done: 0, total: 0 };
     }
 }
 

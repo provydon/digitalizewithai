@@ -13,17 +13,18 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
-class DigitalizeFileJob implements ShouldQueue
+/**
+ * Process multiple uploaded files as a single Data record (one extraction, one doc/table).
+ */
+class DigitalizeMultiFileJob implements ShouldQueue
 {
     use Dispatchable;
     use InteractsWithQueue;
     use Queueable;
     use SerializesModels;
 
-    /** Run for up to 10 minutes (video + batched AI can be slow). */
     public int $timeout = 600;
 
-    /** Number of times to attempt the job. */
     public int $tries = 2;
 
     public function __construct(
@@ -34,15 +35,15 @@ class DigitalizeFileJob implements ShouldQueue
     {
         $data = Data::find($this->dataId);
         if (! $data) {
-            Log::warning('[digitalize] job: Data not found', ['data_id' => $this->dataId]);
+            Log::warning('[digitalize] multi-file job: Data not found', ['data_id' => $this->dataId]);
 
             return;
         }
 
         $raw = $data->raw_data;
-        if (! is_array($raw) || empty($raw['disk']) || empty($raw['path'])) {
-            Log::error('[digitalize] job: invalid raw_data', ['data_id' => $data->id]);
-            $this->markDataFailed($data, 'Invalid file reference.');
+        $files = $raw['files'] ?? null;
+        if (! is_array($files) || count($files) < 2) {
+            Log::error('[digitalize] multi-file job: invalid raw_data.files', ['data_id' => $data->id]);
 
             return;
         }
@@ -50,33 +51,43 @@ class DigitalizeFileJob implements ShouldQueue
         $digital = $data->digital_data;
         $isPending = is_array($digital) && ($digital['type'] ?? null) === 'pending' && ($digital['status'] ?? null) === 'processing';
         if (! $isPending) {
-            Log::info('[digitalize] job: Data no longer pending, skipping', ['data_id' => $data->id]);
+            Log::info('[digitalize] multi-file job: Data not pending, skipping', ['data_id' => $data->id]);
 
             return;
         }
 
-        Log::info('[digitalize] job: start', ['data_id' => $data->id]);
+        Log::info('[digitalize] multi-file job: start', ['data_id' => $data->id, 'file_count' => count($files)]);
 
         if ($data->extraction_started_at === null) {
             $data->update(['extraction_started_at' => now()]);
             $data->refresh();
         }
 
-        try {
-            $decoded = Storage::disk($raw['disk'])->get($raw['path']);
-            if ($decoded === null || $decoded === '') {
-                throw new \RuntimeException('File not found or empty in storage.');
+        $filePayloads = [];
+        foreach ($files as $entry) {
+            $disk = $entry['disk'] ?? $raw['disk'] ?? config('filesystems.default');
+            $path = $entry['path'] ?? null;
+            if ($path === null || $path === '') {
+                $this->markDataFailed($data, 'Invalid file reference in batch.');
+                return;
             }
+            $decoded = Storage::disk($disk)->get($path);
+            if ($decoded === null || $decoded === '') {
+                $this->markDataFailed($data, 'File not found or empty: '.$path);
+                return;
+            }
+            $filePayloads[] = [
+                'decoded' => $decoded,
+                'mime_type' => $entry['mime_type'] ?? 'application/octet-stream',
+                'name_from_request' => $entry['name_from_request'] ?? null,
+            ];
+        }
 
-            $mimeType = $raw['mime_type'] ?? 'application/octet-stream';
-            $nameFromRequest = $raw['name_from_request'] ?? null;
-
-            $result = $extraction->extract(
-                $decoded,
-                $mimeType,
+        try {
+            $result = $extraction->extractFromMultipleFiles(
+                $filePayloads,
                 $raw['ai_provider'] ?? null,
-                $raw['ai_model'] ?? null,
-                $nameFromRequest
+                $raw['ai_model'] ?? null
             );
 
             $startedAt = $data->extraction_started_at ?? $data->created_at;
@@ -96,9 +107,9 @@ class DigitalizeFileJob implements ShouldQueue
             }
 
             broadcast(new DataRecordUpdated($data->id, 'ready'));
-            Log::info('[digitalize] job: complete', ['data_id' => $data->id, 'type' => $result['digital_data']['type'] ?? null]);
+            Log::info('[digitalize] multi-file job: complete', ['data_id' => $data->id, 'type' => $result['digital_data']['type'] ?? null]);
         } catch (\Throwable $e) {
-            Log::error('[digitalize] job: failed', ['data_id' => $data->id, 'error' => $e->getMessage()]);
+            Log::error('[digitalize] multi-file job: failed', ['data_id' => $data->id, 'error' => $e->getMessage()]);
             $this->markDataFailed($data, $e->getMessage());
             throw $e;
         }

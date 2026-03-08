@@ -41,7 +41,7 @@ class DigitalizeOrchestratorJob implements ShouldQueue
         }
 
         $raw = $data->raw_data;
-        if (! is_array($raw) || empty($raw['disk']) || empty($raw['path'])) {
+        if (! is_array($raw)) {
             Log::error('[digitalize] orchestrator: invalid raw_data', ['data_id' => $data->id]);
             $this->markFailed($data, 'Invalid file reference.');
 
@@ -51,6 +51,22 @@ class DigitalizeOrchestratorJob implements ShouldQueue
         $digital = $data->digital_data;
         if (! is_array($digital) || ($digital['type'] ?? null) !== 'pending' || ($digital['status'] ?? null) !== 'processing') {
             Log::info('[digitalize] orchestrator: Data not pending, skipping', ['data_id' => $data->id]);
+
+            return;
+        }
+
+        // Multiple files uploaded together: one Data record, process all as one extraction.
+        $files = $raw['files'] ?? null;
+        if (is_array($files) && count($files) >= 2) {
+            Log::info('[digitalize] orchestrator: multi-file upload, dispatching DigitalizeMultiFileJob', ['data_id' => $data->id, 'file_count' => count($files)]);
+            DigitalizeMultiFileJob::dispatch($data->id);
+
+            return;
+        }
+
+        if (empty($raw['disk']) || empty($raw['path'])) {
+            Log::error('[digitalize] orchestrator: invalid raw_data (no path)', ['data_id' => $data->id]);
+            $this->markFailed($data, 'Invalid file reference.');
 
             return;
         }
@@ -117,6 +133,7 @@ class DigitalizeOrchestratorJob implements ShouldQueue
         }
         $data->update([
             'status' => 'failed',
+            'extraction_failure_message' => $message,
             'digital_data' => array_merge($digital, [
                 'type' => 'pending',
                 'status' => 'failed',

@@ -171,14 +171,31 @@ onBeforeUnmount(() => {
     revokeAttachmentPreviews(messages.value);
 });
 
+function parseTableContent(content: unknown): { headers?: string[]; rows?: unknown[][] } | null {
+    if (content == null) return null;
+    if (typeof content === 'object' && Array.isArray((content as { headers?: unknown; rows?: unknown }).rows)) {
+        const c = content as { headers?: string[]; rows?: unknown[][] };
+        return { headers: c.headers ?? [], rows: c.rows ?? [] };
+    }
+    if (typeof content !== 'string') return null;
+    const s = content.trim();
+    if (!s) return null;
+    try {
+        return JSON.parse(s) as { headers?: string[]; rows?: unknown[][] };
+    } catch {
+        const fixed = s.replace(/\}\s*\}\s*$/, '}');
+        try {
+            return JSON.parse(fixed) as { headers?: string[]; rows?: unknown[][] };
+        } catch {
+            return null;
+        }
+    }
+}
+
 const tableData = computed(() => {
     const dd = record.value?.digital_data;
-    if (!dd || dd.type !== 'table' || !dd.content) return null;
-    try {
-        return JSON.parse(dd.content) as { headers?: string[]; rows?: unknown[][] };
-    } catch {
-        return null;
-    }
+    if (!dd || dd.type !== 'table') return null;
+    return parseTableContent(dd.content);
 });
 
 const docContent = computed(() => {

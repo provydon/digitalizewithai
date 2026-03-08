@@ -199,7 +199,7 @@ class DigitalizeExtractionService
             foreach ($batchRows as $row) {
                 $rows[] = is_array($row) ? array_values($row) : [];
             }
-            $currentDigitalData['content'] = json_encode(['headers' => $headers, 'rows' => $rows]);
+            $currentDigitalData['content'] = json_encode(self::sanitizeTableForJson(['headers' => $headers, 'rows' => $rows]));
             $currentDigitalData['table_row_count'] = count($rows);
 
             return $currentDigitalData;
@@ -398,7 +398,7 @@ class DigitalizeExtractionService
         $type = $response['type'] ?? 'doc';
         $content = $response['content'] ?? '';
         if ($type === 'table' && is_array($content)) {
-            $content = json_encode($content);
+            $content = json_encode(self::sanitizeTableForJson($content));
         }
         $digitalData = [
             'type' => $type,
@@ -424,6 +424,23 @@ class DigitalizeExtractionService
             : [];
 
         return $digitalData;
+    }
+
+    /**
+     * Strip control characters from table structure so stored JSON is valid.
+     *
+     * @param  array<string, mixed>  $table  Must have 'headers' and 'rows' keys
+     * @return array<string, mixed>
+     */
+    private static function sanitizeTableForJson(array $table): array
+    {
+        $headers = $table['headers'] ?? [];
+        $rows = $table['rows'] ?? [];
+        $sanitize = fn (string $s): string => preg_replace('/[\x00-\x1F]/', ' ', $s);
+        $headers = array_map(fn ($h) => $sanitize((string) $h), $headers);
+        $rows = array_map(fn (array $row): array => array_map(fn ($cell) => $sanitize((string) $cell), $row), $rows);
+
+        return ['headers' => $headers, 'rows' => $rows];
     }
 
     private function resolveName(array $response, ?string $nameFromRequest): string

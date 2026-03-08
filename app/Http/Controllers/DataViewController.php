@@ -41,10 +41,15 @@ class DataViewController extends Controller
         }
 
         $digitalData = $data->digital_data;
-        if (is_array($digitalData) && ($digitalData['type'] ?? '') === 'doc') {
-            $pageCount = (int) ($digitalData['doc_page_count'] ?? 1);
-            if ($pageCount > 1) {
-                $digitalData = array_diff_key($digitalData, array_flip(['content', 'doc_pages']));
+        if (is_array($digitalData)) {
+            if (($digitalData['type'] ?? '') === 'doc') {
+                $pageCount = (int) ($digitalData['doc_page_count'] ?? 1);
+                if ($pageCount > 1) {
+                    $digitalData = array_diff_key($digitalData, array_flip(['content', 'doc_pages']));
+                }
+            }
+            if (($digitalData['type'] ?? '') === 'table' && isset($digitalData['content'])) {
+                $digitalData['content'] = $this->normalizeTableContent($data, $digitalData['content']);
             }
         }
 
@@ -71,6 +76,74 @@ class DataViewController extends Controller
             'extraction_started_at' => $data->extraction_started_at?->toIso8601String(),
             'extraction_failure_message' => $data->extraction_failure_message,
         ]);
+    }
+
+    /**
+     * Ensure table content is valid JSON so the frontend can parse it.
+     * - Strips control characters (e.g. tab/newline in cell values) that break JSON.
+     * - Optionally fixes trailing extra "}" from merge bugs.
+     * - If still invalid, rebuilds from data_table_rows so the UI always gets valid content.
+     *
+     * @param  array<string, mixed>|string  $content
+     * @return string
+     */
+    private function normalizeTableContent(Data $data, array|string $content): string
+    {
+        if (is_array($content)) {
+            return json_encode($content);
+        }
+        $s = trim($content);
+        if ($s === '' || $s === '{}') {
+            return '{"headers":[],"rows":[]}';
+        }
+        $s = preg_replace('/[\x00-\x1F]/', ' ', $s);
+        if (json_decode($s) !== null) {
+            return $s;
+        }
+        while (str_ends_with($s, '}') && strlen($s) > 1) {
+            $s = substr($s, 0, -1);
+            if (json_decode($s) !== null) {
+                return $s;
+            }
+        }
+
+        $rebuilt = $this->rebuildTableContentFromRows($data);
+        if ($rebuilt !== null) {
+            return $rebuilt;
+        }
+
+        return $content;
+    }
+
+    /**
+     * Build valid table JSON from data_table_rows when stored content is corrupted.
+     *
+     * @return string|null Valid JSON string or null if no rows / not a table
+     */
+    private function rebuildTableContentFromRows(Data $data): ?string
+    {
+        $digital = $data->digital_data;
+        if (! is_array($digital) || ($digital['type'] ?? '') !== 'table') {
+            return null;
+        }
+        $rows = $data->tableRows()->orderBy('row_index')->get();
+        if ($rows->isEmpty()) {
+            return null;
+        }
+        $headers = [];
+        $raw = is_string($digital['content']) ? $digital['content'] : json_encode($digital['content'] ?? '{}');
+        $decoded = json_decode($raw, true);
+        if (is_array($decoded) && ! empty($decoded['headers'])) {
+            $headers = $decoded['headers'];
+        }
+        if ($headers === []) {
+            $firstCells = $rows->first()->cells ?? [];
+            $count = is_array($firstCells) ? count($firstCells) : 0;
+            $headers = $count > 0 ? array_map(fn ($i) => (string) ($i + 1), range(0, $count - 1)) : [];
+        }
+        $rowsArray = $rows->pluck('cells')->map(fn ($c) => array_values((array) $c))->all();
+
+        return json_encode(['headers' => $headers, 'rows' => $rowsArray]);
     }
 
     /** Stream or download the original uploaded file (from local disk or S3). */

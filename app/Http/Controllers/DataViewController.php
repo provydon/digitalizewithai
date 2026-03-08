@@ -7,6 +7,7 @@ use App\Ai\Agents\DataInsightAgent;
 use App\Ai\Agents\DataInsightAgenticAgent;
 use App\Ai\Agents\DataInsightStreamingAgent;
 use App\Models\Data;
+use Laravel\Ai\Files\Image;
 use App\Models\SavedDataChart;
 use App\Models\SavedDataChat;
 use Illuminate\Http\JsonResponse;
@@ -296,7 +297,7 @@ class DataViewController extends Controller
     }
 
     /**
-     * Stream AI response for this data record. Expects JSON: { "question": "..." }.
+     * Stream AI response for this data record. Expects JSON: { "question": "..." } or multipart: question + optional attachment.
      * For table data, uses an agentic agent with tools (add/update/delete rows) and streams the final answer.
      */
     public function askStream(Request $request, Data $data)
@@ -310,13 +311,49 @@ class DataViewController extends Controller
             return response()->json(['message' => 'Question is required.'], 422);
         }
 
+        $attachmentBlock = '';
+        $imageAttachments = [];
+        $files = $request->file('attachments');
+        if (is_array($files)) {
+            foreach ($files as $file) {
+                if (! $file->isValid()) {
+                    continue;
+                }
+                $mime = $file->getMimeType();
+                $name = $file->getClientOriginalName();
+                if (str_starts_with($mime ?? '', 'image/')) {
+                    $imageAttachments[] = Image::fromBase64(base64_encode($file->get()), $mime ?? 'image/jpeg');
+                } elseif (str_starts_with($mime ?? '', 'text/') || $mime === 'application/json') {
+                    $content = file_get_contents($file->getRealPath());
+                    $attachmentBlock .= "\n\nUser attached a file ({$name}):\n---\n".trim($content)."\n---";
+                } else {
+                    $attachmentBlock .= "\n\n[User attached a file: {$name}]";
+                }
+            }
+        }
+        if ($attachmentBlock === '' && $request->hasFile('attachment')) {
+            $file = $request->file('attachment');
+            if ($file->isValid()) {
+                $mime = $file->getMimeType();
+                $name = $file->getClientOriginalName();
+                if (str_starts_with($mime ?? '', 'image/')) {
+                    $imageAttachments[] = Image::fromBase64(base64_encode($file->get()), $mime ?? 'image/jpeg');
+                } elseif (str_starts_with($mime ?? '', 'text/') || $mime === 'application/json') {
+                    $content = file_get_contents($file->getRealPath());
+                    $attachmentBlock = "\n\nUser also attached a file ({$name}):\n---\n".trim($content)."\n---";
+                } else {
+                    $attachmentBlock = "\n\n[User attached a file: {$name}]";
+                }
+            }
+        }
+
         $digitalData = $data->digital_data;
         $context = $this->buildDataContext($digitalData);
         if ($context === '') {
             return response()->json(['message' => 'No data content to analyze.'], 422);
         }
 
-        $prompt = "Here is the user's data:\n\n---\n{$context}\n---\n\nUser question or request:\n{$question}";
+        $prompt = "The user's message (their question and any attachments) is the primary context—answer based on it first. When they attach image(s) and ask about them (e.g. \"is this the book cover?\", \"what's in this image?\"), answer from the attached image(s). Only use the \"uploaded data\" block below as additional or secondary context when relevant.\n\nUser question or request: {$question}{$attachmentBlock}\n\n---\nUploaded data for this page (secondary context):\n---\n{$context}";
 
         $dataType = $digitalData['type'] ?? '';
         $isTable = is_array($digitalData) && $dataType === 'table';
@@ -325,17 +362,19 @@ class DataViewController extends Controller
 
         if ($useAgentic) {
             $agent = new DataInsightAgenticAgent($data);
-            $response = $agent->prompt($prompt, [], $data->ai_provider, $data->ai_model);
+            $response = $agent->prompt($prompt, $imageAttachments, $data->ai_provider, $data->ai_model);
             $text = (string) $response;
             $dataUpdated = true;
-            $viewDataUrl = '/dashboard/data/'.$data->id;
+            // Only include view_data_url when the agent likely changed data (user may want to see it).
+            // Omit by default so we don't show "View data" on every reply.
+            $viewDataUrl = null;
 
             return response()->stream(function () use ($text, $dataUpdated, $viewDataUrl) {
-                $chunk = json_encode([
+                $chunk = json_encode(array_filter([
                     'content' => $text,
                     'data_updated' => $dataUpdated,
                     'view_data_url' => $viewDataUrl,
-                ]);
+                ], fn ($v) => $v !== null));
                 echo "data: {$chunk}\n\n";
                 echo "data: [DONE]\n\n";
                 if (ob_get_level()) {

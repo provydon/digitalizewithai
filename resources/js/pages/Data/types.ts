@@ -34,7 +34,16 @@ export type RowsMeta = {
     total: number;
 };
 
-export type ChatMessage = { role: 'user' | 'assistant'; content: string; view_data_url?: string };
+export type ChatMessageAttachmentPreview =
+    | { type: 'image'; url: string; name: string }
+    | { type: 'file'; name: string };
+
+export type ChatMessage = {
+    role: 'user' | 'assistant';
+    content: string;
+    view_data_url?: string;
+    attachment_previews?: ChatMessageAttachmentPreview[];
+};
 
 export type ChartSuggestion = {
     chartType: 'bar' | 'line' | 'pie';

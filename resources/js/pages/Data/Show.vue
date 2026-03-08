@@ -33,6 +33,7 @@ import DataDeleteRowDialog from '@/pages/Data/components/DataDeleteRowDialog.vue
 import type {
     ChartSuggestion,
     ChatMessage,
+    ChatMessageAttachmentPreview,
     DataRecord,
     RowsMeta,
     SavedChart,
@@ -141,6 +142,7 @@ onBeforeUnmount(() => {
         clearInterval(processingPollTimer);
         processingPollTimer = null;
     }
+    revokeAttachmentPreviews(messages.value);
 });
 
 const tableData = computed(() => {
@@ -956,27 +958,57 @@ function getCsrfToken(): string {
     return match ? decodeURIComponent(match[1]) : '';
 }
 
-async function askAi(prompt?: string) {
+function buildAttachmentPreviews(files: File[]): ChatMessageAttachmentPreview[] {
+    return files.map((file) => {
+        if (file.type.startsWith('image/')) {
+            return { type: 'image', url: URL.createObjectURL(file), name: file.name };
+        }
+        return { type: 'file', name: file.name };
+    });
+}
+
+function revokeAttachmentPreviews(msgs: ChatMessage[]) {
+    msgs.forEach((m) => {
+        m.attachment_previews?.forEach((p) => {
+            if (p.type === 'image') URL.revokeObjectURL(p.url);
+        });
+    });
+}
+
+async function askAi(prompt?: string, attachments?: File[]) {
     const q = (prompt ?? '').trim();
     if (!q || !record.value) return;
     askLoading.value = true;
     askError.value = null;
-    messages.value.push({ role: 'user', content: q });
+    const attachmentPreviews = attachments?.length ? buildAttachmentPreviews(attachments) : undefined;
+    messages.value.push({ role: 'user', content: q, attachment_previews: attachmentPreviews });
     const assistantIndex = messages.value.length;
     messages.value.push({ role: 'assistant', content: '' });
 
     try {
         const streamUrl = `/dashboard/api/data/${record.value.id}/ask/stream`;
+        const csrf = getCsrfToken();
+        let body: string | FormData;
+        const headers: Record<string, string> = {
+            Accept: 'text/event-stream',
+            'X-XSRF-TOKEN': csrf,
+            'X-Requested-With': 'XMLHttpRequest',
+        };
+        if (attachments?.length) {
+            body = new FormData();
+            body.append('question', q);
+            for (const file of attachments) {
+                body.append('attachments[]', file);
+            }
+        } else {
+            headers['Content-Type'] = 'application/json';
+            body = JSON.stringify({ question: q });
+        }
         const res = await fetch(streamUrl, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                Accept: 'text/event-stream',
-                'X-XSRF-TOKEN': getCsrfToken(),
-                'X-Requested-With': 'XMLHttpRequest',
-            },
+            headers,
             credentials: 'same-origin',
-            body: JSON.stringify({ question: q }),
+            body,
         });
         if (!res.ok) {
             const errData = await res.json().catch(() => ({}));
@@ -1303,6 +1335,7 @@ async function suggestChartFromAi() {
 }
 
 function startNewChat() {
+    revokeAttachmentPreviews(messages.value);
     messages.value = [];
     askError.value = null;
     currentChatId.value = null;

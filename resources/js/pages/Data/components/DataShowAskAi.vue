@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { Bookmark, ChevronDown, ChevronRight, ExternalLink, Loader2, MessageSquarePlus, Trash2 } from 'lucide-vue-next';
-import { nextTick, ref, watch } from 'vue';
+import { ChevronDown, ChevronRight, ExternalLink, FileText, MessageSquarePlus, Mic, Paperclip, Square, Trash2, X } from 'lucide-vue-next';
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { renderMarkdown } from '@/lib/markdown';
 import type { ChatMessage, SavedChat } from '../types';
 
@@ -19,7 +19,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-    ask: [prompt?: string];
+    ask: [prompt?: string, attachments?: File[]];
     saveChat: [name?: string];
     loadChat: [chat: SavedChat];
     deleteChat: [chat: SavedChat];
@@ -29,6 +29,128 @@ const emit = defineEmits<{
 const savedChatsOpen = ref(false);
 const question = ref('');
 const chatScrollRef = ref<HTMLElement | null>(null);
+const attachments = ref<File[]>([]);
+const attachmentPreviewUrls = ref<string[]>([]);
+const fileInputRef = ref<HTMLInputElement | null>(null);
+
+function addAttachments(files: FileList | File[]) {
+    const list = Array.from(files);
+    for (const file of list) {
+        attachments.value.push(file);
+        attachmentPreviewUrls.value.push(file.type.startsWith('image/') ? URL.createObjectURL(file) : '');
+    }
+}
+
+function removeAttachment(index: number) {
+    if (attachmentPreviewUrls.value[index]) {
+        URL.revokeObjectURL(attachmentPreviewUrls.value[index]);
+    }
+    attachments.value.splice(index, 1);
+    attachmentPreviewUrls.value.splice(index, 1);
+}
+
+const speechSupported = computed(() => {
+    if (typeof window === 'undefined') return false;
+    const w = window as unknown as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown };
+    return !!(w.SpeechRecognition ?? w.webkitSpeechRecognition);
+});
+
+const isListening = ref(false);
+const sendAfterStop = ref(false);
+const speechError = ref<string | null>(null);
+let recognition: { start: () => void; stop: () => void; abort: () => void } | null = null;
+
+function startSpeechInput() {
+    if (isListening.value || props.askLoading) return;
+    speechError.value = null;
+
+    if (typeof window === 'undefined') {
+        speechError.value = 'Speech not available.';
+        return;
+    }
+    const w = window as unknown as { SpeechRecognition?: new () => SpeechRecognition; webkitSpeechRecognition?: new () => SpeechRecognition };
+    const Ctor = w.SpeechRecognition ?? w.webkitSpeechRecognition;
+    if (!Ctor) {
+        speechError.value = 'Speech recognition is not supported in this browser.';
+        return;
+    }
+    if (!(window as unknown as { isSecureContext?: boolean }).isSecureContext) {
+        speechError.value = 'Microphone requires HTTPS or localhost.';
+        return;
+    }
+
+    // Show recording UI immediately so user sees feedback
+    isListening.value = true;
+
+    try {
+        const rec = new Ctor();
+        recognition = rec as unknown as { start: () => void; stop: () => void; abort: () => void };
+        (rec as unknown as { continuous: boolean }).continuous = true;
+        (rec as unknown as { interimResults: boolean }).interimResults = true;
+        (rec as unknown as { lang: string }).lang = 'en-US';
+
+        rec.addEventListener('result', (e: Event) => {
+            const ev = e as unknown as { results: { length: number; [i: number]: { isFinal?: boolean; 0?: { transcript?: string } } } };
+            const results = ev.results;
+            if (!results) return;
+            for (let i = 0; i < results.length; i++) {
+                const r = results[i];
+                const isFinal = r?.isFinal !== false;
+                const item = r?.[0];
+                if (item?.transcript && isFinal) question.value = (question.value ? question.value + ' ' : '') + item.transcript;
+            }
+        });
+        rec.addEventListener('end', () => {
+            isListening.value = false;
+            if (sendAfterStop.value) {
+                sendAfterStop.value = false;
+                sendMessage(question.value.trim());
+            }
+        });
+        rec.addEventListener('error', (e: Event) => {
+            const ev = e as unknown as { error?: string };
+            speechError.value = ev.error === 'not-allowed' ? 'Microphone access denied.' : 'Speech recognition error.';
+            isListening.value = false;
+            sendAfterStop.value = false;
+        });
+
+        // Must call start() in same turn as user gesture for permission prompt
+        rec.start();
+    } catch (err) {
+        isListening.value = false;
+        speechError.value = err instanceof Error ? err.message : 'Could not start microphone.';
+    }
+}
+
+function stopRecording() {
+    if (!recognition || !isListening.value) return;
+    try {
+        recognition.stop();
+    } catch {
+        isListening.value = false;
+    }
+}
+
+onBeforeUnmount(() => {
+    if (recognition) try { recognition.abort(); } catch { /* noop */ }
+    attachmentPreviewUrls.value.forEach((url) => { if (url) URL.revokeObjectURL(url); });
+});
+
+function clearAttachments() {
+    attachmentPreviewUrls.value.forEach((url) => { if (url) URL.revokeObjectURL(url); });
+    attachments.value = [];
+    attachmentPreviewUrls.value = [];
+    if (fileInputRef.value) fileInputRef.value.value = '';
+}
+
+function onFileChange(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const files = input.files;
+    if (files?.length) {
+        addAttachments(files);
+        input.value = '';
+    }
+}
 
 function scrollToBottom() {
     nextTick(() => {
@@ -57,16 +179,23 @@ watch(
     scrollToBottom,
 );
 
-function submitQuestion() {
-    const q = question.value.trim();
+function sendMessage(q: string) {
     if (!q) return;
+    const files = attachments.value.length > 0 ? [...attachments.value] : undefined;
     question.value = '';
-    emit('ask', q);
+    clearAttachments();
+    emit('ask', q, files);
 }
 
-function onSaveChat() {
-    if (props.saveChatLoading || !props.canSaveChat) return;
-    emit('saveChat');
+function submitQuestion() {
+    const q = question.value.trim();
+    if (isListening.value) {
+        sendAfterStop.value = true;
+        stopRecording();
+        return;
+    }
+    if (!q) return;
+    sendMessage(q);
 }
 
 function chatTitle(chat: SavedChat): string {
@@ -99,6 +228,33 @@ function chatTitle(chat: SavedChat): string {
                         "
                     >
                         <template v-if="msg.role === 'user'">
+                            <div
+                                v-if="(msg as ChatMessage).attachment_previews?.length"
+                                class="mb-2 flex flex-wrap gap-1.5"
+                            >
+                                <template
+                                    v-for="(preview, pIdx) in (msg as ChatMessage).attachment_previews"
+                                    :key="pIdx"
+                                >
+                                    <div
+                                        v-if="preview.type === 'image'"
+                                        class="h-14 w-14 shrink-0 overflow-hidden rounded border border-white/30 bg-black/20"
+                                    >
+                                        <img
+                                            :src="preview.url"
+                                            :alt="preview.name"
+                                            class="h-full w-full object-cover"
+                                        />
+                                    </div>
+                                    <div
+                                        v-else
+                                        class="flex h-14 w-14 shrink-0 flex-col items-center justify-center gap-0.5 overflow-hidden rounded border border-white/30 bg-black/20 px-1"
+                                    >
+                                        <FileText class="h-5 w-5 shrink-0 opacity-90" />
+                                        <span class="truncate text-[10px] leading-tight opacity-90">{{ preview.name.slice(-8) }}</span>
+                                    </div>
+                                </template>
+                            </div>
                             <span class="whitespace-pre-wrap">{{ msg.content }}</span>
                         </template>
                         <template v-else>
@@ -181,36 +337,114 @@ function chatTitle(chat: SavedChat): string {
                         <MessageSquarePlus class="h-3.5 w-3.5" />
                         New chat
                     </button>
+                </div>
+                <div
+                    v-if="isListening"
+                    class="flex items-center gap-3 rounded-lg border-2 border-primary/40 bg-primary/10 px-3 py-2"
+                >
+                    <span class="relative flex h-3 w-3">
+                        <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
+                        <span class="relative inline-flex h-3 w-3 rounded-full bg-primary" />
+                    </span>
+                    <span class="text-sm font-medium text-primary">Recording…</span>
                     <button
-                        v-if="canSaveChat"
                         type="button"
-                        class="inline-flex items-center gap-1.5 rounded-lg border border-sidebar-border/70 bg-muted/50 px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted dark:border-sidebar-border"
-                        :disabled="saveChatLoading"
-                        @click="onSaveChat"
+                        class="ml-auto inline-flex items-center gap-1.5 rounded-md border border-primary/50 bg-background px-2.5 py-1.5 text-xs font-medium text-primary hover:bg-primary/10"
+                        title="Stop and add to message"
+                        @click="stopRecording"
                     >
-                        <Loader2 v-if="saveChatLoading" class="h-3.5 w-3.5 animate-spin" />
-                        <Bookmark v-else class="h-3.5 w-3.5" />
-                        Save chat
+                        <Square class="h-3.5 w-3.5" />
+                        Stop
                     </button>
                 </div>
-                <textarea
-                    v-model="question"
-                    class="min-h-[44px] w-full flex-1 rounded-lg border-2 border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                    placeholder="Ask about this data..."
-                    rows="1"
-                    @keydown.enter.exact.prevent="submitQuestion"
-                />
-                <button
-                    type="button"
-                    class="min-h-[44px] w-full shrink-0 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 sm:h-fit sm:w-auto sm:self-end sm:py-2"
-                    :disabled="askLoading || !question.trim()"
-                    @click="submitQuestion"
+                <div
+                    v-if="attachments.length > 0"
+                    class="flex flex-wrap items-center gap-2 pb-2"
                 >
-                    {{ askLoading ? '…' : 'Send' }}
-                </button>
+                    <div
+                        v-for="(file, i) in attachments"
+                        :key="i"
+                        class="flex items-center gap-1.5"
+                    >
+                        <div class="relative flex h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-border bg-muted/50">
+                            <img
+                                v-if="attachmentPreviewUrls[i]"
+                                :src="attachmentPreviewUrls[i]"
+                                :alt="file.name"
+                                class="h-full w-full object-cover"
+                            />
+                            <div
+                                v-else
+                                class="flex h-full w-full flex-col items-center justify-center gap-0.5 p-1 text-muted-foreground"
+                            >
+                                <FileText class="h-6 w-6 shrink-0" />
+                                <span class="truncate text-[10px] leading-tight">{{ file.name.slice(-6) }}</span>
+                            </div>
+                            <button
+                                type="button"
+                                class="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow hover:bg-muted hover:text-foreground"
+                                title="Remove attachment"
+                                aria-label="Remove attachment"
+                                @click="removeAttachment(i)"
+                            >
+                                <X class="h-3 w-3" />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex flex-wrap items-end gap-2">
+                    <div class="flex min-w-0 flex-1 items-center gap-2 rounded-lg border-2 border-input bg-background focus-within:ring-2 focus-within:ring-ring">
+                        <input
+                            ref="fileInputRef"
+                            type="file"
+                            class="hidden"
+                            multiple
+                            accept="image/*,.pdf,.txt,text/*,application/pdf"
+                            aria-label="Attach files"
+                            @change="onFileChange"
+                        />
+                        <button
+                            type="button"
+                            class="shrink-0 rounded p-2 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+                            :disabled="askLoading"
+                            title="Attach file to send to AI"
+                            aria-label="Attach file"
+                            @click="fileInputRef?.click()"
+                        >
+                            <Paperclip class="h-4 w-4" />
+                        </button>
+                        <textarea
+                            v-model="question"
+                            class="min-h-[44px] min-w-0 flex-1 resize-none rounded-lg border-0 bg-transparent px-2 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+                            placeholder="Ask about this data… or speak / attach a file"
+                            rows="1"
+                            @keydown.enter.exact.prevent="submitQuestion"
+                        />
+                        <button
+                            v-if="speechSupported"
+                            type="button"
+                            class="shrink-0 rounded p-2 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+                            :disabled="askLoading"
+                            :title="isListening ? 'Listening…' : 'Speak your question'"
+                            aria-label="Speak"
+                            :class="{ 'bg-primary/20 text-primary': isListening }"
+                            @click="startSpeechInput"
+                        >
+                            <Mic class="h-4 w-4" />
+                        </button>
+                    </div>
+                    <button
+                        type="button"
+                        class="min-h-[44px] w-full shrink-0 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 sm:w-auto sm:py-2"
+                        :disabled="askLoading || (!question.trim() && !isListening && attachments.length === 0)"
+                        @click="submitQuestion"
+                    >
+                        {{ askLoading ? '…' : isListening ? 'Stop & send' : 'Send' }}
+                    </button>
+                </div>
             </div>
-            <p v-if="askError || savedChatError" class="text-sm text-destructive">
-                {{ askError ?? savedChatError }}
+            <p v-if="askError || savedChatError || speechError" class="text-sm text-destructive">
+                {{ askError ?? savedChatError ?? speechError }}
             </p>
             <div v-if="savedChats.length > 0" class="border-t border-sidebar-border/70 pt-3">
                 <button

@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import type { HTMLAttributes } from 'vue';
-import { ref } from 'vue';
 import { useVModel } from '@vueuse/core';
 import { useToggle } from '@vueuse/core';
-import { cn } from '@/lib/utils';
 import { Eye, EyeOff } from 'lucide-vue-next';
+import type { HTMLAttributes } from 'vue';
+import { ref } from 'vue';
+import { cn } from '@/lib/utils';
 
 const props = withDefaults(
     defineProps<{

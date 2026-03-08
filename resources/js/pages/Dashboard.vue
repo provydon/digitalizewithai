@@ -3,12 +3,12 @@ import { Head } from '@inertiajs/vue3';
 import { ChevronDown } from 'lucide-vue-next';
 import { ref } from 'vue';
 import DataListSection from '@/components/data/DataListSection.vue';
+import DigitalizeUploadSection from '@/components/data/DigitalizeUploadSection.vue';
 import {
     Collapsible,
     CollapsibleContent,
     CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import DigitalizeUploadSection from '@/components/data/DigitalizeUploadSection.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
 import type { BreadcrumbItem } from '@/types';

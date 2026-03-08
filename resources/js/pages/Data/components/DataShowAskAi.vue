@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronDown, ChevronRight, ExternalLink, FileText, MessageSquarePlus, Mic, Paperclip, Square, Trash2, X } from 'lucide-vue-next';
+import { ChevronDown, ChevronRight, ExternalLink, FileText, Mic, Paperclip, Square, Trash2, X } from 'lucide-vue-next';
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { renderMarkdown } from '@/lib/markdown';
 import type { ChatMessage, SavedChat } from '../types';

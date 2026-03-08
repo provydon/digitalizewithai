@@ -98,6 +98,7 @@ class DigitalizeExtractionService
         if ($attachments === []) {
             Log::warning('[digitalize] extractFromMultipleFiles: no attachments built');
             [$aiProvider, $aiModel] = $this->resolveProviderAndModelForStorage($requestProvider, $requestModel);
+
             return [
                 'digital_data' => ['type' => 'doc', 'content' => '', 'suggested_prompts' => [], 'insights' => []],
                 'resolved_name' => $firstName ?? 'document',
@@ -115,6 +116,7 @@ class DigitalizeExtractionService
         $digitalData = $this->buildDigitalDataFromResponse($response);
         $resolvedName = $this->resolveName($response, $firstName);
         [$aiProvider, $aiModel] = $this->resolveProviderAndModelForStorage($requestProvider, $requestModel);
+
         return [
             'digital_data' => $digitalData,
             'resolved_name' => $resolvedName,

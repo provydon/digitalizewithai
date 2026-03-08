@@ -69,11 +69,13 @@ class DigitalizeMultiFileJob implements ShouldQueue
             $path = $entry['path'] ?? null;
             if ($path === null || $path === '') {
                 $this->markDataFailed($data, 'Invalid file reference in batch.');
+
                 return;
             }
             $decoded = Storage::disk($disk)->get($path);
             if ($decoded === null || $decoded === '') {
                 $this->markDataFailed($data, 'File not found or empty: '.$path);
+
                 return;
             }
             $filePayloads[] = [

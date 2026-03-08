@@ -1,7 +1,6 @@
 <?php
 
 use App\Models\Data;
-use App\Models\DataTableRow;
 use App\Models\User;
 
 test('dashboard api data rows index requires authentication', function () {

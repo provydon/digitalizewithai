@@ -7,7 +7,6 @@ use App\Ai\Agents\DataInsightAgent;
 use App\Ai\Agents\DataInsightAgenticAgent;
 use App\Ai\Agents\DataInsightStreamingAgent;
 use App\Models\Data;
-use Laravel\Ai\Files\Image;
 use App\Models\SavedDataChart;
 use App\Models\SavedDataChat;
 use Illuminate\Http\JsonResponse;
@@ -15,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Laravel\Ai\Files\Image;
 
 class DataViewController extends Controller
 {
@@ -85,7 +85,6 @@ class DataViewController extends Controller
      * - If still invalid, rebuilds from data_table_rows so the UI always gets valid content.
      *
      * @param  array<string, mixed>|string  $content
-     * @return string
      */
     private function normalizeTableContent(Data $data, array|string $content): string
     {

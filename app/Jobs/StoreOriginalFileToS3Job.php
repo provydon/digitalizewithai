@@ -70,6 +70,7 @@ class StoreOriginalFileToS3Job implements ShouldQueue
                         'index' => $i,
                         'error' => $e->getMessage(),
                     ]);
+
                     continue;
                 }
                 if ($content === null || $content === '') {

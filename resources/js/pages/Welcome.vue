@@ -198,12 +198,12 @@ const pageTitle = computed(() =>
                     From <strong>paper</strong> to searchable—one workspace
                 </h2>
                 <div
-                    class="grid gap-8 rounded-2xl border border-border bg-card p-8 lg:grid-cols-2 lg:gap-12 lg:p-12"
+                    class="grid gap-4 sm:gap-6 lg:grid-cols-2 lg:gap-8"
                 >
                     <!-- 1. Search (lead value) -->
-                    <div class="flex gap-4">
+                    <div class="flex gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
                         <span
-                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
+                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary"
                             aria-hidden
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
@@ -214,7 +214,7 @@ const pageTitle = computed(() =>
                             <h3 class="mb-1 font-semibold text-foreground">
                                 Search through your data
                             </h3>
-                            <p class="text-sm leading-relaxed text-muted-foreground">
+                            <p class="text-sm leading-relaxed text-foreground/90">
                                 You can’t Ctrl+F a physical notebook—and even worse, a big handwritten note, log, or book of historical records.
                                 <br />
                                 Add your notes, books, logs, records and docs here—the app turns them into digital, searchable text and tables that AI can read out, and that you can ask questions to and get insights from—using AI.
@@ -222,9 +222,9 @@ const pageTitle = computed(() =>
                         </div>
                     </div>
                     <!-- 2. Chat with your data -->
-                    <div class="flex gap-4">
+                    <div class="flex gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
                         <span
-                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
+                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary"
                             aria-hidden
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
@@ -235,15 +235,15 @@ const pageTitle = computed(() =>
                             <h3 class="mb-1 font-semibold text-foreground">
                                 Chat with your data
                             </h3>
-                            <p class="text-sm leading-relaxed text-muted-foreground">
+                            <p class="text-sm leading-relaxed text-foreground/90">
                                 Ask AI anything about each doc or table—insights, summaries, trends, and generate charts and metrics from tables. Conversations are <strong>tied to that item</strong>; save them and return later.
                             </p>
                         </div>
                     </div>
                     <!-- 3. Let AI read out data with Audio -->
-                    <div class="flex gap-4">
+                    <div class="flex gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
                         <span
-                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
+                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary"
                             aria-hidden
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
@@ -254,15 +254,15 @@ const pageTitle = computed(() =>
                             <h3 class="mb-1 font-semibold text-foreground">
                                 Let AI read out data with Audio
                             </h3>
-                            <p class="text-sm leading-relaxed text-muted-foreground">
+                            <p class="text-sm leading-relaxed text-foreground/90">
                                 Turn your <strong>physical book into a personal audiobook</strong>. Have summaries, answers, or table rows read aloud so you can listen while multitasking.
                             </p>
                         </div>
                     </div>
                     <!-- 4. Take action with AI -->
-                    <div class="flex gap-4">
+                    <div class="flex gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
                         <span
-                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
+                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary"
                             aria-hidden
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
@@ -273,15 +273,15 @@ const pageTitle = computed(() =>
                             <h3 class="mb-1 font-semibold text-foreground">
                                 Take action with AI on your data
                             </h3>
-                            <p class="text-sm leading-relaxed text-muted-foreground">
+                            <p class="text-sm leading-relaxed text-foreground/90">
                                 Tell AI to add rows, edit cells, or rewrite paragraphs. <strong>Changes persist</strong> in your data—not just in a reply. Real edits, real tables and docs.
                             </p>
                         </div>
                     </div>
                     <!-- 5. Export / ship to your tools -->
-                    <div class="flex gap-4">
+                    <div class="flex gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
                         <span
-                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
+                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary"
                             aria-hidden
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
@@ -292,15 +292,15 @@ const pageTitle = computed(() =>
                             <h3 class="mb-1 font-semibold text-foreground">
                                 Export—or ship to your tools
                             </h3>
-                            <p class="text-sm leading-relaxed text-muted-foreground">
+                            <p class="text-sm leading-relaxed text-foreground/90">
                                 One-click export to <strong>Excel, PDF, JSON, or plain text</strong>. Use in spreadsheets, docs, Google Drive, or your own data source. Your data, you choose where it lives.
                             </p>
                         </div>
                     </div>
                     <!-- 6. Start from physical (reframed: get data in, not “keep forever”) -->
-                    <div class="flex gap-4">
+                    <div class="flex gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
                         <span
-                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
+                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary"
                             aria-hidden
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
@@ -311,7 +311,7 @@ const pageTitle = computed(() =>
                             <h3 class="mb-1 font-semibold text-foreground">
                                 Start from physical
                             </h3>
-                            <p class="text-sm leading-relaxed text-muted-foreground">
+                            <p class="text-sm leading-relaxed text-foreground/90">
                                 Upload a photo or video of <strong>physical</strong> notes, logs, or tables. We extract it into a doc or table so you can search, chat, take action, and export—or ship to your own storage when you’re ready.
                             </p>
                         </div>

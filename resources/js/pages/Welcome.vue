@@ -30,18 +30,18 @@ const pageTitle = computed(() =>
         class="flex min-h-screen flex-col bg-background text-foreground"
     >
         <header
-            class="sticky top-0 z-10 w-full border-b border-border bg-background/95 px-6 py-4 backdrop-blur-sm lg:px-12"
+            class="sticky top-0 z-10 w-full border-b border-border bg-background/95 px-4 py-3 backdrop-blur-sm sm:px-6 sm:py-4 lg:px-12"
         >
-            <nav class="mx-auto flex max-w-5xl items-center justify-between">
+            <nav class="mx-auto flex max-w-5xl items-center justify-between gap-3 min-w-0">
                 <Link
                     :href="$page.props.auth.user ? dashboard() : '/'"
-                    class="flex items-center gap-3"
+                    class="flex min-w-0 shrink items-center gap-2 sm:gap-3"
                 >
                     <!-- AI partner logo (e.g. Amazon Nova for hackathon) -->
                     <svg
                         v-if="branding.ai_attribution"
                         role="img"
-                        class="h-8 w-auto text-foreground"
+                        class="h-6 w-auto shrink-0 text-foreground sm:h-8"
                         viewBox="0 0 179 32"
                         fill="none"
                         xmlns="http://www.w3.org/2000/svg"
@@ -122,29 +122,29 @@ const pageTitle = computed(() =>
                             </linearGradient>
                         </defs>
                     </svg>
-                    <span class="text-sm font-medium text-muted-foreground">
+                    <span class="hidden text-sm font-medium text-muted-foreground sm:inline">
                         {{ branding.name }}
                     </span>
                 </Link>
-                <div class="flex items-center gap-3">
+                <div class="flex shrink-0 items-center gap-2 sm:gap-3">
                     <Link
                         v-if="$page.props.auth.user"
                         :href="dashboard()"
-                        class="rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+                        class="rounded-xl border border-border px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted sm:px-4 sm:py-2.5 sm:text-sm"
                     >
                         Dashboard
                     </Link>
                     <template v-else>
                         <Link
                             :href="login()"
-                            class="rounded-xl px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+                            class="rounded-xl px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted sm:px-4 sm:py-2.5 sm:text-sm"
                         >
                             Log in
                         </Link>
                         <Link
                             v-if="canRegister"
                             :href="register()"
-                            class="rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                            class="rounded-xl bg-primary px-3 py-2 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 sm:px-4 sm:py-2.5 sm:text-sm"
                         >
                             Get started
                         </Link>

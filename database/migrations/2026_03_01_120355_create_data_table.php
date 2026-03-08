@@ -19,6 +19,8 @@ return new class extends Migration
             $table->json('digital_data')->nullable();
             $table->string('ai_provider', 64)->nullable();
             $table->string('ai_model', 128)->nullable();
+            $table->timestamp('extraction_started_at')->nullable();
+            $table->unsignedInteger('extraction_duration_seconds')->nullable();
             $table->timestamps();
         });
     }

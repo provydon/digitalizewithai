@@ -56,6 +56,11 @@ class DigitalizeFileJob implements ShouldQueue
 
         Log::info('[digitalize] job: start', ['data_id' => $data->id]);
 
+        if ($data->extraction_started_at === null) {
+            $data->update(['extraction_started_at' => now()]);
+            $data->refresh();
+        }
+
         try {
             $decoded = Storage::disk($raw['disk'])->get($raw['path']);
             if ($decoded === null || $decoded === '') {
@@ -73,12 +78,16 @@ class DigitalizeFileJob implements ShouldQueue
                 $nameFromRequest
             );
 
+            $startedAt = $data->extraction_started_at ?? $data->created_at;
+            $durationSeconds = (int) max(0, now()->getTimestamp() - $startedAt->getTimestamp());
+
             $data->update([
                 'name' => pathinfo($result['resolved_name'], PATHINFO_FILENAME),
                 'status' => 'ready',
                 'digital_data' => $result['digital_data'],
                 'ai_provider' => $result['ai_provider'],
                 'ai_model' => $result['ai_model'],
+                'extraction_duration_seconds' => $durationSeconds,
             ]);
 
             if (($result['digital_data']['type'] ?? '') === 'table') {

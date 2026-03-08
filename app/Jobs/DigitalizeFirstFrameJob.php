@@ -45,6 +45,11 @@ class DigitalizeFirstFrameJob implements ShouldQueue
             return;
         }
 
+        if ($data->extraction_started_at === null) {
+            $data->update(['extraction_started_at' => now()]);
+            $data->refresh();
+        }
+
         $path = $this->tempDir.'/frame_0001.jpg';
         $contents = Storage::disk('local')->get($path);
         if ($contents === null || $contents === '') {

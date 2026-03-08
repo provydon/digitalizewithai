@@ -9,6 +9,10 @@ export type DigitalizedItem = {
     processing_batches_total?: number | null;
     ai_provider: string | null;
     ai_model: string | null;
+    /** How long extraction took, in seconds (set when ready). */
+    extraction_duration_seconds?: number | null;
+    /** When extraction started (ISO string). End time = started + duration_seconds. */
+    extraction_started_at?: string | null;
     created_at: string | null;
 };
 

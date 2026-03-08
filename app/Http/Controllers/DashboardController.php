@@ -59,6 +59,8 @@ class DashboardController extends Controller
                 'processing_batches_total' => $processing ? (int) ($dd['processing_batches_total'] ?? 0) : null,
                 'ai_provider' => $d->ai_provider,
                 'ai_model' => $d->ai_model,
+                'extraction_duration_seconds' => $d->extraction_duration_seconds,
+                'extraction_started_at' => $d->extraction_started_at?->toIso8601String(),
                 'created_at' => $d->created_at?->toIso8601String(),
             ];
         })->all();

@@ -159,8 +159,15 @@ class DigitalizeBatchJob implements ShouldQueue
             return;
         }
 
+        $startedAt = $data->extraction_started_at ?? $data->created_at;
+        $durationSeconds = (int) max(0, now()->getTimestamp() - $startedAt->getTimestamp());
+
         unset($digital['processing_batches_done'], $digital['processing_batches_total'], $digital['status']);
-        $data->update(['status' => 'ready', 'digital_data' => $digital]);
+        $data->update([
+            'status' => 'ready',
+            'digital_data' => $digital,
+            'extraction_duration_seconds' => $durationSeconds,
+        ]);
 
         $this->deleteTempDir();
 

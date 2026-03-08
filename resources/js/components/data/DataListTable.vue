@@ -59,6 +59,38 @@ function formatDate(iso: string | null): string {
     return d.toLocaleString();
 }
 
+function formatDuration(seconds: number | null | undefined): string {
+    if (seconds == null) return '—';
+    const s = Math.max(0, Math.floor(Math.abs(Number(seconds))));
+    if (s < 60) return `${s}s`;
+    const m = Math.floor(s / 60) % 60;
+    const sec = s % 60;
+    const h = Math.floor(s / 3600) % 24;
+    const d = Math.floor(s / 86400);
+    const parts: string[] = [];
+    if (d > 0) parts.push(`${d}d`);
+    if (h > 0) parts.push(`${h}h`);
+    if (m > 0) parts.push(`${m}m`);
+    if (sec > 0 || parts.length === 0) parts.push(`${sec}s`);
+    return parts.join(' ');
+}
+
+/** Compute when extraction ended: started_at + duration_seconds (uses abs(duration) for bad data). */
+function endedAt(item: DigitalizedItem): Date | null {
+    const started = item.extraction_started_at;
+    const secs = item.extraction_duration_seconds;
+    if (!started || secs == null) return null;
+    const d = new Date(started);
+    if (Number.isNaN(d.getTime())) return null;
+    return new Date(d.getTime() + Math.abs(Number(secs)) * 1000);
+}
+
+function formatEndedAt(item: DigitalizedItem): string {
+    const end = endedAt(item);
+    if (!end) return '—';
+    return end.toLocaleString();
+}
+
 function onRowClick(item: DigitalizedItem) {
     router.visit(props.viewUrl(item.id));
 }
@@ -95,6 +127,8 @@ function onRowClick(item: DigitalizedItem) {
                     <th class="pb-3 pr-3 font-medium text-muted-foreground sm:pr-4">Type</th>
                     <th class="pb-3 pr-3 font-medium text-muted-foreground sm:pr-4">Status</th>
                     <th class="hidden pb-3 pr-3 font-medium text-muted-foreground md:table-cell sm:pr-4">AI</th>
+                    <th class="pb-3 pr-3 font-medium text-muted-foreground sm:pr-4">Duration</th>
+                    <th class="hidden pb-3 pr-3 font-medium text-muted-foreground md:table-cell sm:pr-4">Ended</th>
                     <th class="hidden pb-3 pr-3 font-medium text-muted-foreground sm:table-cell sm:pr-4">Created</th>
                     <th class="w-10 pb-3 pl-0 font-medium text-muted-foreground" aria-label="Actions"> </th>
                 </tr>
@@ -171,6 +205,12 @@ function onRowClick(item: DigitalizedItem) {
                             {{ [item.ai_provider, item.ai_model].filter(Boolean).join(' · ') }}
                         </span>
                         <span v-else class="text-muted-foreground">—</span>
+                    </td>
+                    <td class="py-3.5 pr-3 text-muted-foreground sm:pr-4">
+                        {{ formatDuration(item.extraction_duration_seconds) }}
+                    </td>
+                    <td class="hidden py-3.5 pr-3 text-muted-foreground md:table-cell sm:pr-4">
+                        {{ formatEndedAt(item) }}
                     </td>
                     <td class="hidden py-3.5 pr-3 text-muted-foreground sm:table-cell sm:pr-4">
                         {{ formatDate(item.created_at) }}

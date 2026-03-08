@@ -22,6 +22,7 @@ export type DataRecord = {
     ai_model: string | null;
     created_at: string | null;
     updated_at: string | null;
+    has_original_file?: boolean;
 };
 
 export type TableRowRecord = { id: number; row_index: number; cells: unknown[] };

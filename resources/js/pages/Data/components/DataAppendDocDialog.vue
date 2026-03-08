@@ -36,10 +36,10 @@ const emit = defineEmits<{
     <Dialog :open="open" @update:open="emit('update:open', $event)">
         <DialogContent class="sm:max-w-lg">
             <DialogHeader>
-                <DialogTitle>Append to document</DialogTitle>
+                <DialogTitle>Add content from photo or video</DialogTitle>
             </DialogHeader>
             <p class="mb-3 text-sm text-muted-foreground">
-                Upload a photo or video — we'll extract the text and append it to this document. The AI will avoid duplicating content already in the doc.
+                Upload a photo or video. We'll extract the text and add it to the end of this document. The AI will avoid duplicating content already in the doc.
             </p>
             <slot name="file-inputs" />
             <div class="mb-3 flex flex-wrap gap-2">
@@ -111,7 +111,7 @@ const emit = defineEmits<{
                     {{ appendError }}
                 </p>
                 <p v-else-if="appendSuccess" class="text-sm text-success">
-                    Content appended. It appears at the end of the document.
+                    Content added. It appears at the end of the document.
                 </p>
             </div>
             <DialogFooter class="mt-2 gap-2">
@@ -124,7 +124,7 @@ const emit = defineEmits<{
                     :disabled="!appendFile || appendLoading"
                     @click="emit('submit-append-doc')"
                 >
-                    {{ appendLoading ? 'Adding…' : 'Append to document' }}
+                    {{ appendLoading ? 'Adding…' : 'Add to document' }}
                 </Button>
             </DialogFooter>
         </DialogContent>

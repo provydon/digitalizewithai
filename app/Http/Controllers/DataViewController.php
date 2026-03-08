@@ -11,6 +11,7 @@ use App\Models\SavedDataChart;
 use App\Models\SavedDataChat;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -51,6 +52,9 @@ class DataViewController extends Controller
         $failed = is_array($dd) && ($dd['status'] ?? null) === 'failed';
         $status = $data->status ?? ($failed ? 'failed' : ($processing ? 'processing' : 'ready'));
 
+        $raw = $data->raw_data;
+        $hasOriginalFile = is_array($raw) && (isset($raw['path']) || isset($raw['s3_key']));
+
         return response()->json([
             'id' => $data->id,
             'name' => $data->name,
@@ -61,6 +65,56 @@ class DataViewController extends Controller
             'ai_model' => $data->ai_model,
             'created_at' => $data->created_at?->toIso8601String(),
             'updated_at' => $data->updated_at?->toIso8601String(),
+            'has_original_file' => $hasOriginalFile,
+        ]);
+    }
+
+    /** Stream or download the original uploaded file (from local disk or S3). */
+    public function originalFile(Request $request, Data $data)
+    {
+        if ($data->user_id !== auth()->id()) {
+            abort(404);
+        }
+
+        $raw = $data->raw_data;
+        if (! is_array($raw)) {
+            abort(404);
+        }
+
+        $path = $raw['s3_key'] ?? $raw['path'] ?? null;
+        if (! $path) {
+            abort(404);
+        }
+
+        $disk = ! empty($raw['s3_key']) ? 's3' : ($raw['disk'] ?? config('filesystems.default'));
+        if (! Storage::disk($disk)->exists($path)) {
+            abort(404);
+        }
+
+        $mime = $raw['mime_type'] ?? 'application/octet-stream';
+        $name = $raw['name_from_request'] ?? 'original';
+        $ext = pathinfo($path, PATHINFO_EXTENSION) ?: '';
+        if ($ext && ! str_contains($name, '.')) {
+            $name .= '.'.$ext;
+        }
+        $disposition = $request->query('download') ? 'attachment' : 'inline';
+
+        $stream = Storage::disk($disk)->readStream($path);
+        if ($stream === false) {
+            abort(500);
+        }
+
+        return response()->stream(function () use ($stream) {
+            try {
+                fpassthru($stream);
+            } finally {
+                if (is_resource($stream)) {
+                    fclose($stream);
+                }
+            }
+        }, 200, [
+            'Content-Type' => $mime,
+            'Content-Disposition' => $disposition.'; filename="'.addslashes($name).'"',
         ]);
     }
 

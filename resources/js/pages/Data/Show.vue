@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
 import {
     BarChart3,
+    Download,
     FileSpreadsheet,
+    FileUp,
     MessageSquare,
     Table as TableIcon,
 } from 'lucide-vue-next';
@@ -46,6 +48,9 @@ type Props = {
 const props = withDefaults(defineProps<Props>(), {
     from: 'dashboard',
 });
+
+const page = usePage();
+const canReadAloud = computed(() => (page.props.features as { audioReadOut?: boolean } | undefined)?.audioReadOut === true);
 
 const record = ref<DataRecord | null>(null);
 const loading = ref(true);
@@ -278,6 +283,243 @@ watch(
     },
 );
 
+// —— Read aloud (browser Speech Synthesis, page-by-page, pause/stop, voice) ——
+const readAloudPlaying = ref(false);
+const readAloudPaused = ref(false);
+const readAloudError = ref<string | null>(null);
+/** Selected accent: lang code (e.g. "en-GB") or "" for default. */
+const selectedReadAloudVoiceId = ref<string>('');
+/** Accents by country for dropdown: lang code + readable label. */
+const availableReadAloudVoices = ref<{ lang: string; label: string }[]>([]);
+let readAloudStopped = false;
+
+function loadReadAloudVoices() {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return;
+    const list = window.speechSynthesis.getVoices();
+    const langSet = new Set<string>();
+    for (const v of list) {
+        if (v.lang && v.lang.trim()) langSet.add(v.lang.trim());
+    }
+    const displayNames = typeof Intl !== 'undefined' && Intl.DisplayNames
+        ? new Intl.DisplayNames(['en'], { type: 'language' })
+        : null;
+    const accents = Array.from(langSet)
+        .map((lang) => ({
+            lang,
+            label: displayNames ? displayNames.of(lang) ?? lang : lang,
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label));
+    availableReadAloudVoices.value = accents;
+}
+
+onMounted(() => {
+    loadReadAloudVoices();
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.onvoiceschanged = loadReadAloudVoices;
+    }
+});
+
+/** Strip markdown to plain text for speech. */
+function stripForSpeech(text: string): string {
+    return text
+        .replace(/#{1,6}\s*/g, '')
+        .replace(/\*\*([^*]+)\*\*/g, '$1')
+        .replace(/\*([^*]+)\*/g, '$1')
+        .replace(/__([^_]+)__/g, '$1')
+        .replace(/_([^_]+)_/g, '$1')
+        .replace(/`([^`]+)`/g, '$1')
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+}
+
+function getReadAloudTextForDoc(): string {
+    if (fullDocPages.value.length > 1) {
+        const section = fullDocPages.value[docPageCurrent.value - 1] ?? '';
+        const q = docSearch.value.trim().toLowerCase();
+        if (!q) return stripForSpeech(section);
+        const lines = section.split('\n').filter((l) => l.toLowerCase().includes(q));
+        return stripForSpeech(lines.length ? lines.join('\n') : section);
+    }
+    return stripForSpeech(displayedDocContentFiltered.value);
+}
+
+function getReadAloudTextForTable(): string {
+    const headers = tableHeaders.value;
+    const rows = tableRows.value;
+    if (!headers.length || !rows.length) return 'No rows on this page.';
+    const lines: string[] = [];
+    for (const row of rows) {
+        const cells = (row.cells ?? []).map((c) => (c == null ? '' : String(c)));
+        const parts = headers.map((h, i) => `${h}: ${cells[i] ?? ''}`).join(', ');
+        lines.push(parts);
+    }
+    return lines.join('. ');
+}
+
+/** Fetch one doc page content for read-aloud (does not change UI). */
+async function fetchDocPageContentForReadAloud(pageNum: number): Promise<string> {
+    if (!record.value) return '';
+    const { data } = await api.get<{ content: string }>(
+        `/dashboard/api/data/${record.value.id}/doc-page?page=${pageNum}`,
+    );
+    return stripForSpeech(data.content ?? '');
+}
+
+/** Fetch one table page and return formatted text for read-aloud (does not change UI). */
+async function fetchTablePageContentForReadAloud(pageNum: number): Promise<string> {
+    if (!record.value) return '';
+    const params = new URLSearchParams({
+        page: String(pageNum),
+        per_page: String(tablePerPage.value),
+    });
+    if (tableSearch.value.trim()) params.set('search', tableSearch.value.trim());
+    const { data } = await api.get<{
+        headers: string[];
+        rows: TableRowRecord[];
+    }>(`/dashboard/api/data/${record.value.id}/rows?${params}`);
+    const headers = data.headers ?? [];
+    const rows = data.rows ?? [];
+    if (!headers.length || !rows.length) return pageNum === 1 ? 'No rows.' : '';
+    const lines: string[] = [];
+    for (const row of rows) {
+        const cells = (row.cells ?? []).map((c) => (c == null ? '' : String(c)));
+        const parts = headers.map((h, i) => `${h}: ${cells[i] ?? ''}`).join(', ');
+        lines.push(parts);
+    }
+    return lines.join('. ');
+}
+
+function textToChunks(text: string, maxChunk = 200): string[] {
+    if (!text || text.length < 2) return [];
+    if (text.length <= maxChunk) return [text];
+    const sentences = text.match(/[^.!?]+[.!?]*/g) ?? [text];
+    const chunks: string[] = [];
+    let buf = '';
+    for (const s of sentences) {
+        if (buf.length + s.length > maxChunk && buf.length > 0) {
+            chunks.push(buf.trim());
+            buf = s;
+        } else {
+            buf += s;
+        }
+    }
+    if (buf.trim()) chunks.push(buf.trim());
+    return chunks;
+}
+
+function createUtterance(text: string): SpeechSynthesisUtterance {
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 0.95;
+    if (selectedReadAloudVoiceId.value) {
+        u.lang = selectedReadAloudVoiceId.value;
+    }
+    return u;
+}
+
+function playReadAloud() {
+    readAloudError.value = null;
+    readAloudPaused.value = false;
+    if (typeof window === 'undefined' || !window.speechSynthesis) {
+        readAloudError.value = 'Speech is not supported in this browser.';
+        return;
+    }
+    window.speechSynthesis.cancel();
+    readAloudStopped = false;
+    readAloudPlaying.value = true;
+
+    const totalPages = isDocData.value
+        ? docPageCount.value
+        : Math.max(1, rowsMeta.value?.last_page ?? 1);
+
+    function schedulePage(pageNum: number) {
+        if (readAloudStopped) {
+            readAloudPlaying.value = false;
+            return;
+        }
+        const isLastPage = pageNum >= totalPages;
+
+        const gotContent = (content: string) => {
+            if (readAloudStopped) {
+                readAloudPlaying.value = false;
+                return;
+            }
+            const pageLabel = `Page ${pageNum}`;
+            const chunks = textToChunks(content);
+            const allTexts = chunks.length > 0 ? [pageLabel, ...chunks] : [pageLabel];
+
+            let i = 0;
+            const speakNext = () => {
+                if (readAloudStopped) {
+                    readAloudPlaying.value = false;
+                    return;
+                }
+                if (i >= allTexts.length) {
+                    if (isLastPage) {
+                        readAloudPlaying.value = false;
+                        return;
+                    }
+                    void schedulePage(pageNum + 1);
+                    return;
+                }
+                const u = createUtterance(allTexts[i]);
+                u.onend = () => {
+                    i++;
+                    speakNext();
+                };
+                u.onerror = () => {
+                    i++;
+                    speakNext();
+                };
+                window.speechSynthesis.speak(u);
+            };
+            speakNext();
+        };
+
+        if (isDocData.value) {
+            fetchDocPageContentForReadAloud(pageNum).then(gotContent).catch((e) => {
+                readAloudError.value = (e as Error).message ?? 'Failed to load page';
+                readAloudPlaying.value = false;
+            });
+        } else {
+            fetchTablePageContentForReadAloud(pageNum).then(gotContent).catch((e) => {
+                readAloudError.value = (e as Error).message ?? 'Failed to load page';
+                readAloudPlaying.value = false;
+            });
+        }
+    }
+
+    void schedulePage(1);
+}
+
+function pauseReadAloud() {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.pause();
+    }
+    readAloudPaused.value = true;
+}
+
+function resumeReadAloud() {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.resume();
+    }
+    readAloudPaused.value = false;
+}
+
+function stopReadAloud() {
+    readAloudStopped = true;
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+    }
+    readAloudPlaying.value = false;
+    readAloudPaused.value = false;
+    readAloudError.value = null;
+}
+
+onBeforeUnmount(() => {
+    stopReadAloud();
+});
+
 // —— Table state ——
 const tableHeaders = ref<string[]>([]);
 const tableRows = ref<TableRowRecord[]>([]);
@@ -286,7 +528,7 @@ const rowsLoading = ref(false);
 const rowsError = ref<string | null>(null);
 const tableSearch = ref('');
 const tablePage = ref(1);
-const tablePerPage = ref(50);
+const tablePerPage = ref(25);
 const editRowOpen = ref(false);
 const editRow = ref<TableRowRecord | null>(null);
 const editCells = ref<string[]>([]);
@@ -1155,6 +1397,14 @@ const canChart = computed(
 const canExportExcel = computed(() => !!tableData.value && !!record.value);
 const canExportPdf = computed(() => (!!tableData.value || isDocData.value) && !!record.value);
 
+/** URL for the original file (same-origin so auth cookie is sent). */
+const originalFileUrl = computed(() =>
+    record.value ? `/dashboard/api/data/${record.value.id}/original-file` : ''
+);
+const originalFileMime = computed(() => (record.value?.raw_data as { mime_type?: string } | undefined)?.mime_type ?? '');
+const isOriginalImage = computed(() => /^image\//.test(originalFileMime.value));
+const isOriginalVideo = computed(() => /^video\//.test(originalFileMime.value));
+
 /** Human-readable label for the AI model used when this data was extracted (and for Ask AI / Charts). */
 const aiModelLabel = computed(() => {
     const r = record.value;
@@ -1238,6 +1488,14 @@ const aiModelLabel = computed(() => {
                                     <FileSpreadsheet class="h-4 w-4" />
                                     Export
                                 </TabsTrigger>
+                                <TabsTrigger
+                                    v-if="record?.has_original_file"
+                                    value="original"
+                                    class="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm sm:gap-2 sm:px-3"
+                                >
+                                    <FileUp class="h-4 w-4" />
+                                    Original
+                                </TabsTrigger>
                             </TabsList>
 
                             <TabsContent value="data" class="mt-0 rounded-b-xl">
@@ -1258,6 +1516,12 @@ const aiModelLabel = computed(() => {
                                         :doc-edit-error="docEditError"
                                         :copy-feedback="copyDocFeedback"
                                         :copy-tooltip-open="copyDocTooltipOpen"
+                                        :can-read-aloud="canReadAloud"
+                                        :read-aloud-playing="readAloudPlaying"
+                                        :read-aloud-paused="readAloudPaused"
+                                        :read-aloud-error="readAloudError"
+                                        :read-aloud-voices="availableReadAloudVoices"
+                                        :read-aloud-voice-id="selectedReadAloudVoiceId"
                                         @update:doc-search="docSearch = $event"
                                         @start-edit="startDocEdit"
                                         @cancel-edit="cancelDocEdit"
@@ -1265,6 +1529,11 @@ const aiModelLabel = computed(() => {
                                         @go-to-page="goToDocPage"
                                         @copy="copyDocToClipboard"
                                         @open-append-doc="openAppendDocDialog"
+                                        @read-aloud="playReadAloud"
+                                        @read-aloud-pause="pauseReadAloud"
+                                        @read-aloud-resume="resumeReadAloud"
+                                        @read-aloud-stop="stopReadAloud"
+                                        @update:read-aloud-voice="selectedReadAloudVoiceId = $event"
                                         @update:copy-tooltip-open="(v) => { if (!copyDocFeedback) copyDocTooltipOpen = v === false ? undefined : v }"
                                         @update:doc-edit-content="docEditContent = $event"
                                     />
@@ -1280,15 +1549,25 @@ const aiModelLabel = computed(() => {
                                         :table-per-page="tablePerPage"
                                         :copy-feedback="copyTableFeedback"
                                         :copy-tooltip-open="copyTableTooltipOpen"
+                                        :can-read-aloud="canReadAloud"
+                                        :read-aloud-playing="readAloudPlaying"
+                                        :read-aloud-paused="readAloudPaused"
+                                        :read-aloud-error="readAloudError"
+                                        :read-aloud-voices="availableReadAloudVoices"
+                                        :read-aloud-voice-id="selectedReadAloudVoiceId"
                                         @update:table-search="tableSearch = $event"
                                         @update:table-page="tablePage = $event"
-                                        @update:table-per-page="tablePerPage = $event"
                                         @go-to-page="goToTablePage"
                                         @add-rows="openAddRow"
                                         @copy="copyTableToClipboard"
                                         @edit-row="openEditRow"
                                         @delete-row="openDeleteRow"
                                         @delete-selected-rows="deleteSelectedRows"
+                                        @read-aloud="playReadAloud"
+                                        @read-aloud-pause="pauseReadAloud"
+                                        @read-aloud-resume="resumeReadAloud"
+                                        @read-aloud-stop="stopReadAloud"
+                                        @update:read-aloud-voice="selectedReadAloudVoiceId = $event"
                                         @update:copy-tooltip-open="(v) => { if (!copyTableFeedback) copyTableTooltipOpen = v === false ? undefined : v }"
                                     />
                                     <p v-else class="text-muted-foreground">
@@ -1353,6 +1632,78 @@ const aiModelLabel = computed(() => {
                                     @export-doc="exportToDoc"
                                     @export-pdf="exportToPdfAsync"
                                 />
+                            </TabsContent>
+
+                            <TabsContent value="original" class="mt-0 rounded-b-xl">
+                                <div class="p-3 pt-4 sm:p-6">
+                                    <!-- Image preview -->
+                                    <div
+                                        v-if="originalFileUrl && isOriginalImage"
+                                        class="flex flex-col gap-3"
+                                    >
+                                        <img
+                                            :src="originalFileUrl"
+                                            alt="Original upload"
+                                            class="max-h-[70vh] w-full max-w-2xl rounded-lg border border-border object-contain"
+                                        />
+                                        <a
+                                            :href="`${originalFileUrl}?download=1`"
+                                            download
+                                            class="inline-flex w-fit items-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                        >
+                                            <Download class="h-4 w-4" />
+                                            Download original
+                                        </a>
+                                    </div>
+                                    <!-- Video preview -->
+                                    <div
+                                        v-else-if="originalFileUrl && isOriginalVideo"
+                                        class="flex flex-col gap-3"
+                                    >
+                                        <video
+                                            :src="originalFileUrl"
+                                            controls
+                                            class="max-h-[70vh] w-full max-w-2xl rounded-lg border border-border"
+                                        >
+                                            Your browser does not support the video tag.
+                                        </video>
+                                        <a
+                                            :href="`${originalFileUrl}?download=1`"
+                                            download
+                                            class="inline-flex w-fit items-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                        >
+                                            <Download class="h-4 w-4" />
+                                            Download original
+                                        </a>
+                                    </div>
+                                    <!-- Fallback: view/download links -->
+                                    <div v-else class="flex flex-col gap-4">
+                                        <p class="text-sm text-muted-foreground">
+                                            View or download the original uploaded file.
+                                        </p>
+                                        <div class="flex flex-wrap gap-3">
+                                            <a
+                                                v-if="record"
+                                                :href="originalFileUrl"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                class="inline-flex items-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                            >
+                                                <FileUp class="h-4 w-4" />
+                                                View original
+                                            </a>
+                                            <a
+                                                v-if="record"
+                                                :href="`${originalFileUrl}?download=1`"
+                                                download
+                                                class="inline-flex items-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                            >
+                                                <Download class="h-4 w-4" />
+                                                Download original
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
                             </TabsContent>
                         </TabsRoot>
 

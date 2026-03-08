@@ -1,7 +1,20 @@
 <script setup lang="ts">
-import { Copy, Pencil, Search, Upload } from 'lucide-vue-next';
-import { computed } from 'vue';
+import { Copy, Ellipsis, Mic, Pause, Pencil, Play, Search, Square, Upload } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
     Tooltip,
     TooltipContent,
@@ -27,8 +40,23 @@ const props = withDefaults(
         docEditError: string | null;
         copyFeedback: boolean;
         copyTooltipOpen?: boolean;
+        canReadAloud?: boolean;
+        readAloudPlaying?: boolean;
+        readAloudPaused?: boolean;
+        readAloudError?: string | null;
+        readAloudVoices?: { lang: string; label: string }[];
+        readAloudVoiceId?: string;
     }>(),
-    { docSections: () => [], copyTooltipOpen: undefined },
+    {
+        docSections: () => [],
+        copyTooltipOpen: undefined,
+        canReadAloud: false,
+        readAloudPlaying: false,
+        readAloudPaused: false,
+        readAloudError: null,
+        readAloudVoices: () => [],
+        readAloudVoiceId: '',
+    },
 );
 
 const emit = defineEmits<{
@@ -41,6 +69,11 @@ const emit = defineEmits<{
     'copy': [];
     'update:copyTooltipOpen': [v: boolean | undefined];
     'open-append-doc': [];
+    'read-aloud': [];
+    'read-aloud-pause': [];
+    'read-aloud-resume': [];
+    'read-aloud-stop': [];
+    'update:read-aloud-voice': [voiceId: string];
 }>();
 
 function onDocSearchInput(e: Event) {
@@ -55,18 +88,42 @@ const q = computed(() => props.docSearch.trim().toLowerCase());
 
 const renderedContent = computed(() => renderMarkdown(props.displayedContent || ''));
 
-/** For sectioned view: filter each section by search and render. */
+/** For sectioned view: filter each section by search and render. When searching, hide sections with no matching content. */
 const sectionsToShow = computed(() => {
     const sections = props.docSections;
     if (!sections.length) return [];
-    if (!q.value) return sections.map((text) => ({ text, rendered: renderMarkdown(text || '') }));
-    return sections.map((text) => {
+    const withPageNum = (item: { text: string; rendered: string }, pageNum: number) => ({ ...item, pageNumber: pageNum });
+    if (!q.value) {
+        return sections.map((text, i) => withPageNum(
+            { text, rendered: renderMarkdown(text || '') },
+            i + 1,
+        ));
+    }
+    const mapped = sections.map((text, i) => {
         const lines = text.split('\n');
         const matched = lines.filter((line) => line.toLowerCase().includes(q.value));
         const filtered = matched.length ? matched.join('\n') : '';
-        return { text: filtered, rendered: renderMarkdown(filtered || '') };
+        return withPageNum(
+            { text: filtered, rendered: renderMarkdown(filtered || '') },
+            i + 1,
+        );
     });
+    return mapped.filter((item) => item.text.trim() !== '');
 });
+
+const readAloudModalOpen = ref(false);
+const readAloudModalAccent = ref('');
+
+function openReadAloudModal() {
+    readAloudModalAccent.value = props.readAloudVoiceId ?? '';
+    readAloudModalOpen.value = true;
+}
+
+function startReadAloudFromModal() {
+    emit('update:read-aloud-voice', readAloudModalAccent.value);
+    readAloudModalOpen.value = false;
+    emit('read-aloud');
+}
 </script>
 
 <template>
@@ -84,7 +141,57 @@ const sectionsToShow = computed(() => {
                     @input="onDocSearchInput"
                 />
             </div>
-            <div class="flex items-center gap-2">
+            <!-- Desktop: all action buttons -->
+            <div class="hidden flex-wrap items-center gap-2 sm:flex">
+                <template v-if="canReadAloud && readAloudPlaying">
+                    <Tooltip>
+                        <TooltipTrigger as-child>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                :title="readAloudPaused ? 'Continue' : 'Pause'"
+                                class="content-paper__btn"
+                                @click="readAloudPaused ? emit('read-aloud-resume') : emit('read-aloud-pause')"
+                            >
+                                <Pause v-if="!readAloudPaused" class="mr-1.5 h-3.5 w-3.5" />
+                                <Play v-else class="mr-1.5 h-3.5 w-3.5" />
+                                {{ readAloudPaused ? 'Continue' : 'Pause' }}
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>{{ readAloudPaused ? 'Continue reading' : 'Pause' }}</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                        <TooltipTrigger as-child>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                title="Stop and start over"
+                                class="content-paper__btn"
+                                @click="emit('read-aloud-stop')"
+                            >
+                                <Square class="mr-1.5 h-3.5 w-3.5" />
+                                Stop
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Stop and start from beginning next time</TooltipContent>
+                    </Tooltip>
+                </template>
+                <Tooltip v-if="canReadAloud">
+                    <TooltipTrigger as-child>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            title="Read all pages aloud"
+                            class="content-paper__btn"
+                            :disabled="docPageLoading || docEditing"
+                            @click="openReadAloudModal()"
+                        >
+                            <Mic class="mr-1.5 h-3.5 w-3.5" />
+                            Read aloud
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Read all pages aloud</TooltipContent>
+                </Tooltip>
                 <Button
                     v-if="!docEditing"
                     variant="outline"
@@ -96,10 +203,7 @@ const sectionsToShow = computed(() => {
                     <Pencil class="mr-1.5 h-3.5 w-3.5" />
                     Edit
                 </Button>
-                <Tooltip
-                    :open="copyTooltipOpen"
-                    @update:open="(v) => emit('update:copyTooltipOpen', v === false ? undefined : v)"
-                >
+                <Tooltip :open="copyTooltipOpen" @update:open="(v) => emit('update:copyTooltipOpen', v === false ? undefined : v)">
                     <TooltipTrigger as-child>
                         <Button
                             variant="outline"
@@ -111,22 +215,97 @@ const sectionsToShow = computed(() => {
                             Copy
                         </Button>
                     </TooltipTrigger>
-                    <TooltipContent>
-                        {{ copyFeedback ? 'Copied to clipboard' : 'Copy to clipboard' }}
-                    </TooltipContent>
+                    <TooltipContent>{{ copyFeedback ? 'Copied to clipboard' : 'Copy to clipboard' }}</TooltipContent>
                 </Tooltip>
                 <Button
                     variant="outline"
                     size="sm"
-                    title="Append from photo or video"
+                    title="Add content from photo or video"
                     class="content-paper__btn"
                     @click="emit('open-append-doc')"
                 >
                     <Upload class="mr-1.5 h-3.5 w-3.5" />
-                    Append
+                    Add
                 </Button>
             </div>
+            <!-- Mobile only: Actions dropdown (hidden on sm+ so desktop shows buttons above) -->
+            <div class="sm:hidden">
+                <DropdownMenu>
+                    <DropdownMenuTrigger as-child>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            title="Actions"
+                            class="content-paper__btn"
+                        >
+                            <Ellipsis class="h-3.5 w-3.5 shrink-0" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" class="w-48">
+                    <DropdownMenuItem
+                        v-if="canReadAloud"
+                        :disabled="docPageLoading || docEditing"
+                        @click="openReadAloudModal()"
+                    >
+                        <Mic class="mr-2 h-3.5 w-3.5" />
+                        Read aloud
+                    </DropdownMenuItem>
+                    <DropdownMenuItem v-if="!docEditing" @click="emit('start-edit')">
+                        <Pencil class="mr-2 h-3.5 w-3.5" />
+                        Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem @click="emit('copy')">
+                        <Copy class="mr-2 h-3.5 w-3.5" />
+                        Copy
+                    </DropdownMenuItem>
+                    <DropdownMenuItem @click="emit('open-append-doc')">
+                        <Upload class="mr-2 h-3.5 w-3.5" />
+                        Add
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
         </div>
+        <!-- Read aloud modal: choose accent then start -->
+        <Dialog :open="readAloudModalOpen" @update:open="readAloudModalOpen = $event">
+            <DialogContent class="sm:max-w-sm">
+                <DialogHeader>
+                    <DialogTitle>Read aloud</DialogTitle>
+                </DialogHeader>
+                <p class="text-sm text-muted-foreground">
+                    Choose accent (optional), then start. All pages will be read in order.
+                </p>
+                <select
+                    v-if="readAloudVoices?.length"
+                    v-model="readAloudModalAccent"
+                    class="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-400/30"
+                >
+                    <option value="">Default accent</option>
+                    <option
+                        v-for="a in readAloudVoices"
+                        :key="a.lang"
+                        :value="a.lang"
+                    >
+                        {{ a.label }}
+                    </option>
+                </select>
+                <DialogFooter class="mt-4 gap-2">
+                    <Button
+                        variant="outline"
+                        @click="readAloudModalOpen = false"
+                    >
+                        Cancel
+                    </Button>
+                    <Button @click="startReadAloudFromModal">
+                        <Mic class="mr-2 h-4 w-4" />
+                        Start
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+        <p v-if="readAloudError" class="text-sm text-red-600">
+            {{ readAloudError }}
+        </p>
         <p v-if="docPageError" class="text-sm text-red-600">
             {{ docPageError }}
         </p>
@@ -180,14 +359,17 @@ const sectionsToShow = computed(() => {
                 class="doc-prose max-w-full overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 px-4 py-5 sm:px-6 sm:py-6"
                 :class="{ 'max-h-[70vh] overflow-y-auto': isMultiPage && sectionsToShow.length > 1 }"
             >
-                <template v-if="isMultiPage && sectionsToShow.length > 1">
+                <template v-if="isMultiPage && sectionsToShow.length > 0">
                     <section
                         v-for="(item, i) in sectionsToShow"
-                        :id="'doc-section-' + (i + 1)"
-                        :key="i"
+                        :id="'doc-section-' + item.pageNumber"
+                        :key="item.pageNumber"
                         class="doc-prose__section min-h-[2em] pb-6 last:pb-0"
                         :class="i < sectionsToShow.length - 1 ? 'border-b-2 border-gray-400 mb-6' : ''"
                     >
+                        <p class="doc-prose__page-label mb-2 text-sm font-medium text-gray-500">
+                            Page {{ item.pageNumber }}:
+                        </p>
                         <div
                             v-if="item.rendered"
                             class="doc-prose__content text-gray-900"

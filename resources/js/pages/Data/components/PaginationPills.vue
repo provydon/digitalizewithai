@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useMediaQuery } from '@vueuse/core';
+import { computed } from 'vue';
 import { paginationSlots } from '../types';
 
 const props = defineProps<{
@@ -11,7 +13,13 @@ const emit = defineEmits<{
     'go-to': [page: number];
 }>();
 
-const slots = () => paginationSlots(props.current, props.total);
+const isDesktop = useMediaQuery('(min-width: 768px)');
+const slots = computed(() => {
+    const total = props.total;
+    if (total <= 0) return [];
+    if (isDesktop.value) return Array.from({ length: total }, (_, i) => i + 1);
+    return paginationSlots(props.current, total);
+});
 </script>
 
 <template>
@@ -24,7 +32,7 @@ const slots = () => paginationSlots(props.current, props.total);
         >
             Previous
         </button>
-        <template v-for="(slot, idx) in slots()" :key="(slotKeyPrefix ?? '') + idx">
+        <template v-for="(slot, idx) in slots" :key="(slotKeyPrefix ?? '') + idx">
             <button
                 v-if="slot !== 'ellipsis'"
                 type="button"

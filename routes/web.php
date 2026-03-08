@@ -20,6 +20,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard/api/data', [DashboardController::class, 'dataIndex'])->name('dashboard.api.data.index');
     Route::delete('dashboard/api/data/{data}', [DashboardController::class, 'destroyData'])->name('dashboard.api.data.destroy');
     Route::get('dashboard/api/data/{data}', [DataViewController::class, 'dataShow'])->name('dashboard.api.data.show');
+    Route::get('dashboard/api/data/{data}/original-file', [DataViewController::class, 'originalFile'])->name('dashboard.api.data.original-file');
     Route::patch('dashboard/api/data/{data}', [DataViewController::class, 'update'])->name('dashboard.api.data.update');
     Route::get('dashboard/api/data/{data}/doc-page', [DataViewController::class, 'docPage'])->name('dashboard.api.data.doc-page');
     Route::get('dashboard/api/data/{data}/doc-content', [DataViewController::class, 'docContent'])->name('dashboard.api.data.doc-content');

@@ -22,6 +22,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Features
+    |--------------------------------------------------------------------------
+    |
+    | Toggle product features. When enabled, the UI can offer AI read-out
+    | (text-to-speech) for data and chat responses.
+    |
+    */
+    'features' => [
+        'audio_read_out_enabled' => env('AI_AUDIO_READ_OUT_ENABLED', true),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Caching
     |--------------------------------------------------------------------------
     |

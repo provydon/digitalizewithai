@@ -46,6 +46,9 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user(),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+            'features' => [
+                'audioReadOut' => config('ai.features.audio_read_out_enabled', true),
+            ],
         ];
     }
 }

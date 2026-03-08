@@ -1,8 +1,22 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
-import { Copy, Pencil, Search, Table as TableIcon, Trash2 } from 'lucide-vue-next';
+import { useMediaQuery } from '@vueuse/core';
+import { computed, ref, watch } from 'vue';
+import { Copy, Ellipsis, Mic, Pause, Pencil, Play, Search, Square, Table as TableIcon, Trash2 } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
     Tooltip,
     TooltipContent,
@@ -22,12 +36,17 @@ const props = defineProps<{
     tablePerPage: number;
     copyFeedback: boolean;
     copyTooltipOpen?: boolean;
+    canReadAloud?: boolean;
+    readAloudPlaying?: boolean;
+    readAloudPaused?: boolean;
+    readAloudError?: string | null;
+    readAloudVoices?: { lang: string; label: string }[];
+    readAloudVoiceId?: string;
 }>();
 
 const emit = defineEmits<{
     'update:tableSearch': [v: string];
     'update:tablePage': [v: number];
-    'update:tablePerPage': [v: number];
     'go-to-page': [page: number];
     'add-rows': [];
     'copy': [];
@@ -35,6 +54,11 @@ const emit = defineEmits<{
     'delete-row': [row: TableRowRecord];
     'delete-selected-rows': [rows: TableRowRecord[]];
     'update:copyTooltipOpen': [v: boolean | undefined];
+    'read-aloud': [];
+    'read-aloud-pause': [];
+    'read-aloud-resume': [];
+    'read-aloud-stop': [];
+    'update:read-aloud-voice': [voiceId: string];
 }>();
 
 const selectedRowIds = ref<Set<number>>(new Set());
@@ -82,14 +106,11 @@ function onTableSearchInput(e: Event) {
     emit('update:tableSearch', (e.target as HTMLInputElement).value);
 }
 
-function onTablePerPageChange(e: Event) {
-    const val = (e.target as HTMLSelectElement).value;
-    emit('update:tablePerPage', Number(val));
-}
-
-const tablePaginationSlots = () => {
+const isDesktop = useMediaQuery('(min-width: 640px)');
+const tablePaginationSlots = computed(() => {
     const total = props.rowsMeta?.last_page ?? 0;
     if (total <= 0) return [];
+    if (isDesktop.value) return Array.from({ length: total }, (_, i) => i + 1);
     if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
     const current = props.tablePage;
     const slots: (number | 'ellipsis')[] = [1];
@@ -102,66 +123,88 @@ const tablePaginationSlots = () => {
     if (windowEnd < total - 1) slots.push('ellipsis');
     if (total > 1) slots.push(total);
     return slots;
-};
+});
+
+const readAloudModalOpen = ref(false);
+const readAloudModalAccent = ref('');
+
+function openReadAloudModal() {
+    readAloudModalAccent.value = props.readAloudVoiceId ?? '';
+    readAloudModalOpen.value = true;
+}
+
+function startReadAloudFromModal() {
+    emit('update:read-aloud-voice', readAloudModalAccent.value);
+    readAloudModalOpen.value = false;
+    emit('read-aloud');
+}
 </script>
 
 <template>
     <div class="table-paper space-y-4 rounded-xl bg-white p-4 text-gray-900 shadow-sm sm:p-5">
         <div class="flex flex-wrap items-center gap-2 sm:gap-3">
-            <div class="relative min-w-0 flex-1 basis-full sm:basis-0 sm:max-w-sm">
-                <Search
-                    class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500"
-                />
-                <input
-                    :value="tableSearch"
-                    type="search"
-                    placeholder="Search for anything in the table"
-                    class="w-full rounded-lg border-2 border-gray-300 bg-gray-50 py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary focus:ring-offset-0"
-                    @input="onTableSearchInput"
-                />
-            </div>
-            <span
-                v-if="rowsMeta"
-                class="text-sm text-gray-600"
-            >
-                {{ rowsMeta.total.toLocaleString() }} row{{ rowsMeta.total !== 1 ? 's' : '' }}
-            </span>
-            <div v-if="rowsMeta && rowsMeta.total > 0" class="flex items-center gap-1.5 text-sm">
-                <label for="table-per-page" class="text-gray-600">Rows per page</label>
-                <select
-                    id="table-per-page"
-                    :value="tablePerPage"
-                    class="rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary"
-                    @change="onTablePerPageChange($event)"
-                >
-                    <option :value="25">25</option>
-                    <option :value="50">50</option>
-                    <option :value="100">100</option>
-                </select>
-            </div>
-            <div class="ml-auto flex items-center gap-2">
-                <div
-                    v-if="someRowsSelected()"
-                    class="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1"
-                >
-                    <span class="text-sm text-gray-700">{{ selectedRowIds.size }} selected</span>
-                    <Button
-                        size="sm"
-                        variant="outline"
-                        class="h-7 border-gray-300 text-gray-700 hover:bg-gray-100"
-                        @click="toggleSelectAllRows(false)"
-                    >
-                        Clear
-                    </Button>
-                    <Button
-                        size="sm"
-                        variant="destructive"
-                        class="h-7"
-                        @click="onDeleteSelectedRows"
-                    >
-                        Delete selected
-                    </Button>
+            <div class="flex min-w-0 w-full flex-1 basis-0 sm:w-1/2 sm:max-w-[50%]">
+                <div class="relative min-w-0 flex-1">
+                    <Search
+                        class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500"
+                    />
+                    <input
+                        :value="tableSearch"
+                        type="search"
+                        placeholder="Search for anything in the table"
+                        class="w-full rounded-lg border-2 border-gray-300 bg-gray-50 py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary focus:ring-offset-0"
+                        @input="onTableSearchInput"
+                    />
                 </div>
+            </div>
+            <!-- Desktop: all action buttons -->
+            <div class="ml-auto hidden flex-wrap items-center gap-2 sm:flex">
+                <template v-if="canReadAloud && readAloudPlaying">
+                    <Tooltip>
+                        <TooltipTrigger as-child>
+                            <button
+                                type="button"
+                                class="inline-flex items-center gap-1.5 rounded border border-gray-300 px-2 py-1.5 text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+                                :title="readAloudPaused ? 'Continue' : 'Pause'"
+                                @click="readAloudPaused ? emit('read-aloud-resume') : emit('read-aloud-pause')"
+                            >
+                                <Pause v-if="!readAloudPaused" class="h-3.5 w-3.5" />
+                                <Play v-else class="h-3.5 w-3.5" />
+                                {{ readAloudPaused ? 'Continue' : 'Pause' }}
+                            </button>
+                        </TooltipTrigger>
+                        <TooltipContent>{{ readAloudPaused ? 'Continue reading' : 'Pause' }}</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                        <TooltipTrigger as-child>
+                            <button
+                                type="button"
+                                class="inline-flex items-center gap-1.5 rounded border border-gray-300 px-2 py-1.5 text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+                                title="Stop and start over"
+                                @click="emit('read-aloud-stop')"
+                            >
+                                <Square class="h-3.5 w-3.5" />
+                                Stop
+                            </button>
+                        </TooltipTrigger>
+                        <TooltipContent>Stop and start from beginning next time</TooltipContent>
+                    </Tooltip>
+                </template>
+                <Tooltip v-if="canReadAloud">
+                    <TooltipTrigger as-child>
+                        <button
+                            type="button"
+                            class="inline-flex items-center gap-1.5 rounded border border-gray-300 px-2 py-1.5 text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50"
+                            :disabled="rowsLoading"
+                            title="Read all pages aloud"
+                            @click="openReadAloudModal()"
+                        >
+                            <Mic class="h-3.5 w-3.5" />
+                            Read aloud
+                        </button>
+                    </TooltipTrigger>
+                    <TooltipContent>Read all pages aloud</TooltipContent>
+                </Tooltip>
                 <Button
                     size="sm"
                     variant="outline"
@@ -171,26 +214,124 @@ const tablePaginationSlots = () => {
                     <TableIcon class="h-3.5 w-3.5" />
                     Add rows
                 </Button>
-                <Tooltip
-                    :open="copyTooltipOpen"
-                    @update:open="(v) => emit('update:copyTooltipOpen', v === false ? undefined : v)"
-                >
+                <Tooltip :open="copyTooltipOpen" @update:open="(v) => emit('update:copyTooltipOpen', v === false ? undefined : v)">
                     <TooltipTrigger as-child>
                         <button
                             type="button"
                             class="inline-flex items-center gap-1.5 rounded border border-gray-300 px-2 py-1.5 text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-900"
                             @click="emit('copy')"
                         >
-                            Copy
                             <Copy class="h-3.5 w-3.5" />
+                            Copy
                         </button>
                     </TooltipTrigger>
-                    <TooltipContent>
-                        {{ copyFeedback ? 'Copied to clipboard' : 'Copy to clipboard' }}
-                    </TooltipContent>
+                    <TooltipContent>{{ copyFeedback ? 'Copied to clipboard' : 'Copy to clipboard' }}</TooltipContent>
                 </Tooltip>
+                <template v-if="someRowsSelected()">
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        class="border-gray-300 text-gray-700 hover:bg-gray-100"
+                        @click="toggleSelectAllRows(false)"
+                    >
+                        Clear
+                    </Button>
+                    <Button
+                        size="sm"
+                        variant="destructive"
+                        @click="onDeleteSelectedRows"
+                    >
+                        <Trash2 class="h-3.5 w-3.5" />
+                        Delete selected
+                    </Button>
+                </template>
             </div>
+            <!-- Mobile: Actions dropdown only -->
+            <DropdownMenu class="ml-auto sm:hidden">
+                <DropdownMenuTrigger as-child>
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        class="border-gray-300 bg-white text-gray-900 hover:bg-gray-100"
+                        title="Actions"
+                    >
+                        <Ellipsis class="h-3.5 w-3.5 shrink-0" />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" class="w-48">
+                    <DropdownMenuItem
+                        v-if="canReadAloud"
+                        :disabled="rowsLoading"
+                        @click="openReadAloudModal()"
+                    >
+                        <Mic class="mr-2 h-3.5 w-3.5" />
+                        Read aloud
+                    </DropdownMenuItem>
+                    <DropdownMenuItem @click="emit('add-rows')">
+                        <TableIcon class="mr-2 h-3.5 w-3.5" />
+                        Add rows
+                    </DropdownMenuItem>
+                    <DropdownMenuItem @click="emit('copy')">
+                        <Copy class="mr-2 h-3.5 w-3.5" />
+                        Copy
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                        v-if="someRowsSelected()"
+                        @click="toggleSelectAllRows(false)"
+                    >
+                        Clear selection
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                        v-if="someRowsSelected()"
+                        variant="destructive"
+                        @click="onDeleteSelectedRows"
+                    >
+                        <Trash2 class="mr-2 h-3.5 w-3.5" />
+                        Delete selected
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
         </div>
+        <!-- Read aloud modal: choose accent then start -->
+        <Dialog :open="readAloudModalOpen" @update:open="readAloudModalOpen = $event">
+            <DialogContent class="sm:max-w-sm">
+                <DialogHeader>
+                    <DialogTitle>Read aloud</DialogTitle>
+                </DialogHeader>
+                <p class="text-sm text-muted-foreground">
+                    Choose accent (optional), then start. All pages will be read in order.
+                </p>
+                <select
+                    v-if="readAloudVoices?.length"
+                    v-model="readAloudModalAccent"
+                    class="mt-2 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                    <option value="">Default accent</option>
+                    <option
+                        v-for="a in readAloudVoices"
+                        :key="a.lang"
+                        :value="a.lang"
+                    >
+                        {{ a.label }}
+                    </option>
+                </select>
+                <DialogFooter class="mt-4 gap-2">
+                    <Button
+                        variant="outline"
+                        @click="readAloudModalOpen = false"
+                    >
+                        Cancel
+                    </Button>
+                    <Button @click="startReadAloudFromModal">
+                        <Mic class="mr-2 h-4 w-4" />
+                        Start
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+        <p v-if="readAloudError" class="text-sm text-destructive">
+            {{ readAloudError }}
+        </p>
         <p v-if="rowsError" class="text-sm text-destructive">
             {{ rowsError }}
         </p>
@@ -206,7 +347,7 @@ const tablePaginationSlots = () => {
             >
                 Previous
             </button>
-            <template v-for="(slot, idx) in tablePaginationSlots()" :key="idx">
+            <template v-for="(slot, idx) in tablePaginationSlots" :key="idx">
                 <button
                     v-if="slot !== 'ellipsis'"
                     type="button"
@@ -302,6 +443,17 @@ const tablePaginationSlots = () => {
                             </div>
                         </td>
                     </tr>
+                    <tr
+                        v-if="!rowsLoading && tableRows.length === 0 && tableHeaders.length > 0"
+                        class="border-b border-gray-200"
+                    >
+                        <td
+                            :colspan="tableHeaders.length + 2"
+                            class="px-4 py-8 text-center text-sm text-muted-foreground"
+                        >
+                            No results.
+                        </td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -317,7 +469,7 @@ const tablePaginationSlots = () => {
             >
                 Previous
             </button>
-            <template v-for="(slot, idx) in tablePaginationSlots()" :key="'bottom-' + idx">
+            <template v-for="(slot, idx) in tablePaginationSlots" :key="'bottom-' + idx">
                 <button
                     v-if="slot !== 'ellipsis'"
                     type="button"

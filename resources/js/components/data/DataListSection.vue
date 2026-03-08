@@ -212,7 +212,7 @@ defineExpose({
                         type="search"
                         placeholder="Search by name…"
                         class="w-full rounded-lg border-2 border-primary/60 bg-primary/5 py-2 pl-9 pr-3 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-primary focus:bg-background dark:border-primary/50 dark:bg-primary/10 dark:focus:border-primary dark:focus:bg-background"
-                        aria-label="Search digitalized items"
+                        aria-label="Search your items"
                     />
                 </div>
                 <span

@@ -164,7 +164,7 @@ const pageTitle = computed(() =>
                     {{ branding.name }}
                 </h1>
                 <p class="mx-auto max-w-2xl text-lg text-muted-foreground lg:text-xl">
-                    Turn <strong class="text-foreground">physical</strong> books, notes, documents, logs, records and tables into digital content.
+                    Turn <strong class="text-foreground">physical</strong> books, notes, documents, logs, records and tables into digital, searchable text and tables that AI can read out—and that you can ask questions to and get insights from—using AI.
                 </p>
                 <!-- <p class="mx-auto mt-2 max-w-2xl text-lg text-muted-foreground lg:text-xl">
                     <strong class="text-foreground">Physical</strong> paper, handwritten logs, physical notes/books, physical medical records—nearly impossible to immediately search, get metrics from, Ask Questions about or export. <strong class="text-foreground">Until now.</strong>
@@ -196,7 +196,7 @@ const pageTitle = computed(() =>
             <!-- What it does -->
             <section class="mx-auto max-w-5xl pt-20 lg:pt-28">
                 <h2 class="mb-10 text-center text-2xl font-semibold text-foreground lg:text-3xl">
-                    From <strong>physical</strong> to digital—a data workspace
+                    From <strong>paper</strong> to searchable—one workspace
                 </h2>
                 <div
                     class="grid gap-8 rounded-2xl border border-border bg-card p-8 lg:grid-cols-2 lg:gap-12 lg:p-12"
@@ -216,7 +216,9 @@ const pageTitle = computed(() =>
                                 Search through your data
                             </h3>
                             <p class="text-sm leading-relaxed text-muted-foreground">
-                                You can’t Ctrl+F a <strong>physical</strong> notebook. <strong>Search across all your items</strong>—every doc and table—in one place. Find what you need without digging through paper or files.
+                                You can’t Ctrl+F a physical notebook—and even worse, a big handwritten note, log, or book of historical records.
+                                <br />
+                                Add your notes, books, logs, records and docs here—the app turns them into digital, searchable text and tables that AI can read out, and that you can ask questions to and get insights from—using AI.
                             </p>
                         </div>
                     </div>
@@ -235,11 +237,30 @@ const pageTitle = computed(() =>
                                 Chat with your data
                             </h3>
                             <p class="text-sm leading-relaxed text-muted-foreground">
-                                Ask AI anything about each doc or table—insights, summaries, trends. Conversations are <strong>tied to that item</strong>; save them and return later.
+                                Ask AI anything about each doc or table—insights, summaries, trends, and generate charts and metrics from tables. Conversations are <strong>tied to that item</strong>; save them and return later.
                             </p>
                         </div>
                     </div>
-                    <!-- 3. Take action with AI -->
+                    <!-- 3. Let AI read out data with Audio -->
+                    <div class="flex gap-4">
+                        <span
+                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
+                            aria-hidden
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+                            </svg>
+                        </span>
+                        <div>
+                            <h3 class="mb-1 font-semibold text-foreground">
+                                Let AI read out data with Audio
+                            </h3>
+                            <p class="text-sm leading-relaxed text-muted-foreground">
+                                Turn your <strong>physical book into a personal audiobook</strong>. Have summaries, answers, or table rows read aloud so you can listen while multitasking.
+                            </p>
+                        </div>
+                    </div>
+                    <!-- 4. Take action with AI -->
                     <div class="flex gap-4">
                         <span
                             class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
@@ -258,7 +279,7 @@ const pageTitle = computed(() =>
                             </p>
                         </div>
                     </div>
-                    <!-- 4. Export / ship to your tools -->
+                    <!-- 5. Export / ship to your tools -->
                     <div class="flex gap-4">
                         <span
                             class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
@@ -277,7 +298,7 @@ const pageTitle = computed(() =>
                             </p>
                         </div>
                     </div>
-                    <!-- 8. Start from physical (reframed: get data in, not “keep forever”) -->
+                    <!-- 6. Start from physical (reframed: get data in, not “keep forever”) -->
                     <div class="flex gap-4">
                         <span
                             class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"

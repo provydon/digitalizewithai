@@ -31,6 +31,8 @@ class DataTableRowsController extends Controller
             $data->syncTableRowsFromDigitalData();
         }
 
+        $data->ensureTableRowsSearchContent();
+
         $content = $data->digital_data['content'] ?? '{}';
         $decoded = is_array($content) ? $content : (json_decode(is_string($content) ? $content : '{}', true) ?: []);
         $headers = $decoded['headers'] ?? [];

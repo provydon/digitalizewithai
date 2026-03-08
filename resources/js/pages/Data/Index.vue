@@ -21,7 +21,7 @@ const breadcrumbs: BreadcrumbItem[] = [
                     Data
                 </h1>
                 <p class="mt-1 text-sm text-muted-foreground">
-                    Search and manage all your digitalized items.
+                    Search and manage everything you've added.
                 </p>
             </header>
 

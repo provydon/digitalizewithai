@@ -6,6 +6,7 @@ use App\Ai\Agents\DigitalizeAgent;
 use App\Ai\Agents\DigitalizeAgentNova;
 use App\Http\Controllers\Controller;
 use App\Jobs\DigitalizeOrchestratorJob;
+use App\Jobs\StoreOriginalFileToS3Job;
 use App\Models\Data;
 use App\Services\VideoFrameExtractor;
 use Illuminate\Http\JsonResponse;
@@ -134,6 +135,7 @@ class DigitalizeController extends Controller
             DB::commit();
 
             DigitalizeOrchestratorJob::dispatch($data->id);
+            StoreOriginalFileToS3Job::dispatch($data->id);
 
             Log::info('[digitalize] store: job dispatched', ['data_id' => $data->id]);
 

@@ -55,6 +55,22 @@ class Data extends Model
     }
 
     /**
+     * Ensure every table row has search_content set (from cells). Fixes rows that were created before search_content was set.
+     */
+    public function ensureTableRowsSearchContent(): void
+    {
+        $rows = $this->tableRows()->where(function ($q) {
+            $q->whereNull('search_content')->orWhere('search_content', '');
+        })->get();
+
+        foreach ($rows as $row) {
+            $cells = $row->cells ?? [];
+            $searchContent = implode(' ', array_map(fn ($v) => (string) $v, $cells));
+            $row->update(['search_content' => $searchContent]);
+        }
+    }
+
+    /**
      * Sync data_table_rows from digital_data (content is JSON string or array with headers + rows). Idempotent: replaces all rows.
      */
     public function syncTableRowsFromDigitalData(): void

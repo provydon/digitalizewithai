@@ -27,3 +27,19 @@ yarn-error.log
 /.vscode
 /.zed
 /stubs
+
+**/caddy
+frankenphp
+frankenphp-worker.php
+
+# Laravel Scale - ensure these are committed (un-ignore if needed)
+!docker/
+!config/octane.php
+!resources/js/routes/
+!resources/js/actions/
+!resources/js/wayfinder/
+
+# Laravel Scale - runtime-generated (do not commit)
+frankenphp
+frankenphp-worker.php
+**/caddy

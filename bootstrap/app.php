@@ -29,6 +29,8 @@ return Application::configure(basePath: dirname(__DIR__))
         // When behind a load balancer / reverse proxy (e.g. production)
         $middleware->trustProxies(at: '*');
 
+
+        $middleware->web(prepend: [\App\Http\Middleware\ForceHttpsMiddleware::class]);
         // Stateless API: do not use statefulApi() — use token auth (e.g. Sanctum token) for /api/* instead of session.
     })
     ->withExceptions(function (Exceptions $exceptions): void {

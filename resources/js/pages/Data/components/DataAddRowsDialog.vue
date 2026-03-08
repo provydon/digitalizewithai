@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { Camera, Upload, Video } from 'lucide-vue-next';
+import { TabsContent, TabsList, TabsRoot, TabsTrigger } from 'reka-ui';
+import { Button } from '@/components/ui/button';
 import {
     Dialog,
     DialogClose,
@@ -8,10 +10,8 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { TabsContent, TabsList, TabsRoot, TabsTrigger } from 'reka-ui';
 
 const props = defineProps<{
     open: boolean;

@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue';
 import { Head } from '@inertiajs/vue3';
-import DigitalizeUploadSection from '@/components/data/DigitalizeUploadSection.vue';
+import { ref } from 'vue';
 import DataListSection from '@/components/data/DataListSection.vue';
+import DigitalizeUploadSection from '@/components/data/DigitalizeUploadSection.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
 import type { BreadcrumbItem } from '@/types';

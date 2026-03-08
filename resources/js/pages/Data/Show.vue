@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, usePage } from '@inertiajs/vue3';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import {
     BarChart3,
     Download,
@@ -10,27 +12,23 @@ import {
 } from 'lucide-vue-next';
 import { TabsContent, TabsList, TabsRoot, TabsTrigger } from 'reka-ui';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import * as XLSX from 'xlsx';
 import {
     TooltipProvider,
 } from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/AppLayout.vue';
 import api from '@/lib/api';
 import { isBroadcastingEnabled, subscribeDataRecord } from '@/lib/echo';
-import { dashboard } from '@/routes';
-import type { BreadcrumbItem } from '@/types';
-import autoTable from 'jspdf-autotable';
-import { jsPDF } from 'jspdf';
-import * as XLSX from 'xlsx';
-import DataShowHeader from '@/pages/Data/components/DataShowHeader.vue';
-import DataShowDocView from '@/pages/Data/components/DataShowDocView.vue';
-import DataShowTableView from '@/pages/Data/components/DataShowTableView.vue';
-import DataShowAskAi from '@/pages/Data/components/DataShowAskAi.vue';
-import DataShowCharts from '@/pages/Data/components/DataShowCharts.vue';
-import DataShowExport from '@/pages/Data/components/DataShowExport.vue';
-import DataEditRowDialog from '@/pages/Data/components/DataEditRowDialog.vue';
 import DataAddRowsDialog from '@/pages/Data/components/DataAddRowsDialog.vue';
 import DataAppendDocDialog from '@/pages/Data/components/DataAppendDocDialog.vue';
 import DataDeleteRowDialog from '@/pages/Data/components/DataDeleteRowDialog.vue';
+import DataEditRowDialog from '@/pages/Data/components/DataEditRowDialog.vue';
+import DataShowAskAi from '@/pages/Data/components/DataShowAskAi.vue';
+import DataShowCharts from '@/pages/Data/components/DataShowCharts.vue';
+import DataShowDocView from '@/pages/Data/components/DataShowDocView.vue';
+import DataShowExport from '@/pages/Data/components/DataShowExport.vue';
+import DataShowHeader from '@/pages/Data/components/DataShowHeader.vue';
+import DataShowTableView from '@/pages/Data/components/DataShowTableView.vue';
 import type {
     ChartSuggestion,
     ChatMessage,
@@ -41,6 +39,8 @@ import type {
     SavedChat,
     TableRowRecord,
 } from '@/pages/Data/types';
+import { dashboard } from '@/routes';
+import type { BreadcrumbItem } from '@/types';
 
 type Props = {
     id: number;
@@ -361,29 +361,6 @@ function stripForSpeech(text: string): string {
         .trim();
 }
 
-function getReadAloudTextForDoc(): string {
-    if (fullDocPages.value.length > 1) {
-        const section = fullDocPages.value[docPageCurrent.value - 1] ?? '';
-        const q = docSearch.value.trim().toLowerCase();
-        if (!q) return stripForSpeech(section);
-        const lines = section.split('\n').filter((l) => l.toLowerCase().includes(q));
-        return stripForSpeech(lines.length ? lines.join('\n') : section);
-    }
-    return stripForSpeech(displayedDocContentFiltered.value);
-}
-
-function getReadAloudTextForTable(): string {
-    const headers = tableHeaders.value;
-    const rows = tableRows.value;
-    if (!headers.length || !rows.length) return 'No rows on this page.';
-    const lines: string[] = [];
-    for (const row of rows) {
-        const cells = (row.cells ?? []).map((c) => (c == null ? '' : String(c)));
-        const parts = headers.map((h, i) => `${h}: ${cells[i] ?? ''}`).join(', ');
-        lines.push(parts);
-    }
-    return lines.join('. ');
-}
 
 /** Fetch one doc page content for read-aloud (does not change UI). */
 async function fetchDocPageContentForReadAloud(pageNum: number): Promise<string> {

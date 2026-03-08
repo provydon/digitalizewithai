@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
 import { ChevronDown, Plus, Upload } from 'lucide-vue-next';
-import api from '@/lib/api';
+import { computed, onMounted, ref } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import api from '@/lib/api';
 
 export type DigitalizeProviderOption = { id: string; name: string };
 export type DigitalizeOptionsResponse = { providers: DigitalizeProviderOption[]; default_provider: string };
@@ -166,37 +166,6 @@ async function postBatchFiles(files: File[]): Promise<{ status: number; data: Di
         },
     });
     return { status: res.status, data: res.data };
-}
-
-async function pollUntilReady(dataId: number): Promise<void> {
-    const maxAttempts = 120;
-    const intervalMs = 2000;
-    extractingBatches.value = null;
-    for (let i = 0; i < maxAttempts; i++) {
-        const { data } = await api.get<DigitalizeResponse>(`/dashboard/api/data/${dataId}`);
-        const dd = data.digital_data ?? {};
-        const type = dd.type;
-        const status = dd.status;
-        const batchDone = dd.processing_batches_done ?? 0;
-        const batchTotal = dd.processing_batches_total ?? 0;
-        if (type === 'pending' && status === 'failed') {
-            extractingBatches.value = null;
-            throw new Error(dd.error ?? 'Extraction failed.');
-        }
-        if (batchTotal > 0) {
-            extractingBatches.value = { done: batchDone, total: batchTotal };
-        }
-        const isReady =
-            type !== 'pending' &&
-            (status !== 'processing' || batchDone >= batchTotal || batchTotal === 0);
-        if (isReady) {
-            extractingBatches.value = null;
-            return;
-        }
-        await new Promise((r) => setTimeout(r, intervalMs));
-    }
-    extractingBatches.value = null;
-    throw new Error('Processing is taking longer than expected. Check your list in a moment.');
 }
 
 async function doUpload(file: File) {

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Link, router } from '@inertiajs/vue3';
-import { ref, watch } from 'vue';
 import { AlertCircle, Check, FileText, Loader2, Table as TableIcon, Trash2 } from 'lucide-vue-next';
 import { Checkbox } from '@/components/ui/checkbox';
 import type { DigitalizedItem } from '@/types';
@@ -19,7 +18,6 @@ const emit = defineEmits<{
     deleteSelectedRequest: [items: DigitalizedItem[]];
 }>();
 
-const selectedItems = () => props.items.filter((i) => props.selectedIds.includes(i.id));
 const allSelected = () => props.items.length > 0 && props.selectedIds.length === props.items.length;
 const someSelected = () => props.selectedIds.length > 0;
 
@@ -43,12 +41,6 @@ function toggleSelect(id: number, checked: boolean) {
     if (checked) next.add(id);
     else next.delete(id);
     emit('update:selectedIds', Array.from(next));
-}
-
-function onDeleteSelected() {
-    const items = selectedItems();
-    if (items.length === 0) return;
-    emit('deleteSelectedRequest', items);
 }
 
 function formatDate(iso: string | null): string {

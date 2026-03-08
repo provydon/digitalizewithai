@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { isBroadcastingEnabled, subscribeDataRecord } from '@/lib/echo';
 import { Link } from '@inertiajs/vue3';
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { FileText, Search } from 'lucide-vue-next';
-import api from '@/lib/api';
-import type { DataListMeta, DigitalizedItem } from '@/types';
+import { Trash2 } from 'lucide-vue-next';
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import DataListTable from '@/components/data/DataListTable.vue';
+import DeleteDataModal from '@/components/data/DeleteDataModal.vue';
+import { Button } from '@/components/ui/button';
 import {
     Dialog,
     DialogClose,
@@ -13,10 +14,9 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { Trash2 } from 'lucide-vue-next';
-import { Button } from '@/components/ui/button';
-import DataListTable from '@/components/data/DataListTable.vue';
-import DeleteDataModal from '@/components/data/DeleteDataModal.vue';
+import api from '@/lib/api';
+import { isBroadcastingEnabled, subscribeDataRecord } from '@/lib/echo';
+import type { DataListMeta, DigitalizedItem } from '@/types';
 
 const props = withDefaults(
     defineProps<{
@@ -251,7 +251,10 @@ watch(items, (newItems) => {
     if (isBroadcastingEnabled()) {
         stopProcessingPoll();
         if (hasProcessing) updateBroadcastSubscriptions();
-        else broadcastUnsubs.value.forEach((unsub) => unsub()), broadcastUnsubs.value.clear();
+        else {
+            broadcastUnsubs.value.forEach((unsub) => unsub());
+            broadcastUnsubs.value.clear();
+        }
     } else {
         if (hasProcessing) startProcessingPoll();
         else stopProcessingPoll();

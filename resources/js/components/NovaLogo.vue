@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
-import { home } from '@/routes';
 import { computed } from 'vue';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
+import { home } from '@/routes';
 
-const props = withDefaults(
+withDefaults(
     defineProps<{
         variant?: 'full' | 'compact';
         showText?: boolean;

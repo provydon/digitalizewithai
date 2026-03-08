@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, usePage } from '@inertiajs/vue3';
-import { dashboard, login, register } from '@/routes';
 import { computed } from 'vue';
+import { dashboard, login, register } from '@/routes';
 
 withDefaults(
     defineProps<{
@@ -14,7 +14,6 @@ withDefaults(
 
 const page = usePage();
 const branding = computed(() => (page.props.branding as { name: string; ai_attribution: string | null }) ?? { name: 'Digitalize with AI', ai_attribution: 'Amazon Nova' });
-const aiName = computed(() => branding.value.ai_attribution ?? 'AI');
 const pageTitle = computed(() =>
     branding.value.ai_attribution
         ? `${branding.value.name} — ${branding.value.ai_attribution}`

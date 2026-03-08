@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Camera, Upload, Video } from 'lucide-vue-next';
+import { Button } from '@/components/ui/button';
 import {
     Dialog,
     DialogClose,
@@ -8,9 +9,8 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
 
-const props = defineProps<{
+defineProps<{
     open: boolean;
     appendFile: File | null;
     appendLoading: boolean;

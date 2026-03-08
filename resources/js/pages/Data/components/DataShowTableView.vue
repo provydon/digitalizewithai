@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useMediaQuery } from '@vueuse/core';
-import { computed, ref, watch } from 'vue';
 import { Copy, Ellipsis, Mic, Pause, Pencil, Play, Search, Square, Table as TableIcon, Trash2 } from 'lucide-vue-next';
+import { computed, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -22,7 +22,6 @@ import {
     TooltipContent,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
-import PaginationPills from './PaginationPills.vue';
 import type { RowsMeta, TableRowRecord } from '../types';
 
 const props = defineProps<{

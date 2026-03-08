@@ -1,5 +1,5 @@
-import axios from 'axios';
 import { router } from '@inertiajs/vue3';
+import axios from 'axios';
 
 function getCsrfToken(): string {
     const meta = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');

@@ -1,7 +1,5 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import api from '@/lib/api';
-import type { DigitalizedItem } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -11,6 +9,8 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import api from '@/lib/api';
+import type { DigitalizedItem } from '@/types';
 
 const props = defineProps<{
     open: boolean;

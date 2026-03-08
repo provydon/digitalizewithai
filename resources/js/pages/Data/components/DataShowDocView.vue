@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Copy, Pencil, Search } from 'lucide-vue-next';
+import { Copy, Pencil, Search, Upload } from 'lucide-vue-next';
 import { computed } from 'vue';
 import { Button } from '@/components/ui/button';
 import {
@@ -13,6 +13,8 @@ import PaginationPills from './PaginationPills.vue';
 const props = withDefaults(
     defineProps<{
         docSearch: string;
+        /** Section texts for scroll-to-page (one long doc split into sections). */
+        docSections: string[];
         displayedContent: string;
         docPageCount: number;
         docPageCurrent: number;
@@ -26,7 +28,7 @@ const props = withDefaults(
         copyFeedback: boolean;
         copyTooltipOpen?: boolean;
     }>(),
-    { copyTooltipOpen: undefined },
+    { docSections: () => [], copyTooltipOpen: undefined },
 );
 
 const emit = defineEmits<{
@@ -38,6 +40,7 @@ const emit = defineEmits<{
     'go-to-page': [page: number];
     'copy': [];
     'update:copyTooltipOpen': [v: boolean | undefined];
+    'open-append-doc': [];
 }>();
 
 function onDocSearchInput(e: Event) {
@@ -48,7 +51,22 @@ function onDocEditInput(e: Event) {
     emit('update:docEditContent', (e.target as HTMLTextAreaElement).value);
 }
 
+const q = computed(() => props.docSearch.trim().toLowerCase());
+
 const renderedContent = computed(() => renderMarkdown(props.displayedContent || ''));
+
+/** For sectioned view: filter each section by search and render. */
+const sectionsToShow = computed(() => {
+    const sections = props.docSections;
+    if (!sections.length) return [];
+    if (!q.value) return sections.map((text) => ({ text, rendered: renderMarkdown(text || '') }));
+    return sections.map((text) => {
+        const lines = text.split('\n');
+        const matched = lines.filter((line) => line.toLowerCase().includes(q.value));
+        const filtered = matched.length ? matched.join('\n') : '';
+        return { text: filtered, rendered: renderMarkdown(filtered || '') };
+    });
+});
 </script>
 
 <template>
@@ -97,6 +115,16 @@ const renderedContent = computed(() => renderMarkdown(props.displayedContent || 
                         {{ copyFeedback ? 'Copied to clipboard' : 'Copy to clipboard' }}
                     </TooltipContent>
                 </Tooltip>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    title="Append from photo or video"
+                    class="content-paper__btn"
+                    @click="emit('open-append-doc')"
+                >
+                    <Upload class="mr-1.5 h-3.5 w-3.5" />
+                    Append
+                </Button>
             </div>
         </div>
         <p v-if="docPageError" class="text-sm text-red-600">
@@ -111,10 +139,10 @@ const renderedContent = computed(() => renderMarkdown(props.displayedContent || 
             />
         </div>
         <div
-            v-if="docPageLoading && isMultiPage"
+            v-if="docPageLoading"
             class="py-12 text-center text-sm text-gray-500"
         >
-            Loading page…
+            Loading document…
         </div>
         <div v-else class="min-w-0">
             <div v-if="docEditing" class="space-y-3">
@@ -150,13 +178,32 @@ const renderedContent = computed(() => renderMarkdown(props.displayedContent || 
             <div
                 v-else
                 class="doc-prose max-w-full overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 px-4 py-5 sm:px-6 sm:py-6"
+                :class="{ 'max-h-[70vh] overflow-y-auto': isMultiPage && sectionsToShow.length > 1 }"
             >
-                <div
-                    v-if="renderedContent"
-                    class="doc-prose__content text-gray-900"
-                    v-html="renderedContent"
-                />
-                <p v-else class="text-gray-500">No content.</p>
+                <template v-if="isMultiPage && sectionsToShow.length > 1">
+                    <section
+                        v-for="(item, i) in sectionsToShow"
+                        :id="'doc-section-' + (i + 1)"
+                        :key="i"
+                        class="doc-prose__section min-h-[2em] pb-6 last:pb-0"
+                        :class="i < sectionsToShow.length - 1 ? 'border-b-2 border-gray-400 mb-6' : ''"
+                    >
+                        <div
+                            v-if="item.rendered"
+                            class="doc-prose__content text-gray-900"
+                            v-html="item.rendered"
+                        />
+                        <p v-else class="text-gray-500">No content in this section.</p>
+                    </section>
+                </template>
+                <template v-else>
+                    <div
+                        v-if="renderedContent"
+                        class="doc-prose__content text-gray-900"
+                        v-html="renderedContent"
+                    />
+                    <p v-else class="text-gray-500">No content.</p>
+                </template>
             </div>
         </div>
         <div v-if="isMultiPage" class="content-paper__pagination py-3">

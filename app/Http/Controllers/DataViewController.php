@@ -91,7 +91,7 @@ class DataViewController extends Controller
         ]);
     }
 
-    /** Full doc content (e.g. for export). Only for type doc. */
+    /** Full doc content (e.g. for export). For multi-page docs also returns pages[] for sectioned scroll. */
     public function docContent(Data $data): JsonResponse
     {
         if ($data->user_id !== auth()->id()) {
@@ -102,11 +102,16 @@ class DataViewController extends Controller
             abort(404);
         }
         $content = $digital['content'] ?? '';
-        if ($content === '' && ! empty($digital['doc_pages'])) {
-            $content = implode("\n\n", $digital['doc_pages']);
+        $docPages = $digital['doc_pages'] ?? null;
+        if ($content === '' && is_array($docPages) && $docPages !== []) {
+            $content = implode("\n\n", $docPages);
+        }
+        $payload = ['content' => $content];
+        if (is_array($docPages) && $docPages !== []) {
+            $payload['pages'] = $docPages;
         }
 
-        return response()->json(['content' => $content]);
+        return response()->json($payload);
     }
 
     /** Update data record name. PATCH body: { "name": "..." }. */
@@ -124,7 +129,11 @@ class DataViewController extends Controller
         return response()->json(['name' => $data->name]);
     }
 
-    /** Update doc content (inline edit). PATCH body: { "content": "..." } or { "page": 1, "content": "..." } for multi-page. */
+    /**
+     * Update doc content (inline edit).
+     * PATCH body: { "content": "..." } for full-doc edit (splits back into existing page count);
+     * or { "page": 1, "content": "..." } to replace a single page (legacy).
+     */
     public function updateDocContent(Request $request, Data $data): JsonResponse
     {
         if ($data->user_id !== auth()->id()) {
@@ -140,6 +149,7 @@ class DataViewController extends Controller
         }
         $page = $request->input('page');
         $pageCount = (int) ($digital['doc_page_count'] ?? 1);
+
         if ($page !== null && $pageCount > 1) {
             $pageNum = max(1, min($pageCount, (int) $page));
             $docPages = $digital['doc_pages'] ?? [];
@@ -153,14 +163,52 @@ class DataViewController extends Controller
             $digital['doc_pages'] = $docPages;
             $digital['content'] = implode("\n\n", $docPages);
         } else {
-            $digital['content'] = $content;
-            if (isset($digital['doc_pages'])) {
+            if ($pageCount > 1) {
+                $docPages = $this->splitContentIntoPages($content, $pageCount);
+                $digital['doc_pages'] = $docPages;
+                $digital['content'] = $content;
+            } else {
+                $digital['content'] = $content;
                 $digital['doc_pages'] = [$content];
             }
         }
         $data->update(['digital_data' => $digital]);
 
         return response()->json(['content' => $content]);
+    }
+
+    /**
+     * Split a single content string into N roughly equal segments (preserves page segment count).
+     * Prefers splitting at double newline (paragraph) boundaries when possible.
+     */
+    private function splitContentIntoPages(string $content, int $pageCount): array
+    {
+        if ($pageCount <= 1) {
+            return [$content];
+        }
+        $len = strlen($content);
+        $targetChunk = (int) ceil($len / $pageCount);
+        $pages = [];
+        $offset = 0;
+        for ($i = 0; $i < $pageCount; $i++) {
+            $isLast = $i === $pageCount - 1;
+            $end = $isLast ? $len : min($offset + $targetChunk, $len);
+            if (! $isLast && $end < $len) {
+                $nextNewline = strpos($content, "\n\n", $end);
+                if ($nextNewline !== false && $nextNewline - $offset <= $targetChunk + 500) {
+                    $end = $nextNewline + 2;
+                } else {
+                    $prevNewline = strrpos(substr($content, $offset, $end - $offset), "\n\n");
+                    if ($prevNewline !== false) {
+                        $end = $offset + $prevNewline + 2;
+                    }
+                }
+            }
+            $pages[] = substr($content, $offset, $end - $offset);
+            $offset = $end;
+        }
+
+        return $pages;
     }
 
     /**

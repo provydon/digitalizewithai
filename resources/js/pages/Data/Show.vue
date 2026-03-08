@@ -26,6 +26,7 @@ import DataShowCharts from '@/pages/Data/components/DataShowCharts.vue';
 import DataShowExport from '@/pages/Data/components/DataShowExport.vue';
 import DataEditRowDialog from '@/pages/Data/components/DataEditRowDialog.vue';
 import DataAddRowsDialog from '@/pages/Data/components/DataAddRowsDialog.vue';
+import DataAppendDocDialog from '@/pages/Data/components/DataAppendDocDialog.vue';
 import DataDeleteRowDialog from '@/pages/Data/components/DataDeleteRowDialog.vue';
 import type {
     ChartSuggestion,
@@ -112,8 +113,8 @@ onMounted(async () => {
 
 async function pollWhileProcessing() {
     await fetchRecord();
-    if (record.value && isDocData.value && isMultiPageDoc.value) {
-        await fetchDocPage(docPageCurrent.value);
+    if (record.value && isDocData.value) {
+        await fetchDocFullContent();
     }
     await fetchTableRows();
 }
@@ -176,33 +177,34 @@ const insights = computed(() => {
     return Array.isArray(list) ? list.filter((i): i is string => typeof i === 'string' && i.trim() !== '') : [];
 });
 
-// —— Doc state ——
+// —— Doc state (single long scroll + section jump) ——
 const docPageCurrent = ref(1);
-const docPageContent = ref('');
-const docPageLoading = ref(false);
+const fullDocPages = ref<string[]>([]);
+const fullDocLoading = ref(false);
 const docPageError = ref<string | null>(null);
 
-async function fetchDocPage(page: number) {
+async function fetchDocFullContent() {
     if (!record.value || !isDocData.value) return;
-    docPageLoading.value = true;
+    fullDocLoading.value = true;
     docPageError.value = null;
     try {
-        const { data } = await api.get<{ page: number; total_pages: number; content: string }>(
-            `/dashboard/api/data/${record.value.id}/doc-page`,
-            { params: { page } },
+        const { data } = await api.get<{ content: string; pages?: string[] }>(
+            `/dashboard/api/data/${record.value.id}/doc-content`,
         );
-        docPageContent.value = data.content ?? '';
-        docPageCurrent.value = data.page;
+        const content = data.content ?? '';
+        fullDocPages.value = Array.isArray(data.pages) && data.pages.length > 0
+            ? data.pages
+            : (content ? [content] : []);
     } catch (e: unknown) {
         const err = e as { response?: { data?: { message?: string } }; message?: string };
-        docPageError.value = err.response?.data?.message ?? err.message ?? 'Failed to load page';
+        docPageError.value = err.response?.data?.message ?? err.message ?? 'Failed to load document';
     } finally {
-        docPageLoading.value = false;
+        fullDocLoading.value = false;
     }
 }
 
 const displayedDocContent = computed(() => {
-    if (isMultiPageDoc.value) return docPageContent.value;
+    if (fullDocPages.value.length > 0) return fullDocPages.value.join('\n\n');
     return docContent.value ?? '';
 });
 
@@ -238,11 +240,11 @@ async function saveDocEdit() {
     docEditSaving.value = true;
     docEditError.value = null;
     try {
-        const body: { content: string; page?: number } = { content: docEditContent.value };
-        if (isMultiPageDoc.value) body.page = docPageCurrent.value;
-        await api.patch(`/dashboard/api/data/${record.value.id}/doc-content`, body);
+        await api.patch(`/dashboard/api/data/${record.value.id}/doc-content`, {
+            content: docEditContent.value,
+        });
         await fetchRecord();
-        if (isMultiPageDoc.value) await fetchDocPage(docPageCurrent.value);
+        await fetchDocFullContent();
         cancelDocEdit();
     } catch (e: unknown) {
         const err = e as { response?: { data?: { message?: string } }; message?: string };
@@ -255,18 +257,23 @@ async function saveDocEdit() {
 function goToDocPage(page: number) {
     const total = docPageCount.value;
     const p = Math.max(1, Math.min(total, page));
+    if (docEditing.value) cancelDocEdit();
     docPageCurrent.value = p;
-    fetchDocPage(p);
+    nextTick(() => {
+        const el = document.getElementById(`doc-section-${p}`);
+        el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
 }
 
 watch(
-    () => [record.value?.id, isDocData.value, isMultiPageDoc.value] as const,
-    ([id, isDoc, multi]: [number | undefined, boolean, boolean]) => {
-        if (id && isDoc && multi) {
+    () => [record.value?.id, isDocData.value] as const,
+    ([id, isDoc]: [number | undefined, boolean]) => {
+        if (id && isDoc) {
             docPageCurrent.value = 1;
-            fetchDocPage(1);
-        } else if (!multi) {
-            docPageContent.value = '';
+            fullDocPages.value = [];
+            fetchDocFullContent();
+        } else {
+            fullDocPages.value = [];
         }
     },
 );
@@ -301,6 +308,19 @@ const appendFileInput = ref<HTMLInputElement | null>(null);
 const appendCameraPhoto = ref<HTMLInputElement | null>(null);
 const appendCameraVideo = ref<HTMLInputElement | null>(null);
 const ACCEPT_TABLE_UPLOAD = 'image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm';
+
+// —— Doc append (append from photo/video) ——
+const appendDocOpen = ref(false);
+const appendDocFile = ref<File | null>(null);
+const appendDocLoading = ref(false);
+const appendDocProgress = ref(0);
+const appendDocPhase = ref<'uploading' | 'extracting'>('uploading');
+const appendDocError = ref<string | null>(null);
+const appendDocSuccess = ref(false);
+const appendDocFileInput = ref<HTMLInputElement | null>(null);
+const appendDocCameraPhoto = ref<HTMLInputElement | null>(null);
+const appendDocCameraVideo = ref<HTMLInputElement | null>(null);
+const ACCEPT_DOC_UPLOAD = 'image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm';
 let searchDebounce: ReturnType<typeof setTimeout> | null = null;
 
 async function fetchRecord() {
@@ -383,6 +403,10 @@ async function confirmDeleteRow() {
         await api.delete(`/dashboard/api/data/${record.value.id}/rows/${rowToDelete.value.id}`);
         await fetchRecord();
         await fetchTableRows();
+        if (tableRows.value.length === 0 && tablePage.value > 1) {
+            tablePage.value--;
+            await fetchTableRows();
+        }
         closeDeleteRow();
     } catch (e: unknown) {
         const err = e as { response?: { data?: { message?: string } }; message?: string };
@@ -401,6 +425,10 @@ async function deleteSelectedRows(rows: TableRowRecord[]) {
         }
         await fetchRecord();
         await fetchTableRows();
+        if (tableRows.value.length === 0 && tablePage.value > 1) {
+            tablePage.value--;
+            await fetchTableRows();
+        }
     } catch (e: unknown) {
         const err = e as { response?: { data?: { message?: string } }; message?: string };
         rowsError.value = err.response?.data?.message ?? err.message ?? 'Failed to delete rows';
@@ -511,6 +539,114 @@ async function submitAppendUpload() {
         appendError.value = err.response?.data?.message ?? err.message ?? 'Failed to add rows';
     } finally {
         appendLoading.value = false;
+    }
+}
+
+function openAppendDocDialog() {
+    appendDocError.value = null;
+    appendDocSuccess.value = false;
+    appendDocFile.value = null;
+    appendDocOpen.value = true;
+}
+
+function closeAppendDocDialog() {
+    appendDocOpen.value = false;
+    appendDocFile.value = null;
+    appendDocError.value = null;
+    appendDocSuccess.value = false;
+}
+
+function onAppendDocFileChange(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (file) appendDocFile.value = file;
+}
+
+function onAppendDocDrop(e: DragEvent) {
+    e.preventDefault();
+    const file = e.dataTransfer?.files?.[0];
+    if (file) appendDocFile.value = file;
+}
+
+function openAppendDocFilePicker() {
+    appendDocError.value = null;
+    appendDocSuccess.value = false;
+    appendDocFileInput.value?.click();
+}
+
+function openAppendDocCameraPhoto() {
+    appendDocError.value = null;
+    appendDocSuccess.value = false;
+    appendDocCameraPhoto.value?.click();
+}
+
+function openAppendDocCameraVideo() {
+    appendDocError.value = null;
+    appendDocSuccess.value = false;
+    appendDocCameraVideo.value?.click();
+}
+
+async function submitAppendDoc() {
+    const file = appendDocFile.value;
+    if (!file || !record.value) return;
+    const allowed = [
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'image/webp',
+        'video/mp4',
+        'video/webm',
+    ];
+    if (!allowed.includes(file.type)) {
+        appendDocError.value = 'Allowed: images (JPEG, PNG, GIF, WebP) or video (MP4, WebM).';
+        return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+        appendDocError.value = 'File must be under 20 MB.';
+        return;
+    }
+    appendDocLoading.value = true;
+    appendDocProgress.value = 0;
+    appendDocPhase.value = 'uploading';
+    appendDocError.value = null;
+    appendDocSuccess.value = false;
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+        await api.post<{ added: number; message?: string }>(
+            `/dashboard/api/data/${record.value.id}/append-doc`,
+            formData,
+            {
+                timeout: 120000,
+                onUploadProgress(ev: { loaded: number; total?: number }) {
+                    if (ev.total && ev.total > 0) {
+                        appendDocProgress.value = Math.round((ev.loaded / ev.total) * 100);
+                        if (appendDocProgress.value >= 100) appendDocPhase.value = 'extracting';
+                    }
+                },
+            },
+        );
+        appendDocProgress.value = 100;
+        appendDocPhase.value = 'extracting';
+        appendDocSuccess.value = true;
+        appendDocFile.value = null;
+        if (appendDocFileInput.value) appendDocFileInput.value.value = '';
+        if (appendDocCameraPhoto.value) appendDocCameraPhoto.value.value = '';
+        if (appendDocCameraVideo.value) appendDocCameraVideo.value.value = '';
+        await fetchRecord();
+        await fetchDocFullContent();
+        if (isMultiPageDoc.value) {
+            docPageCurrent.value = docPageCount.value;
+            nextTick(() => {
+                document.getElementById(`doc-section-${docPageCount.value}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        }
+        setTimeout(() => { appendDocSuccess.value = false; }, 3000);
+    } catch (e: unknown) {
+        const err = e as { response?: { data?: { message?: string } }; message?: string };
+        appendDocError.value = err.response?.data?.message ?? err.message ?? 'Failed to append to document';
+    } finally {
+        appendDocLoading.value = false;
     }
 }
 
@@ -633,7 +769,7 @@ async function askAi(prompt?: string) {
                         if (parsed.data_updated && record.value) {
                             await fetchRecord();
                             if (isTableData.value) await fetchTableRows();
-                            if (isDocData.value && isMultiPageDoc.value) await fetchDocPage(docPageCurrent.value);
+                            if (isDocData.value) await fetchDocFullContent();
                         }
                     } catch {
                         if (data && data !== '[DONE]') {
@@ -663,7 +799,7 @@ async function askAi(prompt?: string) {
                     if (parsed.data_updated && record.value) {
                         await fetchRecord();
                         if (isTableData.value) await fetchTableRows();
-                        if (isDocData.value && isMultiPageDoc.value) await fetchDocPage(docPageCurrent.value);
+                        if (isDocData.value) await fetchDocFullContent();
                     }
                 } catch {
                     const last = messages.value[assistantIndex];
@@ -1109,11 +1245,12 @@ const aiModelLabel = computed(() => {
                                     <DataShowDocView
                                         v-if="isDocData"
                                         :doc-search="docSearch"
+                                        :doc-sections="fullDocPages"
                                         :displayed-content="displayedDocContentFiltered"
                                         :doc-page-count="docPageCount"
                                         :doc-page-current="docPageCurrent"
-                                        :is-multi-page="isMultiPageDoc"
-                                        :doc-page-loading="docPageLoading"
+                                        :is-multi-page="fullDocPages.length > 1"
+                                        :doc-page-loading="fullDocLoading"
                                         :doc-page-error="docPageError"
                                         :doc-editing="docEditing"
                                         :doc-edit-content="docEditContent"
@@ -1127,6 +1264,7 @@ const aiModelLabel = computed(() => {
                                         @save-edit="saveDocEdit"
                                         @go-to-page="goToDocPage"
                                         @copy="copyDocToClipboard"
+                                        @open-append-doc="openAppendDocDialog"
                                         @update:copy-tooltip-open="(v) => { if (!copyDocFeedback) copyDocTooltipOpen = v === false ? undefined : v }"
                                         @update:doc-edit-content="docEditContent = $event"
                                     />
@@ -1291,6 +1429,53 @@ const aiModelLabel = computed(() => {
                             @confirm="confirmDeleteRow"
                             @close="closeDeleteRow"
                         />
+
+                        <DataAppendDocDialog
+                            v-if="isDocData"
+                            :open="appendDocOpen"
+                            :append-file="appendDocFile"
+                            :append-loading="appendDocLoading"
+                            :append-progress="appendDocProgress"
+                            :append-phase="appendDocPhase"
+                            :append-error="appendDocError"
+                            :append-success="appendDocSuccess"
+                            @update:open="appendDocOpen = $event"
+                            @append-file-change="onAppendDocFileChange"
+                            @append-drop="onAppendDocDrop"
+                            @open-append-file-picker="openAppendDocFilePicker"
+                            @open-append-camera-photo="openAppendDocCameraPhoto"
+                            @open-append-camera-video="openAppendDocCameraVideo"
+                            @submit-append-doc="submitAppendDoc"
+                            @close="closeAppendDocDialog"
+                        >
+                            <template #file-inputs>
+                                <input
+                                    ref="appendDocFileInput"
+                                    type="file"
+                                    :accept="ACCEPT_DOC_UPLOAD"
+                                    class="hidden"
+                                    @change="onAppendDocFileChange"
+                                />
+                                <input
+                                    ref="appendDocCameraPhoto"
+                                    type="file"
+                                    accept="image/*"
+                                    capture="environment"
+                                    class="hidden"
+                                    aria-label="Take a picture"
+                                    @change="onAppendDocFileChange"
+                                />
+                                <input
+                                    ref="appendDocCameraVideo"
+                                    type="file"
+                                    accept="video/*"
+                                    capture="environment"
+                                    class="hidden"
+                                    aria-label="Record video"
+                                    @change="onAppendDocFileChange"
+                                />
+                            </template>
+                        </DataAppendDocDialog>
                     </div>
                 </div>
 

@@ -273,6 +273,101 @@ class DigitalizeController extends Controller
     }
 
     /**
+     * Append content to an existing document from an uploaded photo or video.
+     * Extracted content is merged as new page(s). AI is instructed not to duplicate content.
+     */
+    public function appendToDoc(Request $request, Data $data): JsonResponse
+    {
+        if ($data->user_id !== $request->user()->id) {
+            abort(404);
+        }
+        $digital = $data->digital_data;
+        if (! is_array($digital) || ($digital['type'] ?? null) !== 'doc') {
+            return response()->json(['message' => 'This record is not a document. Appending is only supported for documents.'], 422);
+        }
+
+        $allowedMimes = array_merge(self::IMAGE_MIMES, self::VIDEO_MIMES);
+        $digitalizeProviders = array_keys(config('ai.digitalize_providers', []));
+        $request->validate([
+            'file' => ['required', 'file', 'mimetypes:'.implode(',', $allowedMimes), 'max:20480'],
+            'ai_provider' => 'nullable|string|in:'.implode(',', $digitalizeProviders),
+            'ai_model' => 'nullable|string|max:255',
+        ]);
+        $uploaded = $request->file('file');
+        $mimeType = $uploaded->getMimeType();
+        if (! in_array($mimeType, $allowedMimes, true)) {
+            return response()->json(['message' => 'Allowed: images (JPEG, PNG, GIF, WebP) or video (MP4, WebM).'], 422);
+        }
+
+        $decoded = $uploaded->get();
+        $base64 = base64_encode($decoded);
+        $isImage = in_array($mimeType, self::IMAGE_MIMES, true);
+
+        Log::info('[digitalize] appendToDoc: start', [
+            'data_id' => $data->id,
+            'mime' => $mimeType,
+            'size_bytes' => strlen($decoded),
+            'input_type' => $isImage ? 'image' : 'video',
+        ]);
+
+        $attachments = $this->attachmentsForDigitalize($isImage, $decoded, $base64, $mimeType);
+        $requestProvider = $request->input('ai_provider');
+        $requestModel = $request->input('ai_model') ?: null;
+        $agent = $this->digitalizeAgentForProvider($requestProvider);
+
+        $promptSuffix = 'This content will be appended to an existing document. Extract only new content; do not repeat or duplicate content that appears in more than one image, and omit any text that is likely already in the document (e.g. repeated headers or titles).';
+        $response = $this->runDigitalizeExtraction($agent, $attachments, $requestProvider, $requestModel, $promptSuffix);
+
+        $effectiveProvider = $requestProvider ?: config('ai.default');
+        if ($effectiveProvider === 'nova') {
+            $response = $this->normalizeDigitalizeResponse($response);
+        }
+
+        $type = $response['type'] ?? 'doc';
+        if ($type !== 'doc') {
+            return response()->json(['message' => 'The upload did not contain document content. Use a photo or video of text to append to the document.'], 422);
+        }
+
+        $existingPages = $digital['doc_pages'] ?? null;
+        if (is_array($existingPages) && $existingPages !== []) {
+            $existingParts = $existingPages;
+        } else {
+            $content = (string) ($digital['content'] ?? '');
+            $existingParts = $content !== '' ? [$content] : [];
+        }
+
+        $newPages = $response['doc_pages'] ?? null;
+        if (is_array($newPages) && $newPages !== []) {
+            $newParts = $newPages;
+        } else {
+            $c = $response['content'] ?? '';
+            $newParts = is_string($c) && $c !== '' ? [$c] : [];
+        }
+
+        if ($newParts === []) {
+            return response()->json(['message' => 'No new content was extracted from the upload.'], 422);
+        }
+
+        $merged = array_merge($existingParts, $newParts);
+        $digital['doc_page_count'] = count($merged);
+        $digital['doc_pages'] = $merged;
+        $digital['content'] = implode("\n\n", $merged);
+        $data->update(['digital_data' => $digital]);
+
+        $added = count($newParts);
+        Log::info('[digitalize] appendToDoc: complete', [
+            'data_id' => $data->id,
+            'pages_added' => $added,
+            'total_pages' => count($merged),
+        ]);
+
+        return response()->json([
+            'added' => $added,
+            'message' => $added === 1 ? '1 page added to document.' : "{$added} pages added to document.",
+        ], 201);
+    }
+
+    /**
      * Return available AI providers and models for digitalize (frontend selector).
      */
     public function digitalizeOptions(): JsonResponse
@@ -339,9 +434,10 @@ class DigitalizeController extends Controller
      * Run digitalize extraction: one AI call, or batched calls when frame count exceeds batch_size.
      *
      * @param  array<int, \Laravel\Ai\Files\Image|\Laravel\Ai\Files\Document>  $attachments
+     * @param  string|null  $promptSuffix  Optional instruction appended to the prompt (e.g. for append-to-doc).
      * @return array<string, mixed>
      */
-    private function runDigitalizeExtraction(DigitalizeAgent|DigitalizeAgentNova $agent, array $attachments, ?string $requestProvider, ?string $requestModel): array
+    private function runDigitalizeExtraction(DigitalizeAgent|DigitalizeAgentNova $agent, array $attachments, ?string $requestProvider, ?string $requestModel, ?string $promptSuffix = null): array
     {
         $batchSize = (int) config('video_extract.batch_size', 20);
         $useBatches = $batchSize > 0 && count($attachments) > $batchSize;
@@ -351,7 +447,7 @@ class DigitalizeController extends Controller
                 'attachment_count' => count($attachments),
                 'provider' => $requestProvider,
             ]);
-            $prompt = $this->digitalizePrompt($attachments);
+            $prompt = $this->digitalizePrompt($attachments).($promptSuffix !== null ? ' '.$promptSuffix : '');
             $response = $agent->prompt(
                 $prompt,
                 attachments: $attachments,
@@ -385,7 +481,8 @@ class DigitalizeController extends Controller
                 'frame_range' => "{$start}-{$end}",
                 'images_in_batch' => count($batch),
             ]);
-            $prompt = 'Extract all content from these images (frames '.$start.'–'.$end.' of a video, one frame per second). Return structured JSON with type (doc or table) and content as described in your instructions. Do not repeat or duplicate content that appears in more than one image.';
+            $batchPromptSuffix = $promptSuffix !== null ? ' '.$promptSuffix : '';
+            $prompt = 'Extract all content from these images (frames '.$start.'–'.$end.' of a video, one frame per second). Return structured JSON with type (doc or table) and content as described in your instructions. Do not repeat or duplicate content that appears in more than one image.'.$batchPromptSuffix;
             $response = $agent->prompt(
                 $prompt,
                 attachments: $batch,

@@ -207,7 +207,7 @@ function chatTitle(chat: SavedChat): string {
 </script>
 
 <template>
-    <div class="flex h-[60vh] min-h-[320px] max-h-[560px] flex-col p-3 sm:p-4">
+    <div class="flex flex-col p-3 pb-4 sm:p-4 min-h-[280px] max-h-[45vh] sm:min-h-[320px] sm:h-[60vh] sm:max-h-[560px]">
         <div
             ref="chatScrollRef"
             class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto rounded-lg py-2"
@@ -284,26 +284,21 @@ function chatTitle(chat: SavedChat): string {
                 </div>
             </template>
         </div>
-        <div class="mt-4 shrink-0 space-y-4 sm:mt-3 sm:space-y-3">
+        <div class="mt-2 shrink-0 space-y-2 sm:mt-3 sm:space-y-4">
             <p
                 v-if="aiModelLabel"
-                class="px-2 text-xs text-muted-foreground"
+                class="hidden px-2 text-xs text-muted-foreground sm:block"
                 title="Same model used when this data was extracted"
             >
                 Using: {{ aiModelLabel }}
             </p>
             <template v-if="messages.length === 0">
-                <p class="hidden px-2 pt-1 pb-2 text-center text-sm text-muted-foreground sm:block sm:pb-1">
-                    Ask anything about
-                    <span class="inline-block font-bold text-lg text-foreground">{{ recordName || 'this data' }}</span>
-                    . Type below or click a suggestion below.
-                </p>
                 <div
                     v-if="suggestedPrompts.length > 0"
-                    class="flex flex-wrap justify-center gap-1.5 px-1 py-1.5 sm:gap-2.5 sm:px-2 sm:py-2"
+                    class="flex flex-wrap justify-center gap-1.5 px-1 py-1 sm:gap-2.5 sm:px-2 sm:py-2"
                 >
                     <button
-                        v-for="(p, i) in suggestedPrompts"
+                        v-for="(p, i) in suggestedPrompts.slice(0, 2)"
                         :key="i"
                         type="button"
                         class="inline-flex cursor-pointer items-center rounded border border-input bg-muted/50 px-2 py-1 text-[11px] leading-tight text-foreground transition-colors hover:bg-muted hover:border-primary/50 sm:rounded-lg sm:border-2 sm:px-3 sm:py-1.5 sm:text-sm"
@@ -312,32 +307,8 @@ function chatTitle(chat: SavedChat): string {
                         {{ p }}
                     </button>
                 </div>
-                <div
-                    v-if="insights.length > 0"
-                    class="hidden sm:mx-2 sm:flex sm:flex-wrap sm:justify-center sm:gap-1.5 sm:border-t sm:border-border/60 sm:pt-3 sm:pb-1"
-                >
-                    <span
-                        v-for="(insight, i) in insights"
-                        :key="i"
-                        class="rounded-md bg-muted/40 px-2 py-1 text-xs text-muted-foreground"
-                    >
-                        {{ insight }}
-                    </span>
-                </div>
             </template>
-            <div class="flex flex-col gap-3 pt-1 sm:gap-2 sm:pt-0">
-                <div class="flex flex-wrap items-center gap-2">
-                    <button
-                        type="button"
-                        class="inline-flex items-center gap-1.5 rounded-lg border border-sidebar-border/70 bg-muted/50 px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted dark:border-sidebar-border"
-                        :disabled="askLoading"
-                        title="Start a new chat"
-                        @click="emit('newChat')"
-                    >
-                        <MessageSquarePlus class="h-3.5 w-3.5" />
-                        New chat
-                    </button>
-                </div>
+            <div class="flex flex-col gap-2 pt-0 sm:gap-2 sm:pt-0">
                 <div
                     v-if="isListening"
                     class="flex items-center gap-3 rounded-lg border-2 border-primary/40 bg-primary/10 px-3 py-2"
@@ -359,7 +330,7 @@ function chatTitle(chat: SavedChat): string {
                 </div>
                 <div
                     v-if="attachments.length > 0"
-                    class="flex flex-wrap items-center gap-2 pb-2"
+                    class="flex flex-wrap items-center gap-2 pb-1.5 sm:pb-2"
                 >
                     <div
                         v-for="(file, i) in attachments"
@@ -392,8 +363,8 @@ function chatTitle(chat: SavedChat): string {
                         </div>
                     </div>
                 </div>
-                <div class="flex flex-wrap items-end gap-2">
-                    <div class="flex min-w-0 flex-1 items-center gap-2 rounded-lg border-2 border-input bg-background focus-within:ring-2 focus-within:ring-ring">
+                <div class="flex flex-nowrap items-center gap-2">
+                    <div class="flex min-w-0 flex-1 items-center gap-1.5 rounded-lg border-2 border-input bg-background focus-within:ring-2 focus-within:ring-ring sm:gap-2">
                         <input
                             ref="fileInputRef"
                             type="file"
@@ -405,48 +376,48 @@ function chatTitle(chat: SavedChat): string {
                         />
                         <button
                             type="button"
-                            class="shrink-0 rounded p-2 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+                            class="shrink-0 rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50 sm:p-2"
                             :disabled="askLoading"
                             title="Attach file to send to AI"
                             aria-label="Attach file"
                             @click="fileInputRef?.click()"
                         >
-                            <Paperclip class="h-4 w-4" />
+                            <Paperclip class="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                         </button>
                         <textarea
                             v-model="question"
-                            class="min-h-[44px] min-w-0 flex-1 resize-none rounded-lg border-0 bg-transparent px-2 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
-                            placeholder="Ask about this data… or speak / attach a file"
+                            class="min-h-[40px] min-w-0 flex-1 resize-none rounded-lg border-0 bg-transparent px-2 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none sm:min-h-[44px] sm:py-2"
+                            placeholder="Ask about this data…"
                             rows="1"
                             @keydown.enter.exact.prevent="submitQuestion"
                         />
                         <button
                             v-if="speechSupported"
                             type="button"
-                            class="shrink-0 rounded p-2 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+                            class="shrink-0 rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50 sm:p-2"
                             :disabled="askLoading"
                             :title="isListening ? 'Listening…' : 'Speak your question'"
                             aria-label="Speak"
                             :class="{ 'bg-primary/20 text-primary': isListening }"
                             @click="startSpeechInput"
                         >
-                            <Mic class="h-4 w-4" />
+                            <Mic class="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                         </button>
                     </div>
                     <button
                         type="button"
-                        class="min-h-[44px] w-full shrink-0 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 sm:w-auto sm:py-2"
+                        class="h-[40px] shrink-0 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 sm:h-[44px] sm:px-4 sm:py-2 sm:text-sm"
                         :disabled="askLoading || (!question.trim() && !isListening && attachments.length === 0)"
                         @click="submitQuestion"
                     >
-                        {{ askLoading ? '…' : isListening ? 'Stop & send' : 'Send' }}
+                        {{ askLoading ? '…' : isListening ? 'Stop' : 'Send' }}
                     </button>
                 </div>
             </div>
             <p v-if="askError || savedChatError || speechError" class="text-sm text-destructive">
                 {{ askError ?? savedChatError ?? speechError }}
             </p>
-            <div v-if="savedChats.length > 0" class="border-t border-sidebar-border/70 pt-3">
+            <div v-if="savedChats.length > 0" class="border-t border-sidebar-border/70 pt-2 sm:pt-3">
                 <button
                     type="button"
                     class="flex w-full items-center gap-1.5 text-left text-sm font-medium text-foreground"

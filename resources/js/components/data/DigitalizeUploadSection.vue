@@ -1,12 +1,8 @@
 <script setup lang="ts">
 import { ChevronDown, Plus, Upload } from 'lucide-vue-next';
-import { computed, onMounted, ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import api from '@/lib/api';
-
-export type DigitalizeProviderOption = { id: string; name: string };
-export type DigitalizeOptionsResponse = { providers: DigitalizeProviderOption[]; default_provider: string };
 
 const props = withDefaults(
     defineProps<{
@@ -35,11 +31,6 @@ const uploadCount = ref<{ done: number; total: number }>({ done: 0, total: 0 });
 const extractingBatches = ref<{ done: number; total: number } | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
 const pendingFiles = ref<File[]>([]);
-
-const digitalizeOptions = ref<DigitalizeOptionsResponse | null>(null);
-const selectedProvider = ref('');
-
-const providerOptions = computed(() => digitalizeOptions.value?.providers ?? []);
 
 const ALLOWED_TYPES = [
     'image/jpeg',
@@ -128,9 +119,6 @@ type DigitalizeResponse = {
 async function postOneFile(file: File): Promise<{ status: number; data: DigitalizeResponse }> {
     const formData = new FormData();
     formData.append('file', file);
-    if (selectedProvider.value) {
-        formData.append('ai_provider', selectedProvider.value);
-    }
     const res = await api.post<DigitalizeResponse>('/dashboard/digitalize', formData, {
         timeout: 120000,
         onUploadProgress(ev: { loaded: number; total?: number }) {
@@ -150,9 +138,6 @@ async function postBatchFiles(files: File[]): Promise<{ status: number; data: Di
     const formData = new FormData();
     for (const file of files) {
         formData.append('files[]', file);
-    }
-    if (selectedProvider.value) {
-        formData.append('ai_provider', selectedProvider.value);
     }
     const res = await api.post<DigitalizeResponse>('/dashboard/digitalize/batch', formData, {
         timeout: 300000,
@@ -242,25 +227,10 @@ async function doUploadMultiple(files: File[]) {
     }
 }
 
-async function fetchDigitalizeOptions() {
-    try {
-        const { data } = await api.get<DigitalizeOptionsResponse>('/dashboard/api/digitalize-options');
-        digitalizeOptions.value = data;
-        if (selectedProvider.value) return;
-        const defaultId = data.providers.some((p: DigitalizeProviderOption) => p.id === data.default_provider)
-            ? data.default_provider
-            : data.providers[0]?.id ?? '';
-        selectedProvider.value = defaultId;
-    } catch {
-        digitalizeOptions.value = { providers: [], default_provider: '' };
-    }
-}
-
 onMounted(() => {
     if (props.storageKey && typeof localStorage !== 'undefined') {
         localStorage.setItem(props.storageKey, '1');
     }
-    fetchDigitalizeOptions();
 });
 </script>
 
@@ -287,17 +257,6 @@ onMounted(() => {
             <p class="mb-4 text-sm text-muted-foreground">
                 Add a photo or video — we’ll extract the text or table and save it as an item in your workspace. You can edit it, chart it, and ask AI to change it anytime.
             </p>
-            <div v-if="providerOptions.length > 0" class="mb-4 w-full">
-                <Label for="upload-ai-provider" class="text-xs font-medium text-muted-foreground">AI provider</Label>
-                <select
-                    id="upload-ai-provider"
-                    v-model="selectedProvider"
-                    class="mt-1 block w-full rounded-lg border-2 border-primary/50 bg-background px-3 py-2 text-sm ring-2 ring-primary/20 focus:border-primary focus:outline-none focus:ring-primary/40 disabled:opacity-50"
-                    :disabled="uploadLoading"
-                >
-                    <option v-for="p in providerOptions" :key="p.id" :value="p.id">{{ p.name }}</option>
-                </select>
-            </div>
             <input
                 ref="fileInput"
                 type="file"

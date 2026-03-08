@@ -1133,7 +1133,7 @@ function exportToExcel() {
     );
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, record.value.name.slice(0, 31) || 'Data');
+    XLSX.utils.book_append_sheet(wb, ws, (record.value.name || 'Data').slice(0, 31));
     XLSX.writeFile(wb, `${record.value.name || 'export'}.xlsx`);
 }
 
@@ -1295,10 +1295,17 @@ function exportToPdf(docContentOverride?: string) {
 async function exportToPdfAsync() {
     if (!record.value) return;
     if (isDocData.value && isMultiPageDoc.value) {
-        const { data } = await api.get<{ content: string }>(
+        const { data } = await api.get<{ content: string; pages?: string[] }>(
             `/dashboard/api/data/${record.value.id}/doc-content`,
         );
-        exportToPdf(data.content ?? '');
+        const pages = data.pages;
+        const content =
+            Array.isArray(pages) && pages.length > 0
+                ? pages
+                      .map((p, i) => `Page ${i + 1}:\n\n${(p ?? '').trim()}`)
+                      .join('\n\n')
+                : data.content ?? '';
+        exportToPdf(content);
     } else {
         exportToPdf();
     }
@@ -1427,8 +1434,13 @@ const canChart = computed(
         (tableData.value.headers?.length ?? 0) >= 2 &&
         (tableData.value.rows?.length ?? 0) > 0,
 );
-const canExportExcel = computed(() => !!tableData.value && !!record.value);
-const canExportPdf = computed(() => (!!tableData.value || isDocData.value) && !!record.value);
+const canExportExcel = computed(
+    () => !!(tableData.value?.headers?.length) && !!record.value,
+);
+const canExportPdf = computed(
+    () =>
+        (!!(tableData.value?.headers?.length) || isDocData.value) && !!record.value,
+);
 
 /** URL for the original file (same-origin so auth cookie is sent). */
 const originalFileUrl = computed(() =>

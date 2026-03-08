@@ -34,7 +34,7 @@ function onUploaded() {
                 <ul class="list-inside list-disc space-y-2 text-sm font-semibold text-foreground sm:text-base">
                     <li>Upload photos or video of notes, logs, or tables → saved docs or tables.</li>
                     <li><strong>Search</strong>, get <strong>metrics and charts</strong> from your data.</li>
-                    <li>Edit, Chat with data, and <strong>ask AI</strong> to do things with your data.</li>
+                    <li>Edit, Chat with with data, and <strong>ask AI</strong> to do things with your data.</li>
                     <li>Export to Excel, PDF, or JSON.</li>
                 </ul>
             </header>

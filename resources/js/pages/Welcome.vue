@@ -222,7 +222,7 @@ const pageTitle = computed(() =>
                             </p>
                         </div>
                     </div>
-                    <!-- 2. Chat with data -->
+                    <!-- 2. Chat with your data -->
                     <div class="flex gap-4">
                         <span
                             class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"

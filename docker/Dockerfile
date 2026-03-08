@@ -1,5 +1,6 @@
 # Laravel Octane (FrankenPHP) + Supervisor for Render (web + worker)
 # Build: docker build -f docker/Dockerfile --build-arg DEPLOYMENT_TYPE=web -t app:latest .
+# With real-time (Pusher): add --build-arg VITE_PUSHER_APP_KEY=xxx --build-arg VITE_PUSHER_APP_CLUSTER=mt1
 # Worker: same with DEPLOYMENT_TYPE=worker
 
 FROM dunglas/frankenphp AS php-base
@@ -34,6 +35,8 @@ COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 # Remove this entire stage if your app has no frontend (API-only/backend). Also remove the
 # COPY --from=frontend and RUN block below that copy the frontend build into /app/public/build.
 # Set build arg SKIP_FRONTEND=1 to skip npm run build (e.g. if it fails on the platform).
+# Pass VITE_PUSHER_* so real-time updates work (no polling): e.g.
+#   --build-arg VITE_PUSHER_APP_KEY=your-key --build-arg VITE_PUSHER_APP_CLUSTER=mt1
 FROM node:20 AS frontend
 
 ARG SKIP_FRONTEND=0
@@ -47,6 +50,12 @@ COPY resources ./resources
 COPY vite.config.* ./
 COPY tailwind.config.* ./
 COPY postcss.config.* ./
+
+# Vite keys only here so changing them invalidates just this layer (npm run build), not npm ci / COPY
+ARG VITE_PUSHER_APP_KEY
+ARG VITE_PUSHER_APP_CLUSTER
+ENV VITE_PUSHER_APP_KEY=${VITE_PUSHER_APP_KEY}
+ENV VITE_PUSHER_APP_CLUSTER=${VITE_PUSHER_APP_CLUSTER}
 
 RUN if [ "$SKIP_FRONTEND" = "1" ]; then mkdir -p public/build; else npm run build; fi
 # --- END FRONTEND ---

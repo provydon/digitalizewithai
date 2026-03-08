@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, usePage } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { useIntersectionObserver } from '@vueuse/core';
+import { computed, ref } from 'vue';
 import { dashboard, login, register } from '@/routes';
 
 withDefaults(
@@ -18,6 +19,16 @@ const pageTitle = computed(() =>
     branding.value.ai_attribution
         ? `${branding.value.name} — ${branding.value.ai_attribution}`
         : branding.value.name,
+);
+
+const featuresRef = ref<HTMLElement | null>(null);
+const isRevealed = ref(false);
+useIntersectionObserver(
+    featuresRef,
+    ([{ isIntersecting }]) => {
+        if (isIntersecting) isRevealed.value = true;
+    },
+    { threshold: 0.08, rootMargin: '0px 0px -40px 0px' },
 );
 </script>
 
@@ -198,10 +209,12 @@ const pageTitle = computed(() =>
                     From <strong>paper</strong> to searchable—one workspace
                 </h2>
                 <div
-                    class="grid gap-4 sm:gap-6 lg:grid-cols-2 lg:gap-8"
+                    ref="featuresRef"
+                    class="features-reveal grid gap-4 sm:gap-6 lg:grid-cols-2 lg:gap-8"
+                    :class="{ 'reveal-done': isRevealed }"
                 >
                     <!-- 1. Search (lead value) -->
-                    <div class="flex gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
+                    <div class="feature-card flex gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
                         <span
                             class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary"
                             aria-hidden
@@ -222,7 +235,7 @@ const pageTitle = computed(() =>
                         </div>
                     </div>
                     <!-- 2. Chat with your data -->
-                    <div class="flex gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
+                    <div class="feature-card flex gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
                         <span
                             class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary"
                             aria-hidden
@@ -241,7 +254,7 @@ const pageTitle = computed(() =>
                         </div>
                     </div>
                     <!-- 3. Let AI read out data with Audio -->
-                    <div class="flex gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
+                    <div class="feature-card flex gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
                         <span
                             class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary"
                             aria-hidden
@@ -260,7 +273,7 @@ const pageTitle = computed(() =>
                         </div>
                     </div>
                     <!-- 4. Take action with AI -->
-                    <div class="flex gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
+                    <div class="feature-card flex gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
                         <span
                             class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary"
                             aria-hidden
@@ -279,7 +292,7 @@ const pageTitle = computed(() =>
                         </div>
                     </div>
                     <!-- 5. Export / ship to your tools -->
-                    <div class="flex gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
+                    <div class="feature-card flex gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
                         <span
                             class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary"
                             aria-hidden
@@ -298,7 +311,7 @@ const pageTitle = computed(() =>
                         </div>
                     </div>
                     <!-- 6. Start from physical (reframed: get data in, not “keep forever”) -->
-                    <div class="flex gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
+                    <div class="feature-card flex gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
                         <span
                             class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary"
                             aria-hidden

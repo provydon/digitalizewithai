@@ -344,7 +344,8 @@ defineExpose({
             >
                 <FileText class="h-12 w-12 text-muted-foreground/70" aria-hidden />
                 <p class="text-sm text-muted-foreground">
-                    {{ listSearch.trim() ? 'No items match your search.' : 'No items yet. Add one above.' }}
+                    <template v-if="listSearch.trim()">No items match your search.</template>
+                    <template v-else>No data yet. Click the <strong class="font-semibold text-foreground">Add Data</strong> button above to add data.</template>
                 </p>
             </div>
             <template v-else>

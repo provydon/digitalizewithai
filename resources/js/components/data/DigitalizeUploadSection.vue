@@ -25,7 +25,7 @@ const emit = defineEmits<{
 const ACCEPT =
     'image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm';
 
-const uploadSectionOpen = ref(!(props.storageKey && typeof localStorage !== 'undefined' ? localStorage.getItem(props.storageKey) : null));
+const uploadSectionOpen = ref(false);
 const uploadLoading = ref(false);
 const uploadProgress = ref(0);
 const uploadPhase = ref<'uploading' | 'extracting'>('uploading');
@@ -273,9 +273,9 @@ onMounted(() => {
             class="w-full cursor-pointer justify-center rounded-xl border border-gray-200 bg-white px-4 py-3 text-left font-medium text-gray-900 shadow-sm transition-colors hover:bg-gray-50 sm:w-auto sm:min-w-[200px]"
             @click="uploadSectionOpen = !uploadSectionOpen"
         >
-            <span class="flex items-center gap-2">
+                <span class="flex items-center gap-2">
                 <Plus class="h-5 w-5 shrink-0 text-primary" />
-                Add new
+                Add Data
             </span>
             <ChevronDown class="h-4 w-4 shrink-0 font-bold transition-transform duration-200" :class="{ 'rotate-180': uploadSectionOpen }" />
         </Button>

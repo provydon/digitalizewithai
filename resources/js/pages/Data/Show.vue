@@ -63,8 +63,9 @@ const breadcrumbs = computed<BreadcrumbItem[]>(() => {
     const items: BreadcrumbItem[] = [{ title: 'Dashboard', href: dashboard() }];
     if (props.from === 'data') {
         items.push({ title: 'Data', href: '/data' });
+    } else {
+        items.push({ title: 'Data', href: '#' });
     }
-    items.push({ title: record.value?.name ?? '…', href: '#' });
     return items;
 });
 

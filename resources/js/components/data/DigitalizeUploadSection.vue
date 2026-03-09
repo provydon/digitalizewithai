@@ -19,7 +19,7 @@ const emit = defineEmits<{
 }>();
 
 const ACCEPT =
-    'image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm';
+    'image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm,video/*,.mov,.mp4,.m4v';
 
 const uploadSectionOpen = ref(false);
 const uploadLoading = ref(false);
@@ -38,19 +38,33 @@ const ALLOWED_TYPES = [
     'image/gif',
     'image/webp',
     'video/mp4',
-    'video/quicktime', // iPhone records as .mov (QuickTime)
+    'video/quicktime',
     'video/webm',
 ] as const;
+
+const VIDEO_EXTENSIONS = ['.mp4', '.mov', '.webm', '.m4v'];
+
+/** iOS can report wrong or empty MIME type for videos; allow by extension as fallback. */
+function isAllowedFile(file: File): boolean {
+    const type = file.type?.toLowerCase() ?? '';
+    const name = (file.name ?? '').toLowerCase();
+    const ext = name.includes('.') ? name.slice(name.lastIndexOf('.')) : '';
+
+    if (file.size > maxFileSizeBytes.value) return false;
+
+    if (ALLOWED_TYPES.includes(type as typeof ALLOWED_TYPES[number])) return true;
+    if (type.startsWith('video/')) return true;
+    if (!type && VIDEO_EXTENSIONS.some((e) => ext === e)) return true;
+    if (type === 'image/jpeg' && VIDEO_EXTENSIONS.some((e) => ext === e)) return true;
+
+    return false;
+}
 
 /** Max file size in bytes; synced from backend via digitalize-options (default 20 MB). */
 const maxFileSizeBytes = ref(20 * 1024 * 1024);
 
 function filterFiles(files: FileList | File[]): File[] {
-    return Array.from(files).filter((file) => {
-        if (!ALLOWED_TYPES.includes(file.type as typeof ALLOWED_TYPES[number])) return false;
-        if (file.size > maxFileSizeBytes.value) return false;
-        return true;
-    });
+    return Array.from(files).filter((file) => isAllowedFile(file));
 }
 
 function openFilePicker() {
@@ -67,6 +81,8 @@ function onFileChange(e: Event) {
     if (valid.length) {
         pendingFiles.value = valid;
         uploadError.value = null;
+    } else {
+        uploadError.value = 'Allowed: images (JPEG, PNG, GIF, WebP) or video (MP4, MOV, WebM). Or file may be too large.';
     }
     input.value = '';
 }
@@ -80,6 +96,8 @@ function onDrop(e: DragEvent) {
         uploadError.value = null;
         uploadSuccess.value = false;
         pendingFiles.value = valid;
+    } else {
+        uploadError.value = 'Allowed: images (JPEG, PNG, GIF, WebP) or video (MP4, MOV, WebM). Or file may be too large.';
     }
 }
 
@@ -157,7 +175,7 @@ async function postBatchFiles(files: File[]): Promise<{ status: number; data: Di
 }
 
 async function doUpload(file: File) {
-    if (!ALLOWED_TYPES.includes(file.type as typeof ALLOWED_TYPES[number])) {
+    if (!isAllowedFile(file)) {
         uploadError.value = 'Allowed: images (JPEG, PNG, GIF, WebP) or video (MP4, MOV, WebM).';
         return;
     }

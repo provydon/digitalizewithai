@@ -572,7 +572,32 @@ const appendSuccess = ref(false);
 const appendFileInput = ref<HTMLInputElement | null>(null);
 const appendCameraPhoto = ref<HTMLInputElement | null>(null);
 const appendCameraVideo = ref<HTMLInputElement | null>(null);
-const ACCEPT_TABLE_UPLOAD = 'image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm';
+const ACCEPT_TABLE_UPLOAD = 'image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm,video/*,.mov,.mp4,.m4v';
+
+const APPEND_ALLOWED_TYPES = [
+    'image/jpeg',
+    'image/png',
+    'image/gif',
+    'image/webp',
+    'video/mp4',
+    'video/quicktime',
+    'video/webm',
+];
+const VIDEO_EXTENSIONS = ['.mp4', '.mov', '.webm', '.m4v'];
+const APPEND_MAX_BYTES = 20 * 1024 * 1024;
+
+/** iOS can report wrong or empty MIME type for videos; allow by extension as fallback. */
+function isAllowedAppendFile(file: File): boolean {
+    if (file.size > APPEND_MAX_BYTES) return false;
+    const type = file.type?.toLowerCase() ?? '';
+    const name = (file.name ?? '').toLowerCase();
+    const ext = name.includes('.') ? name.slice(name.lastIndexOf('.')) : '';
+    if (APPEND_ALLOWED_TYPES.includes(type)) return true;
+    if (type.startsWith('video/')) return true;
+    if (!type && VIDEO_EXTENSIONS.some((e) => ext === e)) return true;
+    if (type === 'image/jpeg' && VIDEO_EXTENSIONS.some((e) => ext === e)) return true;
+    return false;
+}
 
 // —— Doc append (append from photo/video) ——
 const appendDocOpen = ref(false);
@@ -585,7 +610,7 @@ const appendDocSuccess = ref(false);
 const appendDocFileInput = ref<HTMLInputElement | null>(null);
 const appendDocCameraPhoto = ref<HTMLInputElement | null>(null);
 const appendDocCameraVideo = ref<HTMLInputElement | null>(null);
-const ACCEPT_DOC_UPLOAD = 'image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm';
+const ACCEPT_DOC_UPLOAD = 'image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm,video/*,.mov,.mp4,.m4v';
 let searchDebounce: ReturnType<typeof setTimeout> | null = null;
 
 async function fetchRecord() {
@@ -750,21 +775,8 @@ function openAppendCameraVideo() {
 async function submitAppendUpload() {
     const file = appendFile.value;
     if (!file || !record.value) return;
-    const allowed = [
-        'image/jpeg',
-        'image/png',
-        'image/gif',
-        'image/webp',
-        'video/mp4',
-        'video/quicktime',
-        'video/webm',
-    ];
-    if (!allowed.includes(file.type)) {
-        appendError.value = 'Allowed: images (JPEG, PNG, GIF, WebP) or video (MP4, MOV, WebM).';
-        return;
-    }
-    if (file.size > 20 * 1024 * 1024) {
-        appendError.value = 'File must be under 20 MB.';
+    if (!isAllowedAppendFile(file)) {
+        appendError.value = 'Allowed: images (JPEG, PNG, GIF, WebP) or video (MP4, MOV, WebM). Or file may be too large.';
         return;
     }
     appendLoading.value = true;
@@ -855,21 +867,8 @@ function openAppendDocCameraVideo() {
 async function submitAppendDoc() {
     const file = appendDocFile.value;
     if (!file || !record.value) return;
-    const allowed = [
-        'image/jpeg',
-        'image/png',
-        'image/gif',
-        'image/webp',
-        'video/mp4',
-        'video/quicktime',
-        'video/webm',
-    ];
-    if (!allowed.includes(file.type)) {
-        appendDocError.value = 'Allowed: images (JPEG, PNG, GIF, WebP) or video (MP4, MOV, WebM).';
-        return;
-    }
-    if (file.size > 20 * 1024 * 1024) {
-        appendDocError.value = 'File must be under 20 MB.';
+    if (!isAllowedAppendFile(file)) {
+        appendDocError.value = 'Allowed: images (JPEG, PNG, GIF, WebP) or video (MP4, MOV, WebM). Or file may be too large.';
         return;
     }
     appendDocLoading.value = true;

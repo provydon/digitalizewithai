@@ -35,10 +35,11 @@ class DigitalizeController extends Controller
         $allowedMimes = array_merge(self::IMAGE_MIMES, self::VIDEO_MIMES);
         $mimeRule = 'in:'.implode(',', $allowedMimes);
 
+        $maxKb = config('upload.max_file_size_mb', 20) * 1024;
         $digitalizeProviders = array_keys(config('ai.digitalize_providers', []));
         if ($request->hasFile('file')) {
             $request->validate([
-                'file' => ['required', 'file', 'mimetypes:'.implode(',', $allowedMimes), 'max:20480'],
+                'file' => ['required', 'file', 'mimetypes:'.implode(',', $allowedMimes), 'max:'.$maxKb],
                 'name' => 'nullable|string|max:255',
                 'ai_provider' => 'nullable|string|in:'.implode(',', $digitalizeProviders),
                 'ai_model' => 'nullable|string|max:255',
@@ -48,9 +49,9 @@ class DigitalizeController extends Controller
             if (! in_array($mimeType, $allowedMimes, true)) {
                 return response()->json(['message' => 'Allowed mime types: '.implode(', ', $allowedMimes)], 422);
             }
-            $decoded = $uploaded->get();
-            $base64 = base64_encode($decoded);
             $nameFromRequest = $request->input('name') ?: pathinfo($uploaded->getClientOriginalName(), PATHINFO_FILENAME);
+            $decoded = null;
+            $base64 = null;
         } else {
             $request->validate([
                 'file' => 'required|string',
@@ -91,12 +92,6 @@ class DigitalizeController extends Controller
         $requestProvider = $request->input('ai_provider');
         $requestModel = $request->input('ai_model') ?: null;
 
-        Log::info('[digitalize] store: start (async)', [
-            'mime' => $mimeType,
-            'size_bytes' => strlen($decoded),
-            'input_type' => $isImage ? 'image' : 'video',
-        ]);
-
         $disk = config('filesystems.default');
         $path = null;
 
@@ -104,8 +99,23 @@ class DigitalizeController extends Controller
             DB::beginTransaction();
 
             $ext = $this->mimeToExt($mimeType);
-            $path = 'digitalize/'.Str::uuid().'.'.$ext;
-            Storage::disk($disk)->put($path, $decoded);
+            $filename = Str::uuid().'.'.$ext;
+
+            if ($request->hasFile('file')) {
+                $uploaded = $request->file('file');
+                $path = Storage::disk($disk)->putFileAs('digitalize', $uploaded, $filename);
+                $sizeBytes = $uploaded->getSize();
+            } else {
+                $path = 'digitalize/'.$filename;
+                Storage::disk($disk)->put($path, $decoded);
+                $sizeBytes = strlen($decoded);
+            }
+
+            Log::info('[digitalize] store: start (async)', [
+                'mime' => $mimeType,
+                'size_bytes' => $sizeBytes,
+                'input_type' => $isImage ? 'image' : 'video',
+            ]);
 
             $initialName = $nameFromRequest !== null && $nameFromRequest !== '' ? pathinfo(trim($nameFromRequest), PATHINFO_FILENAME) : 'Processing…';
             $rawData = [
@@ -170,10 +180,11 @@ class DigitalizeController extends Controller
     {
         $allowedMimes = array_merge(self::IMAGE_MIMES, self::VIDEO_MIMES);
         $digitalizeProviders = array_keys(config('ai.digitalize_providers', []));
+        $maxKb = config('upload.max_file_size_mb', 20) * 1024;
 
         $request->validate([
             'files' => 'required|array',
-            'files.*' => ['required', 'file', 'mimetypes:'.implode(',', $allowedMimes), 'max:20480'],
+            'files.*' => ['required', 'file', 'mimetypes:'.implode(',', $allowedMimes), 'max:'.$maxKb],
             'ai_provider' => 'nullable|string|in:'.implode(',', $digitalizeProviders),
             'ai_model' => 'nullable|string|max:255',
         ]);
@@ -197,10 +208,9 @@ class DigitalizeController extends Controller
                 if (! in_array($mimeType, $allowedMimes, true)) {
                     throw new \InvalidArgumentException('Allowed mime types: '.implode(', ', $allowedMimes));
                 }
-                $decoded = $uploaded->get();
                 $ext = $this->mimeToExt($mimeType);
-                $path = 'digitalize/'.Str::uuid().'.'.$ext;
-                Storage::disk($disk)->put($path, $decoded);
+                $filename = Str::uuid().'.'.$ext;
+                $path = Storage::disk($disk)->putFileAs('digitalize', $uploaded, $filename);
                 $nameFromRequest = pathinfo($uploaded->getClientOriginalName(), PATHINFO_FILENAME);
                 if ($firstName === null && $nameFromRequest !== '') {
                     $firstName = $nameFromRequest;
@@ -488,9 +498,12 @@ class DigitalizeController extends Controller
             $options[] = $item;
         }
 
+        $maxFileSizeMb = config('upload.max_file_size_mb', 20);
+
         return response()->json([
             'providers' => $options,
             'default_provider' => $defaultProvider,
+            'max_file_size_bytes' => $maxFileSizeMb * 1024 * 1024,
         ]);
     }
 

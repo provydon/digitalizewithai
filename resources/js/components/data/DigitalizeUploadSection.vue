@@ -40,12 +40,14 @@ const ALLOWED_TYPES = [
     'video/mp4',
     'video/webm',
 ] as const;
-const MAX_SIZE = 20 * 1024 * 1024;
+
+/** Max file size in bytes; synced from backend via digitalize-options (default 20 MB). */
+const maxFileSizeBytes = ref(20 * 1024 * 1024);
 
 function filterFiles(files: FileList | File[]): File[] {
     return Array.from(files).filter((file) => {
         if (!ALLOWED_TYPES.includes(file.type as typeof ALLOWED_TYPES[number])) return false;
-        if (file.size > MAX_SIZE) return false;
+        if (file.size > maxFileSizeBytes.value) return false;
         return true;
     });
 }
@@ -158,8 +160,9 @@ async function doUpload(file: File) {
         uploadError.value = 'Allowed: images (JPEG, PNG, GIF, WebP) or video (MP4, WebM).';
         return;
     }
-    if (file.size > MAX_SIZE) {
-        uploadError.value = 'File must be under 20 MB.';
+    const maxMb = Math.round(maxFileSizeBytes.value / (1024 * 1024));
+    if (file.size > maxFileSizeBytes.value) {
+        uploadError.value = `File must be under ${maxMb} MB.`;
         return;
     }
 
@@ -227,9 +230,17 @@ async function doUploadMultiple(files: File[]) {
     }
 }
 
-onMounted(() => {
+onMounted(async () => {
     if (props.storageKey && typeof localStorage !== 'undefined') {
         localStorage.setItem(props.storageKey, '1');
+    }
+    try {
+        const res = await api.get<{ max_file_size_bytes?: number }>('/dashboard/api/digitalize-options');
+        if (typeof res.data?.max_file_size_bytes === 'number' && res.data.max_file_size_bytes > 0) {
+            maxFileSizeBytes.value = res.data.max_file_size_bytes;
+        }
+    } catch {
+        // keep default 20 MB
     }
 });
 </script>
@@ -284,7 +295,7 @@ onMounted(() => {
                     {{ pendingFiles.length ? (pendingFiles.length === 1 ? pendingFiles[0].name : `${pendingFiles.length} files selected`) : 'Drop photos, videos, or click to choose' }}
                 </p>
                 <p v-if="!pendingFiles.length" class="mt-1 text-xs text-muted-foreground">
-                    Images, MP4, WebM · max 20 MB each · multiple allowed
+                    Images, MP4, WebM · max {{ Math.round(maxFileSizeBytes / (1024 * 1024)) }} MB each · multiple allowed
                 </p>
                 <ul v-else-if="pendingFiles.length > 1 && !uploadLoading" class="mt-3 max-h-32 list-inside list-disc overflow-y-auto text-left text-xs text-muted-foreground">
                     <li v-for="(f, i) in pendingFiles" :key="i" class="flex items-center justify-between gap-2">

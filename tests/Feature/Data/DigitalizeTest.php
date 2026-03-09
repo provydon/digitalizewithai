@@ -3,6 +3,7 @@
 use App\Models\Data;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 
@@ -16,14 +17,26 @@ test('digitalize options requires authentication', function () {
     $response->assertStatus(401);
 });
 
-test('digitalize options returns providers and default for authenticated user', function () {
+test('digitalize options returns providers, default, and max_file_size_bytes', function () {
     $user = User::factory()->create();
     $this->actingAs($user);
 
     $response = $this->getJson(route('dashboard.api.digitalize-options'));
 
     $response->assertOk()
-        ->assertJsonStructure(['providers', 'default_provider']);
+        ->assertJsonStructure(['providers', 'default_provider', 'max_file_size_bytes'])
+        ->assertJsonPath('max_file_size_bytes', config('upload.max_file_size_mb', 20) * 1024 * 1024);
+});
+
+test('digitalize options max_file_size_bytes reflects config', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+    Config::set('upload.max_file_size_mb', 100);
+
+    $response = $this->getJson(route('dashboard.api.digitalize-options'));
+
+    $response->assertOk()
+        ->assertJsonPath('max_file_size_bytes', 100 * 1024 * 1024);
 });
 
 test('digitalize store requires authentication', function () {
@@ -55,6 +68,25 @@ test('digitalize store accepts image and creates data record', function () {
         'user_id' => $user->id,
         'status' => 'processing',
     ]);
+});
+
+test('digitalize store stores file on disk via streaming', function () {
+    $user = User::factory()->create();
+    $file = UploadedFile::fake()->image('photo.jpg', 100, 100);
+
+    $this->actingAs($user);
+    $response = $this->post(route('dashboard.digitalize'), [
+        'file' => $file,
+    ]);
+
+    $response->assertStatus(202);
+    $data = Data::find($response->json('id'));
+    expect($data)->not->toBeNull();
+    $raw = $data->raw_data;
+    expect($raw)->toHaveKey('disk');
+    expect($raw)->toHaveKey('path');
+    expect(Storage::disk($raw['disk'])->exists($raw['path']))->toBeTrue();
+    expect(Storage::disk($raw['disk'])->size($raw['path']))->toBeGreaterThan(0);
 });
 
 test('digitalize store rejects invalid mime type', function () {
@@ -103,6 +135,64 @@ test('digitalize store batch accepts multiple images and creates one data record
         'user_id' => $user->id,
         'status' => 'processing',
     ]);
+});
+
+test('digitalize store batch stores all files on disk', function () {
+    $user = User::factory()->create();
+    $files = [
+        UploadedFile::fake()->image('a.jpg', 100, 100),
+        UploadedFile::fake()->image('b.jpg', 100, 100),
+    ];
+
+    $this->actingAs($user);
+    $response = $this->post(route('dashboard.digitalize.batch'), [
+        'files' => $files,
+    ]);
+
+    $response->assertStatus(202);
+    $data = Data::find($response->json('id'));
+    expect($data)->not->toBeNull();
+    $raw = $data->raw_data;
+    expect($raw)->toHaveKey('files');
+    $filesMeta = $raw['files'];
+    expect($filesMeta)->toHaveCount(2);
+    foreach ($filesMeta as $entry) {
+        expect(Storage::disk($entry['disk'])->exists($entry['path']))->toBeTrue();
+        expect(Storage::disk($entry['disk'])->size($entry['path']))->toBeGreaterThan(0);
+    }
+});
+
+test('digitalize store rejects file over configured max size', function () {
+    $user = User::factory()->create();
+    Config::set('upload.max_file_size_mb', 20);
+    $maxKb = 20 * 1024;
+    $file = UploadedFile::fake()->create('large.jpg', $maxKb + 1024, 'image/jpeg');
+
+    $this->actingAs($user);
+    $response = $this->withHeaders(['Accept' => 'application/json'])
+        ->post(route('dashboard.digitalize'), [
+            'file' => $file,
+        ]);
+
+    $response->assertStatus(422);
+});
+
+test('digitalize store batch rejects file over configured max size', function () {
+    $user = User::factory()->create();
+    Config::set('upload.max_file_size_mb', 20);
+    $maxKb = 20 * 1024;
+    $files = [
+        UploadedFile::fake()->image('a.jpg', 100, 100),
+        UploadedFile::fake()->create('large.jpg', $maxKb + 1024, 'image/jpeg'),
+    ];
+
+    $this->actingAs($user);
+    $response = $this->withHeaders(['Accept' => 'application/json'])
+        ->post(route('dashboard.digitalize.batch'), [
+            'files' => $files,
+        ]);
+
+    $response->assertStatus(422);
 });
 
 test('append to table returns 422 for doc data', function () {

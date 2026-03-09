@@ -572,7 +572,7 @@ const appendSuccess = ref(false);
 const appendFileInput = ref<HTMLInputElement | null>(null);
 const appendCameraPhoto = ref<HTMLInputElement | null>(null);
 const appendCameraVideo = ref<HTMLInputElement | null>(null);
-const ACCEPT_TABLE_UPLOAD = 'image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm';
+const ACCEPT_TABLE_UPLOAD = 'image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm';
 
 // —— Doc append (append from photo/video) ——
 const appendDocOpen = ref(false);
@@ -585,7 +585,7 @@ const appendDocSuccess = ref(false);
 const appendDocFileInput = ref<HTMLInputElement | null>(null);
 const appendDocCameraPhoto = ref<HTMLInputElement | null>(null);
 const appendDocCameraVideo = ref<HTMLInputElement | null>(null);
-const ACCEPT_DOC_UPLOAD = 'image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm';
+const ACCEPT_DOC_UPLOAD = 'image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm';
 let searchDebounce: ReturnType<typeof setTimeout> | null = null;
 
 async function fetchRecord() {
@@ -756,10 +756,11 @@ async function submitAppendUpload() {
         'image/gif',
         'image/webp',
         'video/mp4',
+        'video/quicktime',
         'video/webm',
     ];
     if (!allowed.includes(file.type)) {
-        appendError.value = 'Allowed: images (JPEG, PNG, GIF, WebP) or video (MP4, WebM).';
+        appendError.value = 'Allowed: images (JPEG, PNG, GIF, WebP) or video (MP4, MOV, WebM).';
         return;
     }
     if (file.size > 20 * 1024 * 1024) {
@@ -860,10 +861,11 @@ async function submitAppendDoc() {
         'image/gif',
         'image/webp',
         'video/mp4',
+        'video/quicktime',
         'video/webm',
     ];
     if (!allowed.includes(file.type)) {
-        appendDocError.value = 'Allowed: images (JPEG, PNG, GIF, WebP) or video (MP4, WebM).';
+        appendDocError.value = 'Allowed: images (JPEG, PNG, GIF, WebP) or video (MP4, MOV, WebM).';
         return;
     }
     if (file.size > 20 * 1024 * 1024) {

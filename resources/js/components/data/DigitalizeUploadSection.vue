@@ -19,7 +19,7 @@ const emit = defineEmits<{
 }>();
 
 const ACCEPT =
-    'image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm';
+    'image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm';
 
 const uploadSectionOpen = ref(false);
 const uploadLoading = ref(false);
@@ -38,6 +38,7 @@ const ALLOWED_TYPES = [
     'image/gif',
     'image/webp',
     'video/mp4',
+    'video/quicktime', // iPhone records as .mov (QuickTime)
     'video/webm',
 ] as const;
 
@@ -157,7 +158,7 @@ async function postBatchFiles(files: File[]): Promise<{ status: number; data: Di
 
 async function doUpload(file: File) {
     if (!ALLOWED_TYPES.includes(file.type as typeof ALLOWED_TYPES[number])) {
-        uploadError.value = 'Allowed: images (JPEG, PNG, GIF, WebP) or video (MP4, WebM).';
+        uploadError.value = 'Allowed: images (JPEG, PNG, GIF, WebP) or video (MP4, MOV, WebM).';
         return;
     }
     const maxMb = Math.round(maxFileSizeBytes.value / (1024 * 1024));
@@ -295,7 +296,7 @@ onMounted(async () => {
                     {{ pendingFiles.length ? (pendingFiles.length === 1 ? pendingFiles[0].name : `${pendingFiles.length} files selected`) : 'Drop photos, videos, or click to choose' }}
                 </p>
                 <p v-if="!pendingFiles.length" class="mt-1 text-xs text-muted-foreground">
-                    Images, MP4, WebM · max {{ Math.round(maxFileSizeBytes / (1024 * 1024)) }} MB each · multiple allowed
+                    Images, MP4, MOV, WebM · max {{ Math.round(maxFileSizeBytes / (1024 * 1024)) }} MB each · multiple allowed
                 </p>
                 <ul v-else-if="pendingFiles.length > 1 && !uploadLoading" class="mt-3 max-h-32 list-inside list-disc overflow-y-auto text-left text-xs text-muted-foreground">
                     <li v-for="(f, i) in pendingFiles" :key="i" class="flex items-center justify-between gap-2">

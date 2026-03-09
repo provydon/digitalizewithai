@@ -44,18 +44,21 @@ const ALLOWED_TYPES = [
 
 const VIDEO_EXTENSIONS = ['.mp4', '.mov', '.webm', '.m4v'];
 
-/** iOS can report wrong or empty MIME type for videos; allow by extension as fallback. */
+/** iOS can report wrong/empty MIME type or file.name without extension; allow by type, extension, or size (backend validates). */
 function isAllowedFile(file: File): boolean {
     const type = file.type?.toLowerCase() ?? '';
     const name = (file.name ?? '').toLowerCase();
     const ext = name.includes('.') ? name.slice(name.lastIndexOf('.')) : '';
+    const maxBytes = maxFileSizeBytes.value;
 
-    if (file.size > maxFileSizeBytes.value) return false;
+    if (file.size > maxBytes) return false;
 
     if (ALLOWED_TYPES.includes(type as typeof ALLOWED_TYPES[number])) return true;
     if (type.startsWith('video/')) return true;
     if (!type && VIDEO_EXTENSIONS.some((e) => ext === e)) return true;
     if (type === 'image/jpeg' && VIDEO_EXTENSIONS.some((e) => ext === e)) return true;
+    if ((type === '' || type === 'application/octet-stream') && VIDEO_EXTENSIONS.some((e) => ext === e)) return true;
+    if (type === '' && ext === '' && file.size > 500000 && file.size <= maxBytes) return true;
 
     return false;
 }

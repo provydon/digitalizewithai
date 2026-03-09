@@ -586,7 +586,7 @@ const APPEND_ALLOWED_TYPES = [
 const VIDEO_EXTENSIONS = ['.mp4', '.mov', '.webm', '.m4v'];
 const APPEND_MAX_BYTES = 20 * 1024 * 1024;
 
-/** iOS can report wrong or empty MIME type for videos; allow by extension as fallback. */
+/** iOS can report wrong/empty MIME type or file.name without extension; allow by type, extension, or size (backend validates). */
 function isAllowedAppendFile(file: File): boolean {
     if (file.size > APPEND_MAX_BYTES) return false;
     const type = file.type?.toLowerCase() ?? '';
@@ -596,6 +596,8 @@ function isAllowedAppendFile(file: File): boolean {
     if (type.startsWith('video/')) return true;
     if (!type && VIDEO_EXTENSIONS.some((e) => ext === e)) return true;
     if (type === 'image/jpeg' && VIDEO_EXTENSIONS.some((e) => ext === e)) return true;
+    if ((type === '' || type === 'application/octet-stream') && VIDEO_EXTENSIONS.some((e) => ext === e)) return true;
+    if (type === '' && ext === '' && file.size > 500000 && file.size <= APPEND_MAX_BYTES) return true;
     return false;
 }
 

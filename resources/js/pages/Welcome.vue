@@ -230,7 +230,7 @@ useIntersectionObserver(
                             <p class="text-sm leading-7 text-foreground/90 sm:text-base">
                                 You can’t Ctrl+F a physical notebook—and even worse, a big handwritten note, log, or book of historical records.
                                 <br />
-                                Add your notes, books, logs, records and docs here—the app turns them into digital, searchable text and tables that AI can read out, and that you can ask questions to and get insights from—using AI.
+                                But now with {{ branding.name }}, you can add your Physical notes, books, logs, records and docs here and the app turns them into digital, searchable text and tables that AI can read out, and that you can ask questions to and get insights from—using AI.
                             </p>
                         </div>
                     </div>
@@ -338,7 +338,7 @@ useIntersectionObserver(
                     class="rounded-2xl border border-border bg-accent px-8 py-12 text-center lg:py-16"
                 >
                     <h2 class="mb-3 text-xl font-semibold text-foreground lg:text-2xl">
-                        Your data workspace, not a one-off chat
+                        Your Physical data workspace, not a one-off chat
                     </h2>
                     <p class="mx-auto max-w-md text-base leading-relaxed text-foreground/90">
                         Create an account. Upload photos and videos—they become stored items you can edit, chart, and ask AI to change. Export to Excel or PDF whenever you need.

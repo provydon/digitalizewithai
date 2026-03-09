@@ -25,7 +25,7 @@ test('digitalize options returns providers, default, and max_file_size_bytes', f
 
     $response->assertOk()
         ->assertJsonStructure(['providers', 'default_provider', 'max_file_size_bytes'])
-        ->assertJsonPath('max_file_size_bytes', config('upload.max_file_size_mb', 20) * 1024 * 1024);
+        ->assertJsonPath('max_file_size_bytes', config('upload.max_file_size_mb', 100) * 1024 * 1024);
 });
 
 test('digitalize options max_file_size_bytes reflects config', function () {

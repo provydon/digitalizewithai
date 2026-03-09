@@ -13,6 +13,6 @@ return [
     | - Apache: LimitRequestBody (optional)
     */
 
-    'max_file_size_mb' => (int) env('UPLOAD_MAX_FILE_SIZE_MB', 20),
+    'max_file_size_mb' => (int) env('UPLOAD_MAX_FILE_SIZE_MB', 100),
 
 ];

@@ -114,8 +114,14 @@ const processingBatches = computed(() => {
 
 onMounted(async () => {
     try {
-        const { data } = await api.get<DataRecord>(`/dashboard/api/data/${props.id}`);
+        const [{ data }, optionsRes] = await Promise.all([
+            api.get<DataRecord>(`/dashboard/api/data/${props.id}`),
+            api.get<{ max_file_size_bytes?: number }>('/dashboard/api/digitalize-options').catch(() => ({ data: {} })),
+        ]);
         record.value = data;
+        if (typeof optionsRes.data?.max_file_size_bytes === 'number' && optionsRes.data.max_file_size_bytes > 0) {
+            appendMaxBytes.value = optionsRes.data.max_file_size_bytes;
+        }
         await Promise.all([fetchSavedChats(), fetchSavedCharts()]);
     } catch (e: unknown) {
         const err = e as { response?: { data?: { message?: string } }; message?: string };
@@ -572,34 +578,9 @@ const appendSuccess = ref(false);
 const appendFileInput = ref<HTMLInputElement | null>(null);
 const appendCameraPhoto = ref<HTMLInputElement | null>(null);
 const appendCameraVideo = ref<HTMLInputElement | null>(null);
-const ACCEPT_TABLE_UPLOAD = 'image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm,video/*,.mov,.mp4,.m4v';
-
-const APPEND_ALLOWED_TYPES = [
-    'image/jpeg',
-    'image/png',
-    'image/gif',
-    'image/webp',
-    'video/mp4',
-    'video/quicktime',
-    'video/webm',
-];
-const VIDEO_EXTENSIONS = ['.mp4', '.mov', '.webm', '.m4v'];
-const APPEND_MAX_BYTES = 20 * 1024 * 1024;
-
-/** iOS can report wrong/empty MIME type or file.name without extension; allow by type, extension, or size (backend validates). */
-function isAllowedAppendFile(file: File): boolean {
-    if (file.size > APPEND_MAX_BYTES) return false;
-    const type = file.type?.toLowerCase() ?? '';
-    const name = (file.name ?? '').toLowerCase();
-    const ext = name.includes('.') ? name.slice(name.lastIndexOf('.')) : '';
-    if (APPEND_ALLOWED_TYPES.includes(type)) return true;
-    if (type.startsWith('video/')) return true;
-    if (!type && VIDEO_EXTENSIONS.some((e) => ext === e)) return true;
-    if (type === 'image/jpeg' && VIDEO_EXTENSIONS.some((e) => ext === e)) return true;
-    if ((type === '' || type === 'application/octet-stream') && VIDEO_EXTENSIONS.some((e) => ext === e)) return true;
-    if (type === '' && ext === '' && file.size > 500000 && file.size <= APPEND_MAX_BYTES) return true;
-    return false;
-}
+const ACCEPT_TABLE_UPLOAD = 'image/*,video/*';
+const ACCEPT_DOC_UPLOAD = 'image/*,video/*';
+const appendMaxBytes = ref(100 * 1024 * 1024);
 
 // —— Doc append (append from photo/video) ——
 const appendDocOpen = ref(false);
@@ -612,7 +593,6 @@ const appendDocSuccess = ref(false);
 const appendDocFileInput = ref<HTMLInputElement | null>(null);
 const appendDocCameraPhoto = ref<HTMLInputElement | null>(null);
 const appendDocCameraVideo = ref<HTMLInputElement | null>(null);
-const ACCEPT_DOC_UPLOAD = 'image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm,video/*,.mov,.mp4,.m4v';
 let searchDebounce: ReturnType<typeof setTimeout> | null = null;
 
 async function fetchRecord() {
@@ -777,8 +757,9 @@ function openAppendCameraVideo() {
 async function submitAppendUpload() {
     const file = appendFile.value;
     if (!file || !record.value) return;
-    if (!isAllowedAppendFile(file)) {
-        appendError.value = 'Allowed: images (JPEG, PNG, GIF, WebP) or video (MP4, MOV, WebM). Or file may be too large.';
+    if (file.size > appendMaxBytes.value) {
+        const maxMb = Math.round(appendMaxBytes.value / (1024 * 1024));
+        appendError.value = `File must be under ${maxMb} MB.`;
         return;
     }
     appendLoading.value = true;
@@ -869,8 +850,9 @@ function openAppendDocCameraVideo() {
 async function submitAppendDoc() {
     const file = appendDocFile.value;
     if (!file || !record.value) return;
-    if (!isAllowedAppendFile(file)) {
-        appendDocError.value = 'Allowed: images (JPEG, PNG, GIF, WebP) or video (MP4, MOV, WebM). Or file may be too large.';
+    if (file.size > appendMaxBytes.value) {
+        const maxMb = Math.round(appendMaxBytes.value / (1024 * 1024));
+        appendDocError.value = `File must be under ${maxMb} MB.`;
         return;
     }
     appendDocLoading.value = true;

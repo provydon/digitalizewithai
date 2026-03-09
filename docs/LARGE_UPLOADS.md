@@ -6,7 +6,7 @@ This app accepts images and videos for digitalization (and for appending to tabl
 
 - **Single-file and batch digitalize**: Files are sent as multipart/form-data. The backend now **streams** multipart uploads to disk/S3 via `putFileAs()` so the full file is not loaded into PHP memory. Processing (frame extraction, AI) runs in queued jobs.
 - **Append-to-table / append-to-doc**: The uploaded file is still read into memory in the request because extraction runs synchronously in the same request. These endpoints remain limited by PHP memory and request timeout for large files.
-- **Limits**: Max file size is configurable (default 20 MB). Validation uses `config('upload.max_file_size_mb')`; the frontend uses the same limit from the `digitalize-options` API.
+- **Limits**: Max file size is configurable (default 100 MB). Validation uses `config('upload.max_file_size_mb')`; the frontend uses the same limit from the `digitalize-options` API.
 
 ## Recommendations
 
@@ -50,7 +50,7 @@ These still run extraction in the HTTP request and use `$uploaded->get()`. To su
 
 | What | Where |
 |------|--------|
-| Max file size (MB) | `config/upload.php` → `max_file_size_mb` (env: `UPLOAD_MAX_FILE_SIZE_MB`, default 20) |
+| Max file size (MB) | `config/upload.php` → `max_file_size_mb` (env: `UPLOAD_MAX_FILE_SIZE_MB`, default 100) |
 | Frontend limit | Fetched from `GET /dashboard/api/digitalize-options` → `max_file_size_bytes` |
 | PHP upload limits | `upload_max_filesize`, `post_max_size` (e.g. in `php.ini` or `docker/php.ini`) |
 | Web server body size | Nginx: `client_max_body_size`; Apache: `LimitRequestBody` (optional) |

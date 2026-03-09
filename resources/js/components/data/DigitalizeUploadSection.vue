@@ -18,8 +18,10 @@ const emit = defineEmits<{
     uploaded: [];
 }>();
 
-const ACCEPT =
-    'image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm,video/*,.mov,.mp4,.m4v';
+const ACCEPT = 'image/*,video/*';
+
+/** Max file size in bytes; synced from backend via digitalize-options (default 100 MB). */
+const maxFileSizeBytes = ref(100 * 1024 * 1024);
 
 const uploadSectionOpen = ref(false);
 const uploadLoading = ref(false);
@@ -32,42 +34,10 @@ const extractingBatches = ref<{ done: number; total: number } | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
 const pendingFiles = ref<File[]>([]);
 
-const ALLOWED_TYPES = [
-    'image/jpeg',
-    'image/png',
-    'image/gif',
-    'image/webp',
-    'video/mp4',
-    'video/quicktime',
-    'video/webm',
-] as const;
-
-const VIDEO_EXTENSIONS = ['.mp4', '.mov', '.webm', '.m4v'];
-
-/** iOS can report wrong/empty MIME type or file.name without extension; allow by type, extension, or size (backend validates). */
-function isAllowedFile(file: File): boolean {
-    const type = file.type?.toLowerCase() ?? '';
-    const name = (file.name ?? '').toLowerCase();
-    const ext = name.includes('.') ? name.slice(name.lastIndexOf('.')) : '';
-    const maxBytes = maxFileSizeBytes.value;
-
-    if (file.size > maxBytes) return false;
-
-    if (ALLOWED_TYPES.includes(type as typeof ALLOWED_TYPES[number])) return true;
-    if (type.startsWith('video/')) return true;
-    if (!type && VIDEO_EXTENSIONS.some((e) => ext === e)) return true;
-    if (type === 'image/jpeg' && VIDEO_EXTENSIONS.some((e) => ext === e)) return true;
-    if ((type === '' || type === 'application/octet-stream') && VIDEO_EXTENSIONS.some((e) => ext === e)) return true;
-    if (type === '' && ext === '' && file.size > 500000 && file.size <= maxBytes) return true;
-
-    return false;
-}
-
-/** Max file size in bytes; synced from backend via digitalize-options (default 20 MB). */
-const maxFileSizeBytes = ref(20 * 1024 * 1024);
-
+/** Allow any file within size limit; backend validates type and returns a clear error if unsupported. */
 function filterFiles(files: FileList | File[]): File[] {
-    return Array.from(files).filter((file) => isAllowedFile(file));
+    const max = maxFileSizeBytes.value;
+    return Array.from(files).filter((file) => file.size > 0 && file.size <= max);
 }
 
 function openFilePicker() {
@@ -85,7 +55,8 @@ function onFileChange(e: Event) {
         pendingFiles.value = valid;
         uploadError.value = null;
     } else {
-        uploadError.value = 'Allowed: images (JPEG, PNG, GIF, WebP) or video (MP4, MOV, WebM). Or file may be too large.';
+        const maxMb = Math.round(maxFileSizeBytes.value / (1024 * 1024));
+        uploadError.value = `File may be too large. Max ${maxMb} MB.`;
     }
     input.value = '';
 }
@@ -100,7 +71,8 @@ function onDrop(e: DragEvent) {
         uploadSuccess.value = false;
         pendingFiles.value = valid;
     } else {
-        uploadError.value = 'Allowed: images (JPEG, PNG, GIF, WebP) or video (MP4, MOV, WebM). Or file may be too large.';
+        const maxMb = Math.round(maxFileSizeBytes.value / (1024 * 1024));
+        uploadError.value = `File may be too large. Max ${maxMb} MB.`;
     }
 }
 
@@ -178,10 +150,6 @@ async function postBatchFiles(files: File[]): Promise<{ status: number; data: Di
 }
 
 async function doUpload(file: File) {
-    if (!isAllowedFile(file)) {
-        uploadError.value = 'Allowed: images (JPEG, PNG, GIF, WebP) or video (MP4, MOV, WebM).';
-        return;
-    }
     const maxMb = Math.round(maxFileSizeBytes.value / (1024 * 1024));
     if (file.size > maxFileSizeBytes.value) {
         uploadError.value = `File must be under ${maxMb} MB.`;
@@ -317,7 +285,7 @@ onMounted(async () => {
                     {{ pendingFiles.length ? (pendingFiles.length === 1 ? pendingFiles[0].name : `${pendingFiles.length} files selected`) : 'Drop photos, videos, or click to choose' }}
                 </p>
                 <p v-if="!pendingFiles.length" class="mt-1 text-xs text-muted-foreground">
-                    Images, MP4, MOV, WebM · max {{ Math.round(maxFileSizeBytes / (1024 * 1024)) }} MB each · multiple allowed
+                    Photos or video · max {{ Math.round(maxFileSizeBytes / (1024 * 1024)) }} MB each · multiple allowed
                 </p>
                 <ul v-else-if="pendingFiles.length > 1 && !uploadLoading" class="mt-3 max-h-32 list-inside list-disc overflow-y-auto text-left text-xs text-muted-foreground">
                     <li v-for="(f, i) in pendingFiles" :key="i" class="flex items-center justify-between gap-2">

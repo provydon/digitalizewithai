@@ -35,7 +35,7 @@ class DigitalizeController extends Controller
         $allowedMimes = array_merge(self::IMAGE_MIMES, self::VIDEO_MIMES);
         $mimeRule = 'in:'.implode(',', $allowedMimes);
 
-        $maxKb = config('upload.max_file_size_mb', 20) * 1024;
+        $maxKb = config('upload.max_file_size_mb', 100) * 1024;
         $digitalizeProviders = array_keys(config('ai.digitalize_providers', []));
         if ($request->hasFile('file')) {
             $request->validate([
@@ -180,7 +180,7 @@ class DigitalizeController extends Controller
     {
         $allowedMimes = array_merge(self::IMAGE_MIMES, self::VIDEO_MIMES);
         $digitalizeProviders = array_keys(config('ai.digitalize_providers', []));
-        $maxKb = config('upload.max_file_size_mb', 20) * 1024;
+        $maxKb = config('upload.max_file_size_mb', 100) * 1024;
 
         $request->validate([
             'files' => 'required|array',
@@ -288,8 +288,9 @@ class DigitalizeController extends Controller
 
         $allowedMimes = array_merge(self::IMAGE_MIMES, self::VIDEO_MIMES);
         $digitalizeProviders = array_keys(config('ai.digitalize_providers', []));
+        $maxKb = config('upload.max_file_size_mb', 100) * 1024;
         $request->validate([
-            'file' => ['required', 'file', 'mimetypes:'.implode(',', $allowedMimes), 'max:20480'],
+            'file' => ['required', 'file', 'mimetypes:'.implode(',', $allowedMimes), 'max:'.$maxKb],
             'ai_provider' => 'nullable|string|in:'.implode(',', $digitalizeProviders),
             'ai_model' => 'nullable|string|max:255',
         ]);
@@ -400,8 +401,9 @@ class DigitalizeController extends Controller
 
         $allowedMimes = array_merge(self::IMAGE_MIMES, self::VIDEO_MIMES);
         $digitalizeProviders = array_keys(config('ai.digitalize_providers', []));
+        $maxKb = config('upload.max_file_size_mb', 100) * 1024;
         $request->validate([
-            'file' => ['required', 'file', 'mimetypes:'.implode(',', $allowedMimes), 'max:20480'],
+            'file' => ['required', 'file', 'mimetypes:'.implode(',', $allowedMimes), 'max:'.$maxKb],
             'ai_provider' => 'nullable|string|in:'.implode(',', $digitalizeProviders),
             'ai_model' => 'nullable|string|max:255',
         ]);
@@ -498,7 +500,7 @@ class DigitalizeController extends Controller
             $options[] = $item;
         }
 
-        $maxFileSizeMb = config('upload.max_file_size_mb', 20);
+        $maxFileSizeMb = config('upload.max_file_size_mb', 100);
 
         return response()->json([
             'providers' => $options,

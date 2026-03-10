@@ -173,12 +173,9 @@ useIntersectionObserver(
                 <h1 class="mb-4 text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
                     {{ branding.name }}
                 </h1>
-                <p class="mx-auto max-w-2xl text-lg leading-relaxed text-foreground/90 lg:text-xl lg:leading-8">
-                    Turn <strong class="text-foreground">physical</strong> books, notes, documents, logs, records and tables into digital, searchable text and tables that AI can read out—and that you can ask questions to and get insights from—using AI.
+                <p class="mx-auto max-w-2xl text-lg leading-relaxed text-foreground/90 lg:text-xl">
+                    Physical records, logs, and books → digital. Search it, chat with AI, get insights. In one place.
                 </p>
-                <!-- <p class="mx-auto mt-2 max-w-2xl text-lg text-muted-foreground lg:text-xl">
-                    <strong class="text-foreground">Physical</strong> paper, handwritten logs, physical notes/books, physical medical records—nearly impossible to immediately search, get metrics from, Ask Questions about or export. <strong class="text-foreground">Until now.</strong>
-                </p> -->
                 <div v-if="!$page.props.auth.user" class="mt-10 flex flex-wrap justify-center gap-4">
                     <Link
                         :href="register()"
@@ -203,34 +200,42 @@ useIntersectionObserver(
                 </div>
             </section>
 
-            <!-- What it does -->
+            <!-- Why / About -->
+            <section class="mx-auto max-w-3xl pt-16 lg:pt-20">
+                <h2 class="mb-6 text-center text-xl font-semibold text-foreground lg:text-2xl">
+                    Why {{ branding.name }}?
+                </h2>
+                <p class="text-center text-base leading-relaxed text-foreground/90 sm:text-lg">
+                    Imagine a large handwritten table of logs, sale records, or a physical book you don’t have time to read. You upload <strong class="text-foreground">photos or a video</strong> of that physical data—we turn it into digital text and tables. Then you can <strong class="text-foreground">search it instantly</strong>, <strong class="text-foreground">chat with AI</strong> about it, generate graphs and business insights, or turn books into instant audiobooks and ask the AI anything. From physical to digital, searchable, and AI-powered—in one place.
+                </p>
+            </section>
+
+            <!-- Features -->
             <section class="mx-auto max-w-5xl pt-20 lg:pt-28">
                 <h2 class="mb-10 text-center text-2xl font-semibold leading-snug text-foreground lg:text-3xl">
-                    From <strong>paper</strong> to searchable—one workspace
+                    From <strong>physical data</strong> to digital—searchable, askable, processable
                 </h2>
                 <div
                     ref="featuresRef"
                     class="features-reveal grid gap-4 sm:gap-6 lg:grid-cols-2 lg:gap-8"
                     :class="{ 'reveal-done': isRevealed }"
                 >
-                    <!-- 1. Search (lead value) -->
+                    <!-- 1. Upload & digitalize (lead: how you get data in) -->
                     <div class="feature-card flex gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
                         <span
                             class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary"
                             aria-hidden
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
                             </svg>
                         </span>
                         <div>
                             <h3 class="mb-2 font-semibold text-foreground">
-                                Search through your data
+                                Upload & digitalize
                             </h3>
                             <p class="text-sm leading-7 text-foreground/90 sm:text-base">
-                                You can’t Ctrl+F a physical notebook—and even worse, a big handwritten note, log, or book of historical records.
-                                <br />
-                                But now with {{ branding.name }}, you can add your Physical notes, books, logs, records and docs here and the app turns them into digital, searchable text and tables that AI can read out, and that you can ask questions to and get insights from—using AI.
+                                Upload <strong>photos or a video</strong> of handwritten tables, logs, sale records, or a physical book. We process it and turn it into digital text and tables—handwritten or printed, it doesn’t matter. Your physical data becomes digital in one place.
                             </p>
                         </div>
                     </div>
@@ -246,14 +251,52 @@ useIntersectionObserver(
                         </span>
                         <div>
                             <h3 class="mb-2 font-semibold text-foreground">
-                                Chat with your data
+                                Chat with AI about your data
                             </h3>
                             <p class="text-sm leading-7 text-foreground/90 sm:text-base">
-                                Ask AI anything about each doc or table—insights, summaries, trends, and generate charts and metrics from tables. Conversations are <strong>tied to that item</strong>; save them and return later.
+                                An <strong>AI chat</strong> that knows your content. Ask questions, get summaries, or dig into specific rows and paragraphs. Conversations stay tied to each doc or table—save them and return anytime.
                             </p>
                         </div>
                     </div>
-                    <!-- 3. Let AI read out data with Audio -->
+                    <!-- 3. Instant search -->
+                    <div class="feature-card flex gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
+                        <span
+                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary"
+                            aria-hidden
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                            </svg>
+                        </span>
+                        <div>
+                            <h3 class="mb-2 font-semibold text-foreground">
+                                Search instantly through tables & records
+                            </h3>
+                            <p class="text-sm leading-7 text-foreground/90 sm:text-base">
+                                You can’t Ctrl+F a physical ledger or a stack of handwritten logs. Once your data is digitalized, <strong>search through tables, records, and logs</strong> as if they’d always been digital—no more flipping pages or squinting at handwriting.
+                            </p>
+                        </div>
+                    </div>
+                    <!-- 4. Graphs & business insights -->
+                    <div class="feature-card flex gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
+                        <span
+                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary"
+                            aria-hidden
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+                            </svg>
+                        </span>
+                        <div>
+                            <h3 class="mb-2 font-semibold text-foreground">
+                                Graphs & business insights with AI
+                            </h3>
+                            <p class="text-sm leading-7 text-foreground/90 sm:text-base">
+                                Generate <strong>charts and business insights</strong> from your data with AI. Turn tables and logs into visualizations and reports without manual number-crunching—your physical records become actionable intelligence.
+                            </p>
+                        </div>
+                    </div>
+                    <!-- 5. Instant audiobooks -->
                     <div class="feature-card flex gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
                         <span
                             class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary"
@@ -265,33 +308,14 @@ useIntersectionObserver(
                         </span>
                         <div>
                             <h3 class="mb-2 font-semibold text-foreground">
-                                Let AI read out data with Audio
+                                Turn books into instant audiobooks
                             </h3>
                             <p class="text-sm leading-7 text-foreground/90 sm:text-base">
-                                Turn your <strong>physical book into a personal audiobook</strong>. Have summaries, answers, or table rows read aloud so you can listen while multitasking.
+                                That physical book you don’t have time to read? <strong>Turn it into an instant audiobook</strong>. AI reads it for you, and you can ask questions about the book anytime—summaries, characters, or “what happened in chapter 3?”
                             </p>
                         </div>
                     </div>
-                    <!-- 4. Take action with AI -->
-                    <div class="feature-card flex gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
-                        <span
-                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary"
-                            aria-hidden
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
-                            </svg>
-                        </span>
-                        <div>
-                            <h3 class="mb-2 font-semibold text-foreground">
-                                Take action with AI on your data
-                            </h3>
-                            <p class="text-sm leading-7 text-foreground/90 sm:text-base">
-                                Tell AI to add rows, edit cells, or rewrite paragraphs. <strong>Changes persist</strong> in your data—not just in a reply. Real edits, real tables and docs.
-                            </p>
-                        </div>
-                    </div>
-                    <!-- 5. Export / ship to your tools -->
+                    <!-- 6. Export -->
                     <div class="feature-card flex gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
                         <span
                             class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary"
@@ -303,29 +327,10 @@ useIntersectionObserver(
                         </span>
                         <div>
                             <h3 class="mb-2 font-semibold text-foreground">
-                                Export—or ship to your tools
+                                Export—or use in your tools
                             </h3>
                             <p class="text-sm leading-7 text-foreground/90 sm:text-base">
-                                One-click export to <strong>Excel, PDF, JSON, or plain text</strong>. Use in spreadsheets, docs, Google Drive, or your own data source. Your data, you choose where it lives.
-                            </p>
-                        </div>
-                    </div>
-                    <!-- 6. Start from physical (reframed: get data in, not “keep forever”) -->
-                    <div class="feature-card flex gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
-                        <span
-                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary"
-                            aria-hidden
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-                            </svg>
-                        </span>
-                        <div>
-                            <h3 class="mb-2 font-semibold text-foreground">
-                                Start from physical
-                            </h3>
-                            <p class="text-sm leading-7 text-foreground/90 sm:text-base">
-                                Upload a photo or video of <strong>physical</strong> notes, logs, or tables. We extract it into a doc or table so you can search, chat, take action, and export—or ship to your own storage when you’re ready.
+                                One-click export to <strong>Excel, PDF, JSON, or plain text</strong>. Your digitalized data is yours—use it in spreadsheets, docs, or your own systems. Physical in, digital out; you choose where it goes.
                             </p>
                         </div>
                     </div>
@@ -338,10 +343,10 @@ useIntersectionObserver(
                     class="rounded-2xl border border-border bg-accent px-8 py-12 text-center lg:py-16"
                 >
                     <h2 class="mb-3 text-xl font-semibold text-foreground lg:text-2xl">
-                        Your Physical data workspace, not a one-off chat
+                        From physical to digital—searchable, askable, processable
                     </h2>
                     <p class="mx-auto max-w-md text-base leading-relaxed text-foreground/90">
-                        Create an account. Upload photos and videos—they become stored items you can edit, chart, and ask AI to change. Export to Excel or PDF whenever you need.
+                        Upload photos or video of your records, logs, or books. Get digital text and tables, then search, chat with AI, generate graphs and insights, or turn books into audiobooks. Try it free.
                     </p>
                     <div v-if="!$page.props.auth.user" class="mt-6">
                         <Link

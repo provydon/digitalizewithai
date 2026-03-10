@@ -205,9 +205,15 @@ useIntersectionObserver(
                 <h2 class="mb-6 text-center text-xl font-semibold text-foreground lg:text-2xl">
                     Why {{ branding.name }}?
                 </h2>
-                <p class="text-center text-base leading-relaxed text-foreground/90 sm:text-lg">
-                    Imagine a large handwritten table of logs, sale records, or a physical book you don’t have time to read. You upload <strong class="text-foreground">photos or a video</strong> of that physical data—we turn it into digital text and tables. Then you can <strong class="text-foreground">search it instantly</strong>, <strong class="text-foreground">chat with AI</strong> about it, generate graphs and business insights, or turn books into instant audiobooks and ask the AI anything. From physical to digital, searchable, and AI-powered—in one place.
+                <p class="mb-4 text-center text-base leading-relaxed text-foreground/90 sm:text-lg">
+                    Imagine handwritten logs, sale records, or a book you don't have time to read or search.
                 </p>
+                <ul class="mx-auto max-w-xl list-disc space-y-2 pl-5 text-left text-base leading-relaxed text-foreground/90 sm:text-lg [&>li]:pl-1">
+                    <li>Now you can upload <strong class="text-foreground">photos or a video</strong> of that physical data—we turn it into digital text and tables.</li>
+                    <li>You can <strong class="text-foreground">search it instantly</strong>, <strong class="text-foreground">chat with AI</strong> about it, and generate graphs and insights.</li>
+                    <li>You can turn books into audiobooks and ask the AI anything.</li>
+                    <li>You get it all in one place: physical to digital, searchable, and AI-powered.</li>
+                </ul>
             </section>
 
             <!-- Features -->

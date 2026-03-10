@@ -1440,6 +1440,25 @@ const canChart = computed(
         (tableData.value.headers?.length ?? 0) >= 2 &&
         (tableData.value.rows?.length ?? 0) > 0,
 );
+
+/** Chart suggestion prompts derived from table headers (shown when no chart is selected). */
+const chartSuggestions = computed(() => {
+    const t = tableData.value;
+    const headers = t?.headers?.filter((h): h is string => typeof h === 'string' && h.trim() !== '') ?? [];
+    if (headers.length < 2) return [];
+    const a = headers[0];
+    const b = headers[1];
+    const suggestions: string[] = [
+        `Bar chart of ${a} by ${b}`,
+        `Pie chart of ${b}`,
+        `Line chart of ${a} by ${b}`,
+    ];
+    if (headers.length >= 3) {
+        const c = headers[2];
+        suggestions.push(`Bar chart of ${a} by ${c}`);
+    }
+    return suggestions;
+});
 const canExportExcel = computed(
     () => !!(tableData.value?.headers?.length) && !!record.value,
 );
@@ -1662,6 +1681,7 @@ const aiModelLabel = computed(() => {
                                     :ai-model-label="aiModelLabel"
                                     :chart-suggestion="chartSuggestion"
                                     :chart-request="chartRequest"
+                                    :chart-suggestions="chartSuggestions"
                                     :show-specific-chart-request="showSpecificChartRequest"
                                     :chart-suggestion-loading="chartSuggestionLoading"
                                     :can-chart="!!canChart"
@@ -1672,6 +1692,7 @@ const aiModelLabel = computed(() => {
                                     @update:chart-request="chartRequest = $event"
                                     @update:show-specific-chart-request="showSpecificChartRequest = $event"
                                     @suggest-chart="suggestChartFromAi"
+                                    @apply-chart-suggestion="(text) => { chartRequest = text; suggestChartFromAi(); }"
                                     @new-chart="startNewChart"
                                     @save-chart="saveCurrentChart"
                                     @load-chart="loadSavedChart"

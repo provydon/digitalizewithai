@@ -12,7 +12,7 @@ import {
     PointElement,
     Title,
 } from 'chart.js';
-import { BarChart3, Bookmark, ChevronDown, ChevronRight, Loader2, MessageSquarePlus, Trash2 } from 'lucide-vue-next';
+import { BarChart3, Bookmark, ChevronDown, ChevronRight, Loader2, Trash2 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { Chart } from 'vue-chartjs';
 import { useAppearance } from '@/composables/useAppearance';
@@ -36,6 +36,7 @@ const props = defineProps<{
     aiModelLabel: string;
     chartSuggestion: ChartSuggestion | null;
     chartRequest: string;
+    chartSuggestions: string[];
     showSpecificChartRequest: boolean;
     chartSuggestionLoading: boolean;
     canChart: boolean;
@@ -49,6 +50,7 @@ const emit = defineEmits<{
     'update:chartRequest': [v: string];
     'update:showSpecificChartRequest': [v: boolean];
     'suggest-chart': [];
+    'apply-chart-suggestion': [text: string];
     'save-chart': [];
     'load-chart': [chart: SavedChart];
     'delete-chart': [chart: SavedChart];
@@ -191,16 +193,6 @@ function chartTitle(chart: SavedChart): string {
                 {{ chartSuggestionLoading ? '…' : chartSuggestion ? 'Generate Another Chart' : 'Generate Chart' }}
             </button>
             <button
-                type="button"
-                class="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-sidebar-border/70 bg-muted/50 px-3 py-2 text-sm font-medium text-foreground hover:bg-muted sm:min-h-0"
-                :disabled="chartSuggestionLoading"
-                title="Start a new chart"
-                @click="emit('new-chart')"
-            >
-                <MessageSquarePlus class="h-4 w-4" />
-                New chart
-            </button>
-            <button
                 v-if="canSaveChart"
                 type="button"
                 class="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-sidebar-border/70 bg-muted/50 px-3 py-2 text-sm font-medium text-foreground hover:bg-muted sm:min-h-0"
@@ -233,8 +225,27 @@ function chartTitle(chart: SavedChart): string {
                 Send
             </button>
         </div>
-        <div v-if="!chartSuggestion" class="rounded-lg border border-dashed border-sidebar-border/70 py-12 text-center text-sm text-muted-foreground dark:border-sidebar-border">
-            Click "Generate Chart" to have AI pick the best chart type and columns. Use "Ask for Specific Chart" to describe the chart you want.
+        <div v-if="!chartSuggestion" class="space-y-4 rounded-lg border border-dashed border-sidebar-border/70 py-8 px-4 text-center dark:border-sidebar-border sm:py-12 sm:px-6">
+            <p class="text-sm text-muted-foreground">
+                Click "Generate Chart" to have AI pick the best chart type and columns. Use "Ask for Specific Chart" to describe the chart you want.
+            </p>
+            <div v-if="chartSuggestions.length > 0" class="flex flex-col items-center gap-2">
+                <p class="text-xs font-medium text-muted-foreground">
+                    Chart suggestions
+                </p>
+                <div class="flex flex-wrap justify-center gap-2">
+                    <button
+                        v-for="(suggestion, idx) in chartSuggestions"
+                        :key="idx"
+                        type="button"
+                        class="inline-flex cursor-pointer items-center rounded-full border border-sidebar-border/70 bg-muted/40 px-3 py-1.5 text-sm text-foreground transition-colors hover:bg-muted hover:border-primary/40 dark:border-sidebar-border"
+                        :disabled="!canChart || chartSuggestionLoading"
+                        @click="emit('apply-chart-suggestion', suggestion)"
+                    >
+                        {{ suggestion }}
+                    </button>
+                </div>
+            </div>
         </div>
         <div v-else class="space-y-2">
             <p

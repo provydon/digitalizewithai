@@ -225,21 +225,19 @@ function chartTitle(chart: SavedChart): string {
                 Send
             </button>
         </div>
-        <div v-if="!chartSuggestion" class="space-y-4 rounded-lg border border-dashed border-sidebar-border/70 py-8 px-4 text-center dark:border-sidebar-border sm:py-12 sm:px-6">
-            <p class="text-sm text-muted-foreground">
-                Click "Generate Chart" to have AI pick the best chart type and columns. Use "Ask for Specific Chart" to describe the chart you want.
+        <div v-if="!chartSuggestion" class="space-y-3 rounded-lg border border-dashed border-sidebar-border/70 py-4 px-4 text-center dark:border-sidebar-border sm:py-6 sm:px-5">
+            <p class="text-xs text-muted-foreground">
+                Generate a chart or pick a suggestion below.
             </p>
-            <div v-if="chartSuggestions.length > 0" class="flex flex-col items-center gap-2">
-                <p class="text-xs font-medium text-muted-foreground">
-                    Chart suggestions
-                </p>
-                <div class="flex flex-wrap justify-center gap-2">
+            <div v-if="chartSuggestions.length > 0" class="flex flex-col items-center gap-1.5">
+                <div class="flex flex-wrap justify-center gap-3 mt-30">
                     <button
-                        v-for="(suggestion, idx) in chartSuggestions"
+                        v-for="(suggestion, idx) in chartSuggestions.slice(0, 2)"
                         :key="idx"
                         type="button"
-                        class="inline-flex cursor-pointer items-center rounded-full border border-sidebar-border/70 bg-muted/40 px-3 py-1.5 text-sm text-foreground transition-colors hover:bg-muted hover:border-primary/40 dark:border-sidebar-border"
+                        class="inline-flex max-w-[180px] cursor-pointer items-center truncate rounded-full border border-sidebar-border/60 bg-muted/40 px-2 py-0.5 text-[11px] text-foreground transition-colors hover:bg-muted hover:border-primary/40 dark:border-sidebar-border"
                         :disabled="!canChart || chartSuggestionLoading"
+                        :title="suggestion"
                         @click="emit('apply-chart-suggestion', suggestion)"
                     >
                         {{ suggestion }}

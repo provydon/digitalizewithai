@@ -518,7 +518,28 @@ function playReadAloud() {
         }
     }
 
-    void schedulePage(1);
+    // iOS (and some mobile browsers) only allow speech when speak() is called synchronously
+    // within the user gesture. We speak a minimal utterance now to "unlock" audio, then
+    // start the real content in its onend so subsequent speak() calls are allowed.
+    const isLikelyIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (isLikelyIOS) {
+        const unlock = createUtterance('\u00A0'); // non-breaking space
+        unlock.volume = 0; // silent; we only need to unlock the audio context
+        unlock.onend = () => {
+            if (readAloudStopped) {
+                readAloudPlaying.value = false;
+                return;
+            }
+            // Small delay so iOS commits the first utterance before we queue more
+            setTimeout(() => void schedulePage(1), 50);
+        };
+        unlock.onerror = () => {
+            if (!readAloudStopped) setTimeout(() => void schedulePage(1), 50);
+        };
+        window.speechSynthesis.speak(unlock);
+    } else {
+        void schedulePage(1);
+    }
 }
 
 function pauseReadAloud() {

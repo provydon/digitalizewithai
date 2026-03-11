@@ -1,7 +1,7 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\DataViewController::update
-* @see app/Http/Controllers/DataViewController.php:203
+* @see app/Http/Controllers/DataViewController.php:275
 * @route '/dashboard/api/data/{data}/doc-content'
 */
 export const update = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -16,7 +16,7 @@ update.definition = {
 
 /**
 * @see \App\Http\Controllers\DataViewController::update
-* @see app/Http/Controllers/DataViewController.php:203
+* @see app/Http/Controllers/DataViewController.php:275
 * @route '/dashboard/api/data/{data}/doc-content'
 */
 update.url = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -49,45 +49,13 @@ update.url = (args: { data: number | { id: number } } | [data: number | { id: nu
 
 /**
 * @see \App\Http\Controllers\DataViewController::update
-* @see app/Http/Controllers/DataViewController.php:203
+* @see app/Http/Controllers/DataViewController.php:275
 * @route '/dashboard/api/data/{data}/doc-content'
 */
 update.patch = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
     url: update.url(args, options),
     method: 'patch',
 })
-
-/**
-* @see \App\Http\Controllers\DataViewController::update
-* @see app/Http/Controllers/DataViewController.php:203
-* @route '/dashboard/api/data/{data}/doc-content'
-*/
-const updateForm = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: update.url(args, {
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'PATCH',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        }
-    }),
-    method: 'post',
-})
-
-/**
-* @see \App\Http\Controllers\DataViewController::update
-* @see app/Http/Controllers/DataViewController.php:203
-* @route '/dashboard/api/data/{data}/doc-content'
-*/
-updateForm.patch = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: update.url(args, {
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'PATCH',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        }
-    }),
-    method: 'post',
-})
-
-update.form = updateForm
 
 const docContent = {
     update: Object.assign(update, update),

@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition } from './../../wayfinder'
 import api from './api'
 import digitalize8239d2 from './digitalize'
 import data from './data'
@@ -35,28 +35,6 @@ digitalize.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: digitalize.url(options),
     method: 'post',
 })
-
-/**
-* @see \App\Http\Controllers\Api\DigitalizeController::digitalize
-* @see app/Http/Controllers/Api/DigitalizeController.php:33
-* @route '/dashboard/digitalize'
-*/
-const digitalizeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: digitalize.url(options),
-    method: 'post',
-})
-
-/**
-* @see \App\Http\Controllers\Api\DigitalizeController::digitalize
-* @see app/Http/Controllers/Api/DigitalizeController.php:33
-* @route '/dashboard/digitalize'
-*/
-digitalizeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: digitalize.url(options),
-    method: 'post',
-})
-
-digitalize.form = digitalizeForm
 
 const dashboard = {
     api: Object.assign(api, api),

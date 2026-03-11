@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults } from './../../../../wayfinder'
 import docContentCfa3f4 from './doc-content'
 import ask4f0227 from './ask'
 import rows from './rows'
@@ -6,7 +6,7 @@ import savedChats from './saved-chats'
 import savedCharts from './saved-charts'
 /**
 * @see \App\Http\Controllers\Api\DigitalizeController::appendRows
-* @see app/Http/Controllers/Api/DigitalizeController.php:269
+* @see app/Http/Controllers/Api/DigitalizeController.php:279
 * @route '/dashboard/api/data/{data}/append-rows'
 */
 export const appendRows = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -21,7 +21,7 @@ appendRows.definition = {
 
 /**
 * @see \App\Http\Controllers\Api\DigitalizeController::appendRows
-* @see app/Http/Controllers/Api/DigitalizeController.php:269
+* @see app/Http/Controllers/Api/DigitalizeController.php:279
 * @route '/dashboard/api/data/{data}/append-rows'
 */
 appendRows.url = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -54,7 +54,7 @@ appendRows.url = (args: { data: number | { id: number } } | [data: number | { id
 
 /**
 * @see \App\Http\Controllers\Api\DigitalizeController::appendRows
-* @see app/Http/Controllers/Api/DigitalizeController.php:269
+* @see app/Http/Controllers/Api/DigitalizeController.php:279
 * @route '/dashboard/api/data/{data}/append-rows'
 */
 appendRows.post = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -63,30 +63,8 @@ appendRows.post = (args: { data: number | { id: number } } | [data: number | { i
 })
 
 /**
-* @see \App\Http\Controllers\Api\DigitalizeController::appendRows
-* @see app/Http/Controllers/Api/DigitalizeController.php:269
-* @route '/dashboard/api/data/{data}/append-rows'
-*/
-const appendRowsForm = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: appendRows.url(args, options),
-    method: 'post',
-})
-
-/**
-* @see \App\Http\Controllers\Api\DigitalizeController::appendRows
-* @see app/Http/Controllers/Api/DigitalizeController.php:269
-* @route '/dashboard/api/data/{data}/append-rows'
-*/
-appendRowsForm.post = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: appendRows.url(args, options),
-    method: 'post',
-})
-
-appendRows.form = appendRowsForm
-
-/**
 * @see \App\Http\Controllers\Api\DigitalizeController::appendDoc
-* @see app/Http/Controllers/Api/DigitalizeController.php:381
+* @see app/Http/Controllers/Api/DigitalizeController.php:392
 * @route '/dashboard/api/data/{data}/append-doc'
 */
 export const appendDoc = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -101,7 +79,7 @@ appendDoc.definition = {
 
 /**
 * @see \App\Http\Controllers\Api\DigitalizeController::appendDoc
-* @see app/Http/Controllers/Api/DigitalizeController.php:381
+* @see app/Http/Controllers/Api/DigitalizeController.php:392
 * @route '/dashboard/api/data/{data}/append-doc'
 */
 appendDoc.url = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -134,35 +112,13 @@ appendDoc.url = (args: { data: number | { id: number } } | [data: number | { id:
 
 /**
 * @see \App\Http\Controllers\Api\DigitalizeController::appendDoc
-* @see app/Http/Controllers/Api/DigitalizeController.php:381
+* @see app/Http/Controllers/Api/DigitalizeController.php:392
 * @route '/dashboard/api/data/{data}/append-doc'
 */
 appendDoc.post = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: appendDoc.url(args, options),
     method: 'post',
 })
-
-/**
-* @see \App\Http\Controllers\Api\DigitalizeController::appendDoc
-* @see app/Http/Controllers/Api/DigitalizeController.php:381
-* @route '/dashboard/api/data/{data}/append-doc'
-*/
-const appendDocForm = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: appendDoc.url(args, options),
-    method: 'post',
-})
-
-/**
-* @see \App\Http\Controllers\Api\DigitalizeController::appendDoc
-* @see app/Http/Controllers/Api/DigitalizeController.php:381
-* @route '/dashboard/api/data/{data}/append-doc'
-*/
-appendDocForm.post = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: appendDoc.url(args, options),
-    method: 'post',
-})
-
-appendDoc.form = appendDocForm
 
 /**
 * @see \App\Http\Controllers\DashboardController::index
@@ -207,43 +163,6 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: index.url(options),
     method: 'head',
 })
-
-/**
-* @see \App\Http\Controllers\DashboardController::index
-* @see app/Http/Controllers/DashboardController.php:25
-* @route '/dashboard/api/data'
-*/
-const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: index.url(options),
-    method: 'get',
-})
-
-/**
-* @see \App\Http\Controllers\DashboardController::index
-* @see app/Http/Controllers/DashboardController.php:25
-* @route '/dashboard/api/data'
-*/
-indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: index.url(options),
-    method: 'get',
-})
-
-/**
-* @see \App\Http\Controllers\DashboardController::index
-* @see app/Http/Controllers/DashboardController.php:25
-* @route '/dashboard/api/data'
-*/
-indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: index.url({
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'HEAD',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        }
-    }),
-    method: 'get',
-})
-
-index.form = indexForm
 
 /**
 * @see \App\Http\Controllers\DashboardController::destroy
@@ -302,38 +221,6 @@ destroy.delete = (args: { data: number | { id: number } } | [data: number | { id
     url: destroy.url(args, options),
     method: 'delete',
 })
-
-/**
-* @see \App\Http\Controllers\DashboardController::destroy
-* @see app/Http/Controllers/DashboardController.php:80
-* @route '/dashboard/api/data/{data}'
-*/
-const destroyForm = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: destroy.url(args, {
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'DELETE',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        }
-    }),
-    method: 'post',
-})
-
-/**
-* @see \App\Http\Controllers\DashboardController::destroy
-* @see app/Http/Controllers/DashboardController.php:80
-* @route '/dashboard/api/data/{data}'
-*/
-destroyForm.delete = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: destroy.url(args, {
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'DELETE',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        }
-    }),
-    method: 'post',
-})
-
-destroy.form = destroyForm
 
 /**
 * @see \App\Http\Controllers\DataViewController::show
@@ -404,45 +291,8 @@ show.head = (args: { data: number | { id: number } } | [data: number | { id: num
 })
 
 /**
-* @see \App\Http\Controllers\DataViewController::show
-* @see app/Http/Controllers/DataViewController.php:37
-* @route '/dashboard/api/data/{data}'
-*/
-const showForm = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: show.url(args, options),
-    method: 'get',
-})
-
-/**
-* @see \App\Http\Controllers\DataViewController::show
-* @see app/Http/Controllers/DataViewController.php:37
-* @route '/dashboard/api/data/{data}'
-*/
-showForm.get = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: show.url(args, options),
-    method: 'get',
-})
-
-/**
-* @see \App\Http\Controllers\DataViewController::show
-* @see app/Http/Controllers/DataViewController.php:37
-* @route '/dashboard/api/data/{data}'
-*/
-showForm.head = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: show.url(args, {
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'HEAD',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        }
-    }),
-    method: 'get',
-})
-
-show.form = showForm
-
-/**
 * @see \App\Http\Controllers\DataViewController::originalFile
-* @see app/Http/Controllers/DataViewController.php:77
+* @see app/Http/Controllers/DataViewController.php:149
 * @route '/dashboard/api/data/{data}/original-file'
 */
 export const originalFile = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -457,7 +307,7 @@ originalFile.definition = {
 
 /**
 * @see \App\Http\Controllers\DataViewController::originalFile
-* @see app/Http/Controllers/DataViewController.php:77
+* @see app/Http/Controllers/DataViewController.php:149
 * @route '/dashboard/api/data/{data}/original-file'
 */
 originalFile.url = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -490,7 +340,7 @@ originalFile.url = (args: { data: number | { id: number } } | [data: number | { 
 
 /**
 * @see \App\Http\Controllers\DataViewController::originalFile
-* @see app/Http/Controllers/DataViewController.php:77
+* @see app/Http/Controllers/DataViewController.php:149
 * @route '/dashboard/api/data/{data}/original-file'
 */
 originalFile.get = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -500,7 +350,7 @@ originalFile.get = (args: { data: number | { id: number } } | [data: number | { 
 
 /**
 * @see \App\Http\Controllers\DataViewController::originalFile
-* @see app/Http/Controllers/DataViewController.php:77
+* @see app/Http/Controllers/DataViewController.php:149
 * @route '/dashboard/api/data/{data}/original-file'
 */
 originalFile.head = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -509,45 +359,8 @@ originalFile.head = (args: { data: number | { id: number } } | [data: number | {
 })
 
 /**
-* @see \App\Http\Controllers\DataViewController::originalFile
-* @see app/Http/Controllers/DataViewController.php:77
-* @route '/dashboard/api/data/{data}/original-file'
-*/
-const originalFileForm = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: originalFile.url(args, options),
-    method: 'get',
-})
-
-/**
-* @see \App\Http\Controllers\DataViewController::originalFile
-* @see app/Http/Controllers/DataViewController.php:77
-* @route '/dashboard/api/data/{data}/original-file'
-*/
-originalFileForm.get = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: originalFile.url(args, options),
-    method: 'get',
-})
-
-/**
-* @see \App\Http\Controllers\DataViewController::originalFile
-* @see app/Http/Controllers/DataViewController.php:77
-* @route '/dashboard/api/data/{data}/original-file'
-*/
-originalFileForm.head = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: originalFile.url(args, {
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'HEAD',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        }
-    }),
-    method: 'get',
-})
-
-originalFile.form = originalFileForm
-
-/**
 * @see \App\Http\Controllers\DataViewController::update
-* @see app/Http/Controllers/DataViewController.php:184
+* @see app/Http/Controllers/DataViewController.php:256
 * @route '/dashboard/api/data/{data}'
 */
 export const update = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -562,7 +375,7 @@ update.definition = {
 
 /**
 * @see \App\Http\Controllers\DataViewController::update
-* @see app/Http/Controllers/DataViewController.php:184
+* @see app/Http/Controllers/DataViewController.php:256
 * @route '/dashboard/api/data/{data}'
 */
 update.url = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -595,7 +408,7 @@ update.url = (args: { data: number | { id: number } } | [data: number | { id: nu
 
 /**
 * @see \App\Http\Controllers\DataViewController::update
-* @see app/Http/Controllers/DataViewController.php:184
+* @see app/Http/Controllers/DataViewController.php:256
 * @route '/dashboard/api/data/{data}'
 */
 update.patch = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -604,40 +417,8 @@ update.patch = (args: { data: number | { id: number } } | [data: number | { id: 
 })
 
 /**
-* @see \App\Http\Controllers\DataViewController::update
-* @see app/Http/Controllers/DataViewController.php:184
-* @route '/dashboard/api/data/{data}'
-*/
-const updateForm = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: update.url(args, {
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'PATCH',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        }
-    }),
-    method: 'post',
-})
-
-/**
-* @see \App\Http\Controllers\DataViewController::update
-* @see app/Http/Controllers/DataViewController.php:184
-* @route '/dashboard/api/data/{data}'
-*/
-updateForm.patch = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: update.url(args, {
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'PATCH',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        }
-    }),
-    method: 'post',
-})
-
-update.form = updateForm
-
-/**
 * @see \App\Http\Controllers\DataViewController::docPage
-* @see app/Http/Controllers/DataViewController.php:134
+* @see app/Http/Controllers/DataViewController.php:206
 * @route '/dashboard/api/data/{data}/doc-page'
 */
 export const docPage = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -652,7 +433,7 @@ docPage.definition = {
 
 /**
 * @see \App\Http\Controllers\DataViewController::docPage
-* @see app/Http/Controllers/DataViewController.php:134
+* @see app/Http/Controllers/DataViewController.php:206
 * @route '/dashboard/api/data/{data}/doc-page'
 */
 docPage.url = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -685,7 +466,7 @@ docPage.url = (args: { data: number | { id: number } } | [data: number | { id: n
 
 /**
 * @see \App\Http\Controllers\DataViewController::docPage
-* @see app/Http/Controllers/DataViewController.php:134
+* @see app/Http/Controllers/DataViewController.php:206
 * @route '/dashboard/api/data/{data}/doc-page'
 */
 docPage.get = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -695,7 +476,7 @@ docPage.get = (args: { data: number | { id: number } } | [data: number | { id: n
 
 /**
 * @see \App\Http\Controllers\DataViewController::docPage
-* @see app/Http/Controllers/DataViewController.php:134
+* @see app/Http/Controllers/DataViewController.php:206
 * @route '/dashboard/api/data/{data}/doc-page'
 */
 docPage.head = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -704,45 +485,8 @@ docPage.head = (args: { data: number | { id: number } } | [data: number | { id: 
 })
 
 /**
-* @see \App\Http\Controllers\DataViewController::docPage
-* @see app/Http/Controllers/DataViewController.php:134
-* @route '/dashboard/api/data/{data}/doc-page'
-*/
-const docPageForm = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: docPage.url(args, options),
-    method: 'get',
-})
-
-/**
-* @see \App\Http\Controllers\DataViewController::docPage
-* @see app/Http/Controllers/DataViewController.php:134
-* @route '/dashboard/api/data/{data}/doc-page'
-*/
-docPageForm.get = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: docPage.url(args, options),
-    method: 'get',
-})
-
-/**
-* @see \App\Http\Controllers\DataViewController::docPage
-* @see app/Http/Controllers/DataViewController.php:134
-* @route '/dashboard/api/data/{data}/doc-page'
-*/
-docPageForm.head = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: docPage.url(args, {
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'HEAD',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        }
-    }),
-    method: 'get',
-})
-
-docPage.form = docPageForm
-
-/**
 * @see \App\Http\Controllers\DataViewController::docContent
-* @see app/Http/Controllers/DataViewController.php:161
+* @see app/Http/Controllers/DataViewController.php:233
 * @route '/dashboard/api/data/{data}/doc-content'
 */
 export const docContent = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -757,7 +501,7 @@ docContent.definition = {
 
 /**
 * @see \App\Http\Controllers\DataViewController::docContent
-* @see app/Http/Controllers/DataViewController.php:161
+* @see app/Http/Controllers/DataViewController.php:233
 * @route '/dashboard/api/data/{data}/doc-content'
 */
 docContent.url = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -790,7 +534,7 @@ docContent.url = (args: { data: number | { id: number } } | [data: number | { id
 
 /**
 * @see \App\Http\Controllers\DataViewController::docContent
-* @see app/Http/Controllers/DataViewController.php:161
+* @see app/Http/Controllers/DataViewController.php:233
 * @route '/dashboard/api/data/{data}/doc-content'
 */
 docContent.get = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -800,7 +544,7 @@ docContent.get = (args: { data: number | { id: number } } | [data: number | { id
 
 /**
 * @see \App\Http\Controllers\DataViewController::docContent
-* @see app/Http/Controllers/DataViewController.php:161
+* @see app/Http/Controllers/DataViewController.php:233
 * @route '/dashboard/api/data/{data}/doc-content'
 */
 docContent.head = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -809,45 +553,8 @@ docContent.head = (args: { data: number | { id: number } } | [data: number | { i
 })
 
 /**
-* @see \App\Http\Controllers\DataViewController::docContent
-* @see app/Http/Controllers/DataViewController.php:161
-* @route '/dashboard/api/data/{data}/doc-content'
-*/
-const docContentForm = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: docContent.url(args, options),
-    method: 'get',
-})
-
-/**
-* @see \App\Http\Controllers\DataViewController::docContent
-* @see app/Http/Controllers/DataViewController.php:161
-* @route '/dashboard/api/data/{data}/doc-content'
-*/
-docContentForm.get = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: docContent.url(args, options),
-    method: 'get',
-})
-
-/**
-* @see \App\Http\Controllers\DataViewController::docContent
-* @see app/Http/Controllers/DataViewController.php:161
-* @route '/dashboard/api/data/{data}/doc-content'
-*/
-docContentForm.head = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: docContent.url(args, {
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'HEAD',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        }
-    }),
-    method: 'get',
-})
-
-docContent.form = docContentForm
-
-/**
 * @see \App\Http\Controllers\DataViewController::ask
-* @see app/Http/Controllers/DataViewController.php:283
+* @see app/Http/Controllers/DataViewController.php:355
 * @route '/dashboard/api/data/{data}/ask'
 */
 export const ask = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -862,7 +569,7 @@ ask.definition = {
 
 /**
 * @see \App\Http\Controllers\DataViewController::ask
-* @see app/Http/Controllers/DataViewController.php:283
+* @see app/Http/Controllers/DataViewController.php:355
 * @route '/dashboard/api/data/{data}/ask'
 */
 ask.url = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -895,7 +602,7 @@ ask.url = (args: { data: number | { id: number } } | [data: number | { id: numbe
 
 /**
 * @see \App\Http\Controllers\DataViewController::ask
-* @see app/Http/Controllers/DataViewController.php:283
+* @see app/Http/Controllers/DataViewController.php:355
 * @route '/dashboard/api/data/{data}/ask'
 */
 ask.post = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -904,30 +611,8 @@ ask.post = (args: { data: number | { id: number } } | [data: number | { id: numb
 })
 
 /**
-* @see \App\Http\Controllers\DataViewController::ask
-* @see app/Http/Controllers/DataViewController.php:283
-* @route '/dashboard/api/data/{data}/ask'
-*/
-const askForm = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: ask.url(args, options),
-    method: 'post',
-})
-
-/**
-* @see \App\Http\Controllers\DataViewController::ask
-* @see app/Http/Controllers/DataViewController.php:283
-* @route '/dashboard/api/data/{data}/ask'
-*/
-askForm.post = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: ask.url(args, options),
-    method: 'post',
-})
-
-ask.form = askForm
-
-/**
 * @see \App\Http\Controllers\DataViewController::chartSuggestion
-* @see app/Http/Controllers/DataViewController.php:411
+* @see app/Http/Controllers/DataViewController.php:483
 * @route '/dashboard/api/data/{data}/chart-suggestion'
 */
 export const chartSuggestion = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -942,7 +627,7 @@ chartSuggestion.definition = {
 
 /**
 * @see \App\Http\Controllers\DataViewController::chartSuggestion
-* @see app/Http/Controllers/DataViewController.php:411
+* @see app/Http/Controllers/DataViewController.php:483
 * @route '/dashboard/api/data/{data}/chart-suggestion'
 */
 chartSuggestion.url = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -975,35 +660,13 @@ chartSuggestion.url = (args: { data: number | { id: number } } | [data: number |
 
 /**
 * @see \App\Http\Controllers\DataViewController::chartSuggestion
-* @see app/Http/Controllers/DataViewController.php:411
+* @see app/Http/Controllers/DataViewController.php:483
 * @route '/dashboard/api/data/{data}/chart-suggestion'
 */
 chartSuggestion.post = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: chartSuggestion.url(args, options),
     method: 'post',
 })
-
-/**
-* @see \App\Http\Controllers\DataViewController::chartSuggestion
-* @see app/Http/Controllers/DataViewController.php:411
-* @route '/dashboard/api/data/{data}/chart-suggestion'
-*/
-const chartSuggestionForm = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: chartSuggestion.url(args, options),
-    method: 'post',
-})
-
-/**
-* @see \App\Http\Controllers\DataViewController::chartSuggestion
-* @see app/Http/Controllers/DataViewController.php:411
-* @route '/dashboard/api/data/{data}/chart-suggestion'
-*/
-chartSuggestionForm.post = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: chartSuggestion.url(args, options),
-    method: 'post',
-})
-
-chartSuggestion.form = chartSuggestionForm
 
 const data = {
     appendRows: Object.assign(appendRows, appendRows),

@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\DashboardController::index
 * @see app/Http/Controllers/DashboardController.php:13
@@ -44,43 +44,6 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 })
 
 /**
-* @see \App\Http\Controllers\DashboardController::index
-* @see app/Http/Controllers/DashboardController.php:13
-* @route '/dashboard'
-*/
-const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: index.url(options),
-    method: 'get',
-})
-
-/**
-* @see \App\Http\Controllers\DashboardController::index
-* @see app/Http/Controllers/DashboardController.php:13
-* @route '/dashboard'
-*/
-indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: index.url(options),
-    method: 'get',
-})
-
-/**
-* @see \App\Http\Controllers\DashboardController::index
-* @see app/Http/Controllers/DashboardController.php:13
-* @route '/dashboard'
-*/
-indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: index.url({
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'HEAD',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        }
-    }),
-    method: 'get',
-})
-
-index.form = indexForm
-
-/**
 * @see \App\Http\Controllers\DashboardController::dataIndex
 * @see app/Http/Controllers/DashboardController.php:25
 * @route '/dashboard/api/data'
@@ -123,43 +86,6 @@ dataIndex.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: dataIndex.url(options),
     method: 'head',
 })
-
-/**
-* @see \App\Http\Controllers\DashboardController::dataIndex
-* @see app/Http/Controllers/DashboardController.php:25
-* @route '/dashboard/api/data'
-*/
-const dataIndexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: dataIndex.url(options),
-    method: 'get',
-})
-
-/**
-* @see \App\Http\Controllers\DashboardController::dataIndex
-* @see app/Http/Controllers/DashboardController.php:25
-* @route '/dashboard/api/data'
-*/
-dataIndexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: dataIndex.url(options),
-    method: 'get',
-})
-
-/**
-* @see \App\Http\Controllers\DashboardController::dataIndex
-* @see app/Http/Controllers/DashboardController.php:25
-* @route '/dashboard/api/data'
-*/
-dataIndexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: dataIndex.url({
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'HEAD',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        }
-    }),
-    method: 'get',
-})
-
-dataIndex.form = dataIndexForm
 
 /**
 * @see \App\Http\Controllers\DashboardController::destroyData
@@ -220,38 +146,6 @@ destroyData.delete = (args: { data: number | { id: number } } | [data: number | 
 })
 
 /**
-* @see \App\Http\Controllers\DashboardController::destroyData
-* @see app/Http/Controllers/DashboardController.php:80
-* @route '/dashboard/api/data/{data}'
-*/
-const destroyDataForm = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: destroyData.url(args, {
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'DELETE',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        }
-    }),
-    method: 'post',
-})
-
-/**
-* @see \App\Http\Controllers\DashboardController::destroyData
-* @see app/Http/Controllers/DashboardController.php:80
-* @route '/dashboard/api/data/{data}'
-*/
-destroyDataForm.delete = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: destroyData.url(args, {
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'DELETE',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        }
-    }),
-    method: 'post',
-})
-
-destroyData.form = destroyDataForm
-
-/**
 * @see \App\Http\Controllers\DashboardController::dataPage
 * @see app/Http/Controllers/DashboardController.php:19
 * @route '/data'
@@ -294,43 +188,6 @@ dataPage.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: dataPage.url(options),
     method: 'head',
 })
-
-/**
-* @see \App\Http\Controllers\DashboardController::dataPage
-* @see app/Http/Controllers/DashboardController.php:19
-* @route '/data'
-*/
-const dataPageForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: dataPage.url(options),
-    method: 'get',
-})
-
-/**
-* @see \App\Http\Controllers\DashboardController::dataPage
-* @see app/Http/Controllers/DashboardController.php:19
-* @route '/data'
-*/
-dataPageForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: dataPage.url(options),
-    method: 'get',
-})
-
-/**
-* @see \App\Http\Controllers\DashboardController::dataPage
-* @see app/Http/Controllers/DashboardController.php:19
-* @route '/data'
-*/
-dataPageForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: dataPage.url({
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'HEAD',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        }
-    }),
-    method: 'get',
-})
-
-dataPage.form = dataPageForm
 
 const DashboardController = { index, dataIndex, destroyData, dataPage }
 

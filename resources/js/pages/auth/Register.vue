@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import AuthBase from '@/layouts/AuthLayout.vue';
 import { login } from '@/routes';
+import oauth from '@/routes/oauth';
 import { store } from '@/routes/register';
 </script>
 
@@ -19,8 +20,32 @@ import { store } from '@/routes/register';
     >
         <Head title="Register" />
 
+        <a
+            :href="oauth.redirect.url({ provider: 'google' })"
+            class="oauth-btn mb-4 w-full"
+        >
+            <div class="flex flex-row items-center justify-center">
+                <img
+                    src="/google-favicon.png"
+                    alt=""
+                    class="mr-3 h-6 w-6"
+                />
+                <span class="mt-1 text-center font-semibold text-[grey]">Continue with Google</span>
+            </div>
+        </a>
+
+        <div class="relative mb-4">
+            <div class="absolute inset-0 flex items-center">
+                <span class="w-full border-t border-border" />
+            </div>
+            <div class="relative flex justify-center text-xs uppercase">
+                <span class="bg-card px-2 text-muted-foreground">Or register with email</span>
+            </div>
+        </div>
+
         <Form
-            v-bind="store.form()"
+            :action="store.url()"
+            method="post"
             :reset-on-success="['password', 'password_confirmation']"
             v-slot="{ errors, processing }"
             class="flex flex-col gap-6"

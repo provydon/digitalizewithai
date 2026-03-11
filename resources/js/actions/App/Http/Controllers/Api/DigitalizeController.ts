@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Api\DigitalizeController::store
 * @see app/Http/Controllers/Api/DigitalizeController.php:33
@@ -36,27 +36,6 @@ stored864a3a2374b8ccf16b0191fdf968511.post = (options?: RouteQueryOptions): Rout
 /**
 * @see \App\Http\Controllers\Api\DigitalizeController::store
 * @see app/Http/Controllers/Api/DigitalizeController.php:33
-* @route '/api/digitalize'
-*/
-const stored864a3a2374b8ccf16b0191fdf968511Form = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: stored864a3a2374b8ccf16b0191fdf968511.url(options),
-    method: 'post',
-})
-
-/**
-* @see \App\Http\Controllers\Api\DigitalizeController::store
-* @see app/Http/Controllers/Api/DigitalizeController.php:33
-* @route '/api/digitalize'
-*/
-stored864a3a2374b8ccf16b0191fdf968511Form.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: stored864a3a2374b8ccf16b0191fdf968511.url(options),
-    method: 'post',
-})
-
-stored864a3a2374b8ccf16b0191fdf968511.form = stored864a3a2374b8ccf16b0191fdf968511Form
-/**
-* @see \App\Http\Controllers\Api\DigitalizeController::store
-* @see app/Http/Controllers/Api/DigitalizeController.php:33
 * @route '/dashboard/digitalize'
 */
 const storecb2017140d82c591d98b5c67f44ff1fc = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -88,28 +67,6 @@ storecb2017140d82c591d98b5c67f44ff1fc.post = (options?: RouteQueryOptions): Rout
     method: 'post',
 })
 
-/**
-* @see \App\Http\Controllers\Api\DigitalizeController::store
-* @see app/Http/Controllers/Api/DigitalizeController.php:33
-* @route '/dashboard/digitalize'
-*/
-const storecb2017140d82c591d98b5c67f44ff1fcForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: storecb2017140d82c591d98b5c67f44ff1fc.url(options),
-    method: 'post',
-})
-
-/**
-* @see \App\Http\Controllers\Api\DigitalizeController::store
-* @see app/Http/Controllers/Api/DigitalizeController.php:33
-* @route '/dashboard/digitalize'
-*/
-storecb2017140d82c591d98b5c67f44ff1fcForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: storecb2017140d82c591d98b5c67f44ff1fc.url(options),
-    method: 'post',
-})
-
-storecb2017140d82c591d98b5c67f44ff1fc.form = storecb2017140d82c591d98b5c67f44ff1fcForm
-
 export const store = {
     '/api/digitalize': stored864a3a2374b8ccf16b0191fdf968511,
     '/dashboard/digitalize': storecb2017140d82c591d98b5c67f44ff1fc,
@@ -117,7 +74,7 @@ export const store = {
 
 /**
 * @see \App\Http\Controllers\Api\DigitalizeController::index
-* @see app/Http/Controllers/Api/DigitalizeController.php:500
+* @see app/Http/Controllers/Api/DigitalizeController.php:515
 * @route '/api/data'
 */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -132,7 +89,7 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\Api\DigitalizeController::index
-* @see app/Http/Controllers/Api/DigitalizeController.php:500
+* @see app/Http/Controllers/Api/DigitalizeController.php:515
 * @route '/api/data'
 */
 index.url = (options?: RouteQueryOptions) => {
@@ -141,7 +98,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Api\DigitalizeController::index
-* @see app/Http/Controllers/Api/DigitalizeController.php:500
+* @see app/Http/Controllers/Api/DigitalizeController.php:515
 * @route '/api/data'
 */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -151,7 +108,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \App\Http\Controllers\Api\DigitalizeController::index
-* @see app/Http/Controllers/Api/DigitalizeController.php:500
+* @see app/Http/Controllers/Api/DigitalizeController.php:515
 * @route '/api/data'
 */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -160,45 +117,8 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 })
 
 /**
-* @see \App\Http\Controllers\Api\DigitalizeController::index
-* @see app/Http/Controllers/Api/DigitalizeController.php:500
-* @route '/api/data'
-*/
-const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: index.url(options),
-    method: 'get',
-})
-
-/**
-* @see \App\Http\Controllers\Api\DigitalizeController::index
-* @see app/Http/Controllers/Api/DigitalizeController.php:500
-* @route '/api/data'
-*/
-indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: index.url(options),
-    method: 'get',
-})
-
-/**
-* @see \App\Http\Controllers\Api\DigitalizeController::index
-* @see app/Http/Controllers/Api/DigitalizeController.php:500
-* @route '/api/data'
-*/
-indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: index.url({
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'HEAD',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        }
-    }),
-    method: 'get',
-})
-
-index.form = indexForm
-
-/**
 * @see \App\Http\Controllers\Api\DigitalizeController::show
-* @see app/Http/Controllers/Api/DigitalizeController.php:519
+* @see app/Http/Controllers/Api/DigitalizeController.php:534
 * @route '/api/data/{data}'
 */
 export const show = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -213,7 +133,7 @@ show.definition = {
 
 /**
 * @see \App\Http\Controllers\Api\DigitalizeController::show
-* @see app/Http/Controllers/Api/DigitalizeController.php:519
+* @see app/Http/Controllers/Api/DigitalizeController.php:534
 * @route '/api/data/{data}'
 */
 show.url = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -246,7 +166,7 @@ show.url = (args: { data: number | { id: number } } | [data: number | { id: numb
 
 /**
 * @see \App\Http\Controllers\Api\DigitalizeController::show
-* @see app/Http/Controllers/Api/DigitalizeController.php:519
+* @see app/Http/Controllers/Api/DigitalizeController.php:534
 * @route '/api/data/{data}'
 */
 show.get = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -256,7 +176,7 @@ show.get = (args: { data: number | { id: number } } | [data: number | { id: numb
 
 /**
 * @see \App\Http\Controllers\Api\DigitalizeController::show
-* @see app/Http/Controllers/Api/DigitalizeController.php:519
+* @see app/Http/Controllers/Api/DigitalizeController.php:534
 * @route '/api/data/{data}'
 */
 show.head = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -265,45 +185,8 @@ show.head = (args: { data: number | { id: number } } | [data: number | { id: num
 })
 
 /**
-* @see \App\Http\Controllers\Api\DigitalizeController::show
-* @see app/Http/Controllers/Api/DigitalizeController.php:519
-* @route '/api/data/{data}'
-*/
-const showForm = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: show.url(args, options),
-    method: 'get',
-})
-
-/**
-* @see \App\Http\Controllers\Api\DigitalizeController::show
-* @see app/Http/Controllers/Api/DigitalizeController.php:519
-* @route '/api/data/{data}'
-*/
-showForm.get = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: show.url(args, options),
-    method: 'get',
-})
-
-/**
-* @see \App\Http\Controllers\Api\DigitalizeController::show
-* @see app/Http/Controllers/Api/DigitalizeController.php:519
-* @route '/api/data/{data}'
-*/
-showForm.head = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: show.url(args, {
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'HEAD',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        }
-    }),
-    method: 'get',
-})
-
-show.form = showForm
-
-/**
 * @see \App\Http\Controllers\Api\DigitalizeController::digitalizeOptions
-* @see app/Http/Controllers/Api/DigitalizeController.php:475
+* @see app/Http/Controllers/Api/DigitalizeController.php:487
 * @route '/dashboard/api/digitalize-options'
 */
 export const digitalizeOptions = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -318,7 +201,7 @@ digitalizeOptions.definition = {
 
 /**
 * @see \App\Http\Controllers\Api\DigitalizeController::digitalizeOptions
-* @see app/Http/Controllers/Api/DigitalizeController.php:475
+* @see app/Http/Controllers/Api/DigitalizeController.php:487
 * @route '/dashboard/api/digitalize-options'
 */
 digitalizeOptions.url = (options?: RouteQueryOptions) => {
@@ -327,7 +210,7 @@ digitalizeOptions.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Api\DigitalizeController::digitalizeOptions
-* @see app/Http/Controllers/Api/DigitalizeController.php:475
+* @see app/Http/Controllers/Api/DigitalizeController.php:487
 * @route '/dashboard/api/digitalize-options'
 */
 digitalizeOptions.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -337,7 +220,7 @@ digitalizeOptions.get = (options?: RouteQueryOptions): RouteDefinition<'get'> =>
 
 /**
 * @see \App\Http\Controllers\Api\DigitalizeController::digitalizeOptions
-* @see app/Http/Controllers/Api/DigitalizeController.php:475
+* @see app/Http/Controllers/Api/DigitalizeController.php:487
 * @route '/dashboard/api/digitalize-options'
 */
 digitalizeOptions.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -346,45 +229,8 @@ digitalizeOptions.head = (options?: RouteQueryOptions): RouteDefinition<'head'> 
 })
 
 /**
-* @see \App\Http\Controllers\Api\DigitalizeController::digitalizeOptions
-* @see app/Http/Controllers/Api/DigitalizeController.php:475
-* @route '/dashboard/api/digitalize-options'
-*/
-const digitalizeOptionsForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: digitalizeOptions.url(options),
-    method: 'get',
-})
-
-/**
-* @see \App\Http\Controllers\Api\DigitalizeController::digitalizeOptions
-* @see app/Http/Controllers/Api/DigitalizeController.php:475
-* @route '/dashboard/api/digitalize-options'
-*/
-digitalizeOptionsForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: digitalizeOptions.url(options),
-    method: 'get',
-})
-
-/**
-* @see \App\Http\Controllers\Api\DigitalizeController::digitalizeOptions
-* @see app/Http/Controllers/Api/DigitalizeController.php:475
-* @route '/dashboard/api/digitalize-options'
-*/
-digitalizeOptionsForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: digitalizeOptions.url({
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'HEAD',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        }
-    }),
-    method: 'get',
-})
-
-digitalizeOptions.form = digitalizeOptionsForm
-
-/**
 * @see \App\Http\Controllers\Api\DigitalizeController::storeBatch
-* @see app/Http/Controllers/Api/DigitalizeController.php:169
+* @see app/Http/Controllers/Api/DigitalizeController.php:179
 * @route '/dashboard/digitalize/batch'
 */
 export const storeBatch = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -399,7 +245,7 @@ storeBatch.definition = {
 
 /**
 * @see \App\Http\Controllers\Api\DigitalizeController::storeBatch
-* @see app/Http/Controllers/Api/DigitalizeController.php:169
+* @see app/Http/Controllers/Api/DigitalizeController.php:179
 * @route '/dashboard/digitalize/batch'
 */
 storeBatch.url = (options?: RouteQueryOptions) => {
@@ -408,7 +254,7 @@ storeBatch.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Api\DigitalizeController::storeBatch
-* @see app/Http/Controllers/Api/DigitalizeController.php:169
+* @see app/Http/Controllers/Api/DigitalizeController.php:179
 * @route '/dashboard/digitalize/batch'
 */
 storeBatch.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -417,30 +263,8 @@ storeBatch.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 })
 
 /**
-* @see \App\Http\Controllers\Api\DigitalizeController::storeBatch
-* @see app/Http/Controllers/Api/DigitalizeController.php:169
-* @route '/dashboard/digitalize/batch'
-*/
-const storeBatchForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: storeBatch.url(options),
-    method: 'post',
-})
-
-/**
-* @see \App\Http\Controllers\Api\DigitalizeController::storeBatch
-* @see app/Http/Controllers/Api/DigitalizeController.php:169
-* @route '/dashboard/digitalize/batch'
-*/
-storeBatchForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: storeBatch.url(options),
-    method: 'post',
-})
-
-storeBatch.form = storeBatchForm
-
-/**
 * @see \App\Http\Controllers\Api\DigitalizeController::appendToTable
-* @see app/Http/Controllers/Api/DigitalizeController.php:269
+* @see app/Http/Controllers/Api/DigitalizeController.php:279
 * @route '/dashboard/api/data/{data}/append-rows'
 */
 export const appendToTable = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -455,7 +279,7 @@ appendToTable.definition = {
 
 /**
 * @see \App\Http\Controllers\Api\DigitalizeController::appendToTable
-* @see app/Http/Controllers/Api/DigitalizeController.php:269
+* @see app/Http/Controllers/Api/DigitalizeController.php:279
 * @route '/dashboard/api/data/{data}/append-rows'
 */
 appendToTable.url = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -488,7 +312,7 @@ appendToTable.url = (args: { data: number | { id: number } } | [data: number | {
 
 /**
 * @see \App\Http\Controllers\Api\DigitalizeController::appendToTable
-* @see app/Http/Controllers/Api/DigitalizeController.php:269
+* @see app/Http/Controllers/Api/DigitalizeController.php:279
 * @route '/dashboard/api/data/{data}/append-rows'
 */
 appendToTable.post = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -497,30 +321,8 @@ appendToTable.post = (args: { data: number | { id: number } } | [data: number | 
 })
 
 /**
-* @see \App\Http\Controllers\Api\DigitalizeController::appendToTable
-* @see app/Http/Controllers/Api/DigitalizeController.php:269
-* @route '/dashboard/api/data/{data}/append-rows'
-*/
-const appendToTableForm = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: appendToTable.url(args, options),
-    method: 'post',
-})
-
-/**
-* @see \App\Http\Controllers\Api\DigitalizeController::appendToTable
-* @see app/Http/Controllers/Api/DigitalizeController.php:269
-* @route '/dashboard/api/data/{data}/append-rows'
-*/
-appendToTableForm.post = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: appendToTable.url(args, options),
-    method: 'post',
-})
-
-appendToTable.form = appendToTableForm
-
-/**
 * @see \App\Http\Controllers\Api\DigitalizeController::appendToDoc
-* @see app/Http/Controllers/Api/DigitalizeController.php:381
+* @see app/Http/Controllers/Api/DigitalizeController.php:392
 * @route '/dashboard/api/data/{data}/append-doc'
 */
 export const appendToDoc = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -535,7 +337,7 @@ appendToDoc.definition = {
 
 /**
 * @see \App\Http\Controllers\Api\DigitalizeController::appendToDoc
-* @see app/Http/Controllers/Api/DigitalizeController.php:381
+* @see app/Http/Controllers/Api/DigitalizeController.php:392
 * @route '/dashboard/api/data/{data}/append-doc'
 */
 appendToDoc.url = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -568,35 +370,13 @@ appendToDoc.url = (args: { data: number | { id: number } } | [data: number | { i
 
 /**
 * @see \App\Http\Controllers\Api\DigitalizeController::appendToDoc
-* @see app/Http/Controllers/Api/DigitalizeController.php:381
+* @see app/Http/Controllers/Api/DigitalizeController.php:392
 * @route '/dashboard/api/data/{data}/append-doc'
 */
 appendToDoc.post = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: appendToDoc.url(args, options),
     method: 'post',
 })
-
-/**
-* @see \App\Http\Controllers\Api\DigitalizeController::appendToDoc
-* @see app/Http/Controllers/Api/DigitalizeController.php:381
-* @route '/dashboard/api/data/{data}/append-doc'
-*/
-const appendToDocForm = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: appendToDoc.url(args, options),
-    method: 'post',
-})
-
-/**
-* @see \App\Http\Controllers\Api\DigitalizeController::appendToDoc
-* @see app/Http/Controllers/Api/DigitalizeController.php:381
-* @route '/dashboard/api/data/{data}/append-doc'
-*/
-appendToDocForm.post = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: appendToDoc.url(args, options),
-    method: 'post',
-})
-
-appendToDoc.form = appendToDocForm
 
 const DigitalizeController = { store, index, show, digitalizeOptions, storeBatch, appendToTable, appendToDoc }
 

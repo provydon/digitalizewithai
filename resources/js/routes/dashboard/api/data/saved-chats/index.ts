@@ -1,7 +1,7 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\DataViewController::index
-* @see app/Http/Controllers/DataViewController.php:500
+* @see app/Http/Controllers/DataViewController.php:572
 * @route '/dashboard/api/data/{data}/saved-chats'
 */
 export const index = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\DataViewController::index
-* @see app/Http/Controllers/DataViewController.php:500
+* @see app/Http/Controllers/DataViewController.php:572
 * @route '/dashboard/api/data/{data}/saved-chats'
 */
 index.url = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ index.url = (args: { data: number | { id: number } } | [data: number | { id: num
 
 /**
 * @see \App\Http\Controllers\DataViewController::index
-* @see app/Http/Controllers/DataViewController.php:500
+* @see app/Http/Controllers/DataViewController.php:572
 * @route '/dashboard/api/data/{data}/saved-chats'
 */
 index.get = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -59,7 +59,7 @@ index.get = (args: { data: number | { id: number } } | [data: number | { id: num
 
 /**
 * @see \App\Http\Controllers\DataViewController::index
-* @see app/Http/Controllers/DataViewController.php:500
+* @see app/Http/Controllers/DataViewController.php:572
 * @route '/dashboard/api/data/{data}/saved-chats'
 */
 index.head = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -68,45 +68,8 @@ index.head = (args: { data: number | { id: number } } | [data: number | { id: nu
 })
 
 /**
-* @see \App\Http\Controllers\DataViewController::index
-* @see app/Http/Controllers/DataViewController.php:500
-* @route '/dashboard/api/data/{data}/saved-chats'
-*/
-const indexForm = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: index.url(args, options),
-    method: 'get',
-})
-
-/**
-* @see \App\Http\Controllers\DataViewController::index
-* @see app/Http/Controllers/DataViewController.php:500
-* @route '/dashboard/api/data/{data}/saved-chats'
-*/
-indexForm.get = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: index.url(args, options),
-    method: 'get',
-})
-
-/**
-* @see \App\Http\Controllers\DataViewController::index
-* @see app/Http/Controllers/DataViewController.php:500
-* @route '/dashboard/api/data/{data}/saved-chats'
-*/
-indexForm.head = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: index.url(args, {
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'HEAD',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        }
-    }),
-    method: 'get',
-})
-
-index.form = indexForm
-
-/**
 * @see \App\Http\Controllers\DataViewController::store
-* @see app/Http/Controllers/DataViewController.php:522
+* @see app/Http/Controllers/DataViewController.php:594
 * @route '/dashboard/api/data/{data}/saved-chats'
 */
 export const store = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -121,7 +84,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\DataViewController::store
-* @see app/Http/Controllers/DataViewController.php:522
+* @see app/Http/Controllers/DataViewController.php:594
 * @route '/dashboard/api/data/{data}/saved-chats'
 */
 store.url = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -154,7 +117,7 @@ store.url = (args: { data: number | { id: number } } | [data: number | { id: num
 
 /**
 * @see \App\Http\Controllers\DataViewController::store
-* @see app/Http/Controllers/DataViewController.php:522
+* @see app/Http/Controllers/DataViewController.php:594
 * @route '/dashboard/api/data/{data}/saved-chats'
 */
 store.post = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -163,30 +126,8 @@ store.post = (args: { data: number | { id: number } } | [data: number | { id: nu
 })
 
 /**
-* @see \App\Http\Controllers\DataViewController::store
-* @see app/Http/Controllers/DataViewController.php:522
-* @route '/dashboard/api/data/{data}/saved-chats'
-*/
-const storeForm = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: store.url(args, options),
-    method: 'post',
-})
-
-/**
-* @see \App\Http\Controllers\DataViewController::store
-* @see app/Http/Controllers/DataViewController.php:522
-* @route '/dashboard/api/data/{data}/saved-chats'
-*/
-storeForm.post = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: store.url(args, options),
-    method: 'post',
-})
-
-store.form = storeForm
-
-/**
 * @see \App\Http\Controllers\DataViewController::update
-* @see app/Http/Controllers/DataViewController.php:555
+* @see app/Http/Controllers/DataViewController.php:627
 * @route '/dashboard/api/data/{data}/saved-chats/{saved_chat}'
 */
 export const update = (args: { data: number | { id: number }, saved_chat: number | { id: number } } | [data: number | { id: number }, saved_chat: number | { id: number } ], options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -201,7 +142,7 @@ update.definition = {
 
 /**
 * @see \App\Http\Controllers\DataViewController::update
-* @see app/Http/Controllers/DataViewController.php:555
+* @see app/Http/Controllers/DataViewController.php:627
 * @route '/dashboard/api/data/{data}/saved-chats/{saved_chat}'
 */
 update.url = (args: { data: number | { id: number }, saved_chat: number | { id: number } } | [data: number | { id: number }, saved_chat: number | { id: number } ], options?: RouteQueryOptions) => {
@@ -231,7 +172,7 @@ update.url = (args: { data: number | { id: number }, saved_chat: number | { id: 
 
 /**
 * @see \App\Http\Controllers\DataViewController::update
-* @see app/Http/Controllers/DataViewController.php:555
+* @see app/Http/Controllers/DataViewController.php:627
 * @route '/dashboard/api/data/{data}/saved-chats/{saved_chat}'
 */
 update.patch = (args: { data: number | { id: number }, saved_chat: number | { id: number } } | [data: number | { id: number }, saved_chat: number | { id: number } ], options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -240,40 +181,8 @@ update.patch = (args: { data: number | { id: number }, saved_chat: number | { id
 })
 
 /**
-* @see \App\Http\Controllers\DataViewController::update
-* @see app/Http/Controllers/DataViewController.php:555
-* @route '/dashboard/api/data/{data}/saved-chats/{saved_chat}'
-*/
-const updateForm = (args: { data: number | { id: number }, saved_chat: number | { id: number } } | [data: number | { id: number }, saved_chat: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: update.url(args, {
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'PATCH',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        }
-    }),
-    method: 'post',
-})
-
-/**
-* @see \App\Http\Controllers\DataViewController::update
-* @see app/Http/Controllers/DataViewController.php:555
-* @route '/dashboard/api/data/{data}/saved-chats/{saved_chat}'
-*/
-updateForm.patch = (args: { data: number | { id: number }, saved_chat: number | { id: number } } | [data: number | { id: number }, saved_chat: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: update.url(args, {
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'PATCH',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        }
-    }),
-    method: 'post',
-})
-
-update.form = updateForm
-
-/**
 * @see \App\Http\Controllers\DataViewController::destroy
-* @see app/Http/Controllers/DataViewController.php:587
+* @see app/Http/Controllers/DataViewController.php:659
 * @route '/dashboard/api/data/{data}/saved-chats/{saved_chat}'
 */
 export const destroy = (args: { data: number | { id: number }, saved_chat: number | { id: number } } | [data: number | { id: number }, saved_chat: number | { id: number } ], options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -288,7 +197,7 @@ destroy.definition = {
 
 /**
 * @see \App\Http\Controllers\DataViewController::destroy
-* @see app/Http/Controllers/DataViewController.php:587
+* @see app/Http/Controllers/DataViewController.php:659
 * @route '/dashboard/api/data/{data}/saved-chats/{saved_chat}'
 */
 destroy.url = (args: { data: number | { id: number }, saved_chat: number | { id: number } } | [data: number | { id: number }, saved_chat: number | { id: number } ], options?: RouteQueryOptions) => {
@@ -318,45 +227,13 @@ destroy.url = (args: { data: number | { id: number }, saved_chat: number | { id:
 
 /**
 * @see \App\Http\Controllers\DataViewController::destroy
-* @see app/Http/Controllers/DataViewController.php:587
+* @see app/Http/Controllers/DataViewController.php:659
 * @route '/dashboard/api/data/{data}/saved-chats/{saved_chat}'
 */
 destroy.delete = (args: { data: number | { id: number }, saved_chat: number | { id: number } } | [data: number | { id: number }, saved_chat: number | { id: number } ], options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
     url: destroy.url(args, options),
     method: 'delete',
 })
-
-/**
-* @see \App\Http\Controllers\DataViewController::destroy
-* @see app/Http/Controllers/DataViewController.php:587
-* @route '/dashboard/api/data/{data}/saved-chats/{saved_chat}'
-*/
-const destroyForm = (args: { data: number | { id: number }, saved_chat: number | { id: number } } | [data: number | { id: number }, saved_chat: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: destroy.url(args, {
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'DELETE',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        }
-    }),
-    method: 'post',
-})
-
-/**
-* @see \App\Http\Controllers\DataViewController::destroy
-* @see app/Http/Controllers/DataViewController.php:587
-* @route '/dashboard/api/data/{data}/saved-chats/{saved_chat}'
-*/
-destroyForm.delete = (args: { data: number | { id: number }, saved_chat: number | { id: number } } | [data: number | { id: number }, saved_chat: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: destroy.url(args, {
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'DELETE',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        }
-    }),
-    method: 'post',
-})
-
-destroy.form = destroyForm
 
 const savedChats = {
     index: Object.assign(index, index),

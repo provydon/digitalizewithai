@@ -12,9 +12,11 @@ import AuthBase from '@/layouts/AuthLayout.vue';
 import { register } from '@/routes';
 import { store } from '@/routes/login';
 import { request } from '@/routes/password';
+import oauth from '@/routes/oauth';
 
 defineProps<{
     status?: string;
+    error?: string;
     canResetPassword: boolean;
     canRegister: boolean;
 }>();
@@ -33,9 +35,39 @@ defineProps<{
         >
             {{ status }}
         </div>
+        <div
+            v-if="error"
+            class="mb-4 text-center text-sm font-medium text-destructive"
+        >
+            {{ error }}
+        </div>
+
+        <a
+            :href="oauth.redirect.url({ provider: 'google' })"
+            class="oauth-btn mb-4 w-full"
+        >
+            <div class="flex flex-row items-center justify-center">
+                <img
+                    src="/google-favicon.png"
+                    alt=""
+                    class="mr-3 h-6 w-6"
+                />
+                <span class="mt-1 text-center font-semibold text-[grey]">Continue with Google</span>
+            </div>
+        </a>
+
+        <div class="relative">
+            <div class="absolute inset-0 flex items-center">
+                <span class="w-full border-t border-border" />
+            </div>
+            <div class="relative flex justify-center text-xs uppercase">
+                <span class="bg-card px-2 text-muted-foreground">Or continue with email</span>
+            </div>
+        </div>
 
         <Form
-            v-bind="store.form()"
+            :action="store.url()"
+            method="post"
             :reset-on-success="['password']"
             v-slot="{ errors, processing }"
             class="flex flex-col gap-6"

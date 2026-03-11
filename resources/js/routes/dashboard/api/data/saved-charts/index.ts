@@ -1,7 +1,7 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\DataViewController::index
-* @see app/Http/Controllers/DataViewController.php:599
+* @see app/Http/Controllers/DataViewController.php:671
 * @route '/dashboard/api/data/{data}/saved-charts'
 */
 export const index = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\DataViewController::index
-* @see app/Http/Controllers/DataViewController.php:599
+* @see app/Http/Controllers/DataViewController.php:671
 * @route '/dashboard/api/data/{data}/saved-charts'
 */
 index.url = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ index.url = (args: { data: number | { id: number } } | [data: number | { id: num
 
 /**
 * @see \App\Http\Controllers\DataViewController::index
-* @see app/Http/Controllers/DataViewController.php:599
+* @see app/Http/Controllers/DataViewController.php:671
 * @route '/dashboard/api/data/{data}/saved-charts'
 */
 index.get = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -59,7 +59,7 @@ index.get = (args: { data: number | { id: number } } | [data: number | { id: num
 
 /**
 * @see \App\Http\Controllers\DataViewController::index
-* @see app/Http/Controllers/DataViewController.php:599
+* @see app/Http/Controllers/DataViewController.php:671
 * @route '/dashboard/api/data/{data}/saved-charts'
 */
 index.head = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -68,45 +68,8 @@ index.head = (args: { data: number | { id: number } } | [data: number | { id: nu
 })
 
 /**
-* @see \App\Http\Controllers\DataViewController::index
-* @see app/Http/Controllers/DataViewController.php:599
-* @route '/dashboard/api/data/{data}/saved-charts'
-*/
-const indexForm = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: index.url(args, options),
-    method: 'get',
-})
-
-/**
-* @see \App\Http\Controllers\DataViewController::index
-* @see app/Http/Controllers/DataViewController.php:599
-* @route '/dashboard/api/data/{data}/saved-charts'
-*/
-indexForm.get = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: index.url(args, options),
-    method: 'get',
-})
-
-/**
-* @see \App\Http\Controllers\DataViewController::index
-* @see app/Http/Controllers/DataViewController.php:599
-* @route '/dashboard/api/data/{data}/saved-charts'
-*/
-indexForm.head = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: index.url(args, {
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'HEAD',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        }
-    }),
-    method: 'get',
-})
-
-index.form = indexForm
-
-/**
 * @see \App\Http\Controllers\DataViewController::store
-* @see app/Http/Controllers/DataViewController.php:621
+* @see app/Http/Controllers/DataViewController.php:693
 * @route '/dashboard/api/data/{data}/saved-charts'
 */
 export const store = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -121,7 +84,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\DataViewController::store
-* @see app/Http/Controllers/DataViewController.php:621
+* @see app/Http/Controllers/DataViewController.php:693
 * @route '/dashboard/api/data/{data}/saved-charts'
 */
 store.url = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -154,7 +117,7 @@ store.url = (args: { data: number | { id: number } } | [data: number | { id: num
 
 /**
 * @see \App\Http\Controllers\DataViewController::store
-* @see app/Http/Controllers/DataViewController.php:621
+* @see app/Http/Controllers/DataViewController.php:693
 * @route '/dashboard/api/data/{data}/saved-charts'
 */
 store.post = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -163,30 +126,8 @@ store.post = (args: { data: number | { id: number } } | [data: number | { id: nu
 })
 
 /**
-* @see \App\Http\Controllers\DataViewController::store
-* @see app/Http/Controllers/DataViewController.php:621
-* @route '/dashboard/api/data/{data}/saved-charts'
-*/
-const storeForm = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: store.url(args, options),
-    method: 'post',
-})
-
-/**
-* @see \App\Http\Controllers\DataViewController::store
-* @see app/Http/Controllers/DataViewController.php:621
-* @route '/dashboard/api/data/{data}/saved-charts'
-*/
-storeForm.post = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: store.url(args, options),
-    method: 'post',
-})
-
-store.form = storeForm
-
-/**
 * @see \App\Http\Controllers\DataViewController::destroy
-* @see app/Http/Controllers/DataViewController.php:654
+* @see app/Http/Controllers/DataViewController.php:726
 * @route '/dashboard/api/data/{data}/saved-charts/{saved_chart}'
 */
 export const destroy = (args: { data: number | { id: number }, saved_chart: number | { id: number } } | [data: number | { id: number }, saved_chart: number | { id: number } ], options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -201,7 +142,7 @@ destroy.definition = {
 
 /**
 * @see \App\Http\Controllers\DataViewController::destroy
-* @see app/Http/Controllers/DataViewController.php:654
+* @see app/Http/Controllers/DataViewController.php:726
 * @route '/dashboard/api/data/{data}/saved-charts/{saved_chart}'
 */
 destroy.url = (args: { data: number | { id: number }, saved_chart: number | { id: number } } | [data: number | { id: number }, saved_chart: number | { id: number } ], options?: RouteQueryOptions) => {
@@ -231,45 +172,13 @@ destroy.url = (args: { data: number | { id: number }, saved_chart: number | { id
 
 /**
 * @see \App\Http\Controllers\DataViewController::destroy
-* @see app/Http/Controllers/DataViewController.php:654
+* @see app/Http/Controllers/DataViewController.php:726
 * @route '/dashboard/api/data/{data}/saved-charts/{saved_chart}'
 */
 destroy.delete = (args: { data: number | { id: number }, saved_chart: number | { id: number } } | [data: number | { id: number }, saved_chart: number | { id: number } ], options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
     url: destroy.url(args, options),
     method: 'delete',
 })
-
-/**
-* @see \App\Http\Controllers\DataViewController::destroy
-* @see app/Http/Controllers/DataViewController.php:654
-* @route '/dashboard/api/data/{data}/saved-charts/{saved_chart}'
-*/
-const destroyForm = (args: { data: number | { id: number }, saved_chart: number | { id: number } } | [data: number | { id: number }, saved_chart: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: destroy.url(args, {
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'DELETE',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        }
-    }),
-    method: 'post',
-})
-
-/**
-* @see \App\Http\Controllers\DataViewController::destroy
-* @see app/Http/Controllers/DataViewController.php:654
-* @route '/dashboard/api/data/{data}/saved-charts/{saved_chart}'
-*/
-destroyForm.delete = (args: { data: number | { id: number }, saved_chart: number | { id: number } } | [data: number | { id: number }, saved_chart: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: destroy.url(args, {
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'DELETE',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        }
-    }),
-    method: 'post',
-})
-
-destroy.form = destroyForm
 
 const savedCharts = {
     index: Object.assign(index, index),

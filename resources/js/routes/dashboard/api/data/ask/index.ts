@@ -1,7 +1,7 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\DataViewController::stream
-* @see app/Http/Controllers/DataViewController.php:314
+* @see app/Http/Controllers/DataViewController.php:386
 * @route '/dashboard/api/data/{data}/ask/stream'
 */
 export const stream = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ stream.definition = {
 
 /**
 * @see \App\Http\Controllers\DataViewController::stream
-* @see app/Http/Controllers/DataViewController.php:314
+* @see app/Http/Controllers/DataViewController.php:386
 * @route '/dashboard/api/data/{data}/ask/stream'
 */
 stream.url = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -49,35 +49,13 @@ stream.url = (args: { data: number | { id: number } } | [data: number | { id: nu
 
 /**
 * @see \App\Http\Controllers\DataViewController::stream
-* @see app/Http/Controllers/DataViewController.php:314
+* @see app/Http/Controllers/DataViewController.php:386
 * @route '/dashboard/api/data/{data}/ask/stream'
 */
 stream.post = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: stream.url(args, options),
     method: 'post',
 })
-
-/**
-* @see \App\Http\Controllers\DataViewController::stream
-* @see app/Http/Controllers/DataViewController.php:314
-* @route '/dashboard/api/data/{data}/ask/stream'
-*/
-const streamForm = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: stream.url(args, options),
-    method: 'post',
-})
-
-/**
-* @see \App\Http\Controllers\DataViewController::stream
-* @see app/Http/Controllers/DataViewController.php:314
-* @route '/dashboard/api/data/{data}/ask/stream'
-*/
-streamForm.post = (args: { data: number | { id: number } } | [data: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: stream.url(args, options),
-    method: 'post',
-})
-
-stream.form = streamForm
 
 const ask = {
     stream: Object.assign(stream, stream),

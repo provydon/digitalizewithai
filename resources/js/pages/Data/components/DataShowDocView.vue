@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Copy, Ellipsis, Mic, Pause, Pencil, Play, Search, Square, Upload } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/tooltip';
 import { renderMarkdown } from '@/lib/markdown';
 import PaginationPills from './PaginationPills.vue';
+import ReadAloudPlayingIcon from './ReadAloudPlayingIcon.vue';
 
 const props = withDefaults(
     defineProps<{
@@ -113,11 +114,19 @@ const sectionsToShow = computed(() => {
 
 const readAloudModalOpen = ref(false);
 const readAloudModalAccent = ref('');
+const readAloudModalFocusGuardRef = ref<HTMLSpanElement | null>(null);
 
 function openReadAloudModal() {
     readAloudModalAccent.value = props.readAloudVoiceId ?? '';
     readAloudModalOpen.value = true;
 }
+
+// Prevent accent <select> from stealing focus on mobile (which opens native picker)
+watch(readAloudModalOpen, (open) => {
+    if (open) {
+        void nextTick(() => readAloudModalFocusGuardRef.value?.focus({ preventScroll: true }));
+    }
+});
 
 function startReadAloudFromModal() {
     emit('update:read-aloud-voice', readAloudModalAccent.value);
@@ -144,6 +153,9 @@ function startReadAloudFromModal() {
             <!-- Desktop: all action buttons -->
             <div class="hidden flex-wrap items-center gap-2 sm:flex">
                 <template v-if="canReadAloud && readAloudPlaying">
+                    <span class="flex items-center text-gray-500" aria-hidden="true">
+                        <ReadAloudPlayingIcon :paused="readAloudPaused" />
+                    </span>
                     <Tooltip>
                         <TooltipTrigger as-child>
                             <Button
@@ -266,9 +278,45 @@ function startReadAloudFromModal() {
                 </DropdownMenu>
             </div>
         </div>
+        <!-- Mobile: Pause / Stop when read aloud is playing (desktop has these in the main row) -->
+        <div
+            v-if="canReadAloud && readAloudPlaying"
+            class="flex flex-wrap items-center gap-2 sm:hidden"
+        >
+            <span class="flex items-center text-gray-500" aria-hidden="true">
+                <ReadAloudPlayingIcon :paused="readAloudPaused" />
+            </span>
+            <Button
+                variant="outline"
+                size="sm"
+                :title="readAloudPaused ? 'Continue' : 'Pause'"
+                class="content-paper__btn"
+                @click="readAloudPaused ? emit('read-aloud-resume') : emit('read-aloud-pause')"
+            >
+                <Pause v-if="!readAloudPaused" class="mr-1.5 h-3.5 w-3.5" />
+                <Play v-else class="mr-1.5 h-3.5 w-3.5" />
+                {{ readAloudPaused ? 'Continue' : 'Pause' }}
+            </Button>
+            <Button
+                variant="outline"
+                size="sm"
+                title="Stop and start over"
+                class="content-paper__btn"
+                @click="emit('read-aloud-stop')"
+            >
+                <Square class="mr-1.5 h-3.5 w-3.5" />
+                Stop
+            </Button>
+        </div>
         <!-- Read aloud modal: choose accent then start -->
         <Dialog :open="readAloudModalOpen" @update:open="readAloudModalOpen = $event">
             <DialogContent class="sm:max-w-sm">
+                <span
+                    ref="readAloudModalFocusGuardRef"
+                    tabindex="0"
+                    class="sr-only"
+                    aria-hidden="true"
+                />
                 <DialogHeader>
                     <DialogTitle>Read aloud</DialogTitle>
                 </DialogHeader>
@@ -278,7 +326,9 @@ function startReadAloudFromModal() {
                 <select
                     v-if="readAloudVoices?.length"
                     v-model="readAloudModalAccent"
+                    tabindex="-1"
                     class="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-400/30"
+                    aria-label="Choose accent (optional)"
                 >
                     <option value="">Default accent</option>
                     <option

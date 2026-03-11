@@ -312,6 +312,7 @@ class NovaGateway implements Gateway
 
     /**
      * Merge Nova API request options from config (reasoning_effort, top_p).
+     *
      * @see https://nova.amazon.com/dev/documentation — Request Parameters
      */
     protected function mergeNovaRequestOptions(array $body): array
@@ -473,6 +474,7 @@ class NovaGateway implements Gateway
                 ];
             }
         }
+
         return $parts;
     }
 

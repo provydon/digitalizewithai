@@ -11,8 +11,8 @@ import { Spinner } from '@/components/ui/spinner';
 import AuthBase from '@/layouts/AuthLayout.vue';
 import { register } from '@/routes';
 import { store } from '@/routes/login';
-import { request } from '@/routes/password';
 import oauth from '@/routes/oauth';
+import { request } from '@/routes/password';
 
 defineProps<{
     status?: string;

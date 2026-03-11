@@ -77,14 +77,6 @@ return [
         'anthropic' => [
             'driver' => 'anthropic',
             'key' => env('ANTHROPIC_API_KEY'),
-            'models' => [
-                'text' => [
-                    'default' => 'claude-opus-4-6',
-                ],
-                'image' => [
-                    'default' => 'claude-opus-4-6',
-                ],
-            ],
         ],
 
         'azure' => [
@@ -140,14 +132,6 @@ return [
         'openai' => [
             'driver' => 'openai',
             'key' => env('OPENAI_API_KEY'),
-            'models' => [
-                'text' => [
-                    'default' => 'gpt-5.4',
-                ],
-                'image' => [
-                    'default' => 'gpt-5.4',
-                ],
-            ],
         ],
 
         'openrouter' => [

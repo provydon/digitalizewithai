@@ -82,7 +82,7 @@ useIntersectionObserver(
                     {{ branding.name }}
                 </h1>
                 <p class="mx-auto max-w-2xl text-lg leading-relaxed text-foreground/90 lg:text-xl">
-                    Physical records, logs, and books → digital. Search it, chat with AI, get insights. In one place.
+                    Turn your physical records, logs, books, sales records, etc. into digital. Then search it, chat with AI about it, get insights—even let AI read it out in audio—all in one place.
                 </p>
                 <p class="mt-3 text-base font-medium text-primary">
                     Amazon Nova enabled

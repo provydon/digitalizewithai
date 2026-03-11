@@ -14,10 +14,10 @@ return [
     */
 
     'default' => 'anthropic',
-    'default_for_images' => 'gemini',
-    'default_for_audio' => 'openai',
-    'default_for_transcription' => 'openai',
-    'default_for_embeddings' => 'openai',
+    'default_for_images' => 'anthropic',
+    'default_for_audio' => 'anthropic',
+    'default_for_transcription' => 'anthropic',
+    'default_for_embeddings' => 'anthropic',
     'default_for_reranking' => 'cohere',
 
     /*
@@ -32,6 +32,17 @@ return [
     'features' => [
         'audio_read_out_enabled' => env('AI_AUDIO_READ_OUT_ENABLED', true),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | AI Request Timeout (seconds)
+    |--------------------------------------------------------------------------
+    |
+    | Timeout for HTTP requests to AI providers (e.g. Nova). Large images or
+    | complex prompts can take several minutes. Increase if you see cURL 28.
+    |
+    */
+    'request_timeout' => (int) env('AI_REQUEST_TIMEOUT', 900),
 
     /*
     |--------------------------------------------------------------------------
@@ -66,6 +77,14 @@ return [
         'anthropic' => [
             'driver' => 'anthropic',
             'key' => env('ANTHROPIC_API_KEY'),
+            'models' => [
+                'text' => [
+                    'default' => 'claude-opus-4-6',
+                ],
+                'image' => [
+                    'default' => 'claude-opus-4-6',
+                ],
+            ],
         ],
 
         'azure' => [
@@ -121,6 +140,14 @@ return [
         'openai' => [
             'driver' => 'openai',
             'key' => env('OPENAI_API_KEY'),
+            'models' => [
+                'text' => [
+                    'default' => 'gpt-5.4',
+                ],
+                'image' => [
+                    'default' => 'gpt-5.4',
+                ],
+            ],
         ],
 
         'openrouter' => [
@@ -142,16 +169,24 @@ return [
         | Amazon Nova API (Chat Completions at api.nova.amazon.com)
         | Uses API key from https://nova.amazon.com/dev/api. Custom driver required
         | because Prism's OpenAI provider uses /v1/responses which Nova does not support.
+        |
+        | Docs: https://nova.amazon.com/dev/documentation
+        | Optional: reasoning_effort ("disabled"|"low"|"medium"|"high") for extended thinking.
+        | Optional: top_p (0.0-1.0, default 0.9) for nucleus sampling.
+        | Image: up to 10 images/request, 25 MB; formats PNG, JPEG, WEBP, GIF. response_format is ignored by Nova.
         */
         'nova' => [
             'driver' => 'nova',
             'key' => env('NOVA_API_KEY'),
             'url' => 'https://api.nova.amazon.com/v1',
+            'reasoning_effort' => env('NOVA_REASONING_EFFORT', null), // 'low'|'medium'|'high' for complex tasks
+            'top_p' => env('NOVA_TOP_P', null), // 0.0-1.0, omit to use API default (0.9)
             'models' => [
                 'text' => [
                     'default' => 'nova-2-lite-v1',
                     'cheapest' => 'nova-micro-v1',
                     'smartest' => 'nova-pro-v1',
+                    // 'nova-premier-v1' = most capable (1M context); lower RPM/RPD.
                 ],
             ],
         ],

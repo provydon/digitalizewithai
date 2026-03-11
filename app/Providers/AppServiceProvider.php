@@ -2,8 +2,8 @@
 
 namespace App\Providers;
 
-use App\Ai\NovaGateway;
-use App\Ai\NovaProvider;
+use App\Ai\Gateway\NovaGateway;
+use App\Ai\Providers\NovaProvider;
 use App\Listeners\LogAiProviderAndModel;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Events\Dispatcher;
@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
-use Laravel\Ai\Ai;
+use Laravel\Ai\AiManager;
 use Laravel\Ai\Events\PromptingAgent;
 use Laravel\Ai\Events\StreamingAgent;
 
@@ -24,7 +24,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->afterResolving(AiManager::class, function (AiManager $manager): void {
+            $this->registerNovaDriverOn($manager);
+        });
     }
 
     /**
@@ -34,21 +36,22 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
         $this->registerAiRequestLogging();
-        $this->registerNovaAiDriver();
     }
 
     /**
-     * Register the custom Nova driver with the Laravel AI manager so that
-     * choosing "Amazon Nova" in the digitalize provider dropdown works.
+     * Add the Nova driver to a given AiManager instance. Called via afterResolving
+     * so every scoped instance (including the one created per queued job) gets it.
      */
-    protected function registerNovaAiDriver(): void
+    protected function registerNovaDriverOn(AiManager $manager): void
     {
-        Ai::extend('nova', function ($app, array $config) {
-            $client = Http::timeout(60);
+        $manager->extend('nova', function ($app, array $config) {
+            $timeout = (int) ($config['request_timeout'] ?? config('ai.request_timeout', 600));
+            $client = Http::timeout($timeout);
             $gateway = new NovaGateway(
                 $client,
                 $config['key'] ?? '',
-                $config['url'] ?? null
+                $config['url'] ?? null,
+                $config
             );
 
             return new NovaProvider(

@@ -20,15 +20,19 @@ class DigitalizeFileJob implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
-    /** Run for up to 10 minutes (video + batched AI can be slow). */
-    public int $timeout = 600;
+    /** Job timeout (seconds); must exceed ai.request_timeout for long extractions. */
+    public int $timeout;
 
     /** Number of times to attempt the job. */
     public int $tries = 2;
 
     public function __construct(
         public int $dataId
-    ) {}
+    ) {
+        $aiTimeout = (int) config('ai.request_timeout', 600);
+
+        $this->timeout = max(660, $aiTimeout + 60);
+    }
 
     public function handle(DigitalizeExtractionService $extraction): void
     {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Pencil } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { Button } from '@/components/ui/button';
 import api from '@/lib/api';
 import type { DataRecord } from '../types';
@@ -8,6 +8,24 @@ import type { DataRecord } from '../types';
 const props = defineProps<{
     record: DataRecord;
 }>();
+
+const aiModelLabel = computed(() => {
+    const r = props.record;
+    const p = r.ai_provider?.trim();
+    const m = r.ai_model?.trim();
+    if (p && m) return `${p} · ${m}`;
+    if (m) return m;
+    if (p) return p;
+    return '';
+});
+
+const formattedDate = computed(() => {
+    if (!props.record.created_at) return '';
+    return new Date(props.record.created_at).toLocaleString(undefined, {
+        dateStyle: 'short',
+        timeStyle: 'short',
+    });
+});
 
 const emit = defineEmits<{
     'update:name': [name: string];
@@ -101,10 +119,11 @@ async function saveNameEdit() {
     <p v-if="nameEditError" class="mb-1 text-sm text-destructive">
         {{ nameEditError }}
     </p>
-    <p class="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-        <span class="font-mono">ID: {{ record.id }}</span>
-        <span v-if="record.created_at">
-            Created {{ new Date(record.created_at).toLocaleString() }}
+    <p class="mb-4 flex flex-nowrap items-center justify-between gap-x-2 overflow-x-auto text-xs text-muted-foreground sm:justify-start">
+        <span class="shrink-0 font-mono">ID: {{ record.id }}</span>
+        <span v-if="formattedDate" class="shrink-0">{{ formattedDate }}</span>
+        <span v-if="aiModelLabel" class="min-w-0 shrink truncate sm:text-left text-right" :title="aiModelLabel">
+            {{ aiModelLabel }}
         </span>
     </p>
 </template>

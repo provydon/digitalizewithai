@@ -1,12 +1,18 @@
 <?php
 
-namespace App\Ai;
+namespace App\Ai\Gateway;
 
 use Closure;
 use Generator;
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\JsonSchema\JsonSchemaTypeFactory;
+use Laravel\Ai\Contracts\Files\TranscribableAudio;
 use Laravel\Ai\Contracts\Gateway\Gateway;
+use Laravel\Ai\Contracts\Providers\AudioProvider;
+use Laravel\Ai\Contracts\Providers\EmbeddingProvider;
+use Laravel\Ai\Contracts\Providers\ImageProvider;
 use Laravel\Ai\Contracts\Providers\TextProvider;
+use Laravel\Ai\Contracts\Providers\TranscriptionProvider;
 use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Gateway\TextGenerationOptions;
 use Laravel\Ai\Messages\AssistantMessage;
@@ -14,16 +20,22 @@ use Laravel\Ai\Messages\Message;
 use Laravel\Ai\Messages\MessageRole;
 use Laravel\Ai\Messages\ToolResultMessage;
 use Laravel\Ai\Messages\UserMessage;
+use Laravel\Ai\Providers\Provider;
+use Laravel\Ai\Responses\AudioResponse;
 use Laravel\Ai\Responses\Data\Meta;
 use Laravel\Ai\Responses\Data\Usage;
+use Laravel\Ai\Responses\EmbeddingsResponse;
+use Laravel\Ai\Responses\ImageResponse;
 use Laravel\Ai\Responses\StructuredTextResponse;
 use Laravel\Ai\Responses\TextResponse;
+use Laravel\Ai\Responses\TranscriptionResponse;
 use Laravel\Ai\Streaming\Events\StreamEnd;
 use Laravel\Ai\Streaming\Events\StreamStart;
 use Laravel\Ai\Streaming\Events\TextDelta;
 use Laravel\Ai\Streaming\Events\TextEnd;
 use Laravel\Ai\Streaming\Events\TextStart;
 use Laravel\Ai\Tools\Request;
+use LogicException;
 
 /**
  * Gateway for Amazon Nova API (api.nova.amazon.com) using the Chat Completions endpoint.
@@ -51,6 +63,7 @@ class NovaGateway implements Gateway
         protected PendingRequest $client,
         protected string $apiKey,
         ?string $baseUrl = null,
+        protected array $config = [],
     ) {
         $this->baseUrl = rtrim($baseUrl ?? $this->baseUrl, '/');
         $this->invokingToolCallback = fn () => true;
@@ -85,6 +98,7 @@ class NovaGateway implements Gateway
                 'temperature' => $options?->temperature,
             ];
         }
+        $body = $this->mergeNovaRequestOptions($body);
         if (count($tools) > 0) {
             $body['tools'] = $this->toOpenAiTools($tools);
             $body['tool_choice'] = 'auto';
@@ -94,9 +108,11 @@ class NovaGateway implements Gateway
         $totalOutputTokens = 0;
         $allAssistantMessages = [];
 
+        $requestTimeout = $timeout ?? (int) ($this->config['request_timeout'] ?? config('ai.request_timeout', 600));
+
         do {
             $response = $this->client
-                ->timeout($timeout ?? 60)
+                ->timeout($requestTimeout)
                 ->withHeaders(['Authorization' => 'Bearer '.$this->apiKey])
                 ->post($this->baseUrl.'/chat/completions', $body);
 
@@ -134,8 +150,8 @@ class NovaGateway implements Gateway
 
             $toolsByName = [];
             foreach ($tools as $tool) {
-                if ($tool instanceof Tool && method_exists($tool, 'name')) {
-                    $toolsByName[$tool->name()] = $tool;
+                if ($tool instanceof Tool) {
+                    $toolsByName[$this->toolName($tool)] = $tool;
                 }
             }
 
@@ -171,7 +187,7 @@ class NovaGateway implements Gateway
         } while (true);
 
         $usageObj = new Usage($totalInputTokens, $totalOutputTokens, 0, 0, 0);
-        $meta = new Meta($provider->name(), $model);
+        $meta = new Meta($this->providerName($provider), $model);
 
         if ($schema !== null) {
             $structured = json_decode($content, true);
@@ -208,14 +224,18 @@ class NovaGateway implements Gateway
             'stream' => true,
             'max_tokens' => $options?->maxTokens ?? 4096,
             'temperature' => $options?->temperature,
+            'stream_options' => ['include_usage' => true],
         ];
+        $body = $this->mergeNovaRequestOptions($body);
         if (count($tools) > 0) {
             $body['tools'] = $this->toOpenAiTools($tools);
             $body['tool_choice'] = 'auto';
         }
 
+        $requestTimeout = $timeout ?? (int) ($this->config['request_timeout'] ?? config('ai.request_timeout', 600));
+
         $response = $this->client
-            ->timeout($timeout ?? 60)
+            ->timeout($requestTimeout)
             ->withHeaders(['Authorization' => 'Bearer '.$this->apiKey])
             ->withOptions(['stream' => true])
             ->post($this->baseUrl.'/chat/completions', $body);
@@ -225,7 +245,7 @@ class NovaGateway implements Gateway
         $timestamp = time();
         $messageId = $invocationId;
 
-        yield (new StreamStart($invocationId, $provider->name(), $model, $timestamp))->withInvocationId($invocationId);
+        yield (new StreamStart($invocationId, $this->providerName($provider), $model, $timestamp))->withInvocationId($invocationId);
         yield (new TextStart($invocationId, $messageId, $timestamp))->withInvocationId($invocationId);
 
         $stream = $response->toPsrResponse()->getBody();
@@ -256,8 +276,8 @@ class NovaGateway implements Gateway
                     yield (new TextDelta($invocationId, $messageId, $delta, $timestamp))->withInvocationId($invocationId);
                 }
                 if (! empty($chunk['usage'])) {
-                    $inputTokens = (int) ($chunk['usage']['input_tokens'] ?? $inputTokens);
-                    $outputTokens = (int) ($chunk['usage']['output_tokens'] ?? $outputTokens);
+                    $inputTokens = (int) ($chunk['usage']['input_tokens'] ?? $chunk['usage']['prompt_tokens'] ?? $inputTokens);
+                    $outputTokens = (int) ($chunk['usage']['output_tokens'] ?? $chunk['usage']['completion_tokens'] ?? $outputTokens);
                 }
             }
         }
@@ -272,6 +292,40 @@ class NovaGateway implements Gateway
         $this->toolInvokedCallback = $invoked;
 
         return $this;
+    }
+
+    /**
+     * Get provider name for responses (TextProvider contract does not define name(); Provider does).
+     */
+    protected function providerName(TextProvider $provider): string
+    {
+        return $provider instanceof Provider ? $provider->name() : 'nova';
+    }
+
+    /**
+     * Get tool name for API payloads (Tool contract does not define name(); implementations may).
+     */
+    protected function toolName(Tool $tool): string
+    {
+        return method_exists($tool, 'name') ? call_user_func([$tool, 'name']) : class_basename($tool);
+    }
+
+    /**
+     * Merge Nova API request options from config (reasoning_effort, top_p).
+     * @see https://nova.amazon.com/dev/documentation — Request Parameters
+     */
+    protected function mergeNovaRequestOptions(array $body): array
+    {
+        $effort = $this->config['reasoning_effort'] ?? null;
+        if (in_array($effort, ['disabled', 'low', 'medium', 'high'], true)) {
+            $body['reasoning_effort'] = $effort;
+        }
+        $topP = $this->config['top_p'] ?? null;
+        if (is_numeric($topP) && $topP >= 0 && $topP <= 1) {
+            $body['top_p'] = (float) $topP;
+        }
+
+        return $body;
     }
 
     /**
@@ -352,7 +406,10 @@ class NovaGateway implements Gateway
     }
 
     /**
-     * @return array<int, array{role: string, content: string}>
+     * Convert Laravel AI messages to OpenAI Chat Completions format.
+     * Supports text and vision (user message attachments as image parts).
+     *
+     * @return array<int, array{role: string, content: string|array<int, array{type: string, text?: string, image_url?: array{url: string}}>}>
      */
     protected function toOpenAiMessages(?string $instructions, array $messages): array
     {
@@ -362,7 +419,7 @@ class NovaGateway implements Gateway
         }
         foreach ($messages as $message) {
             if ($message instanceof UserMessage) {
-                $out[] = ['role' => 'user', 'content' => $message->content ?? ''];
+                $out[] = ['role' => 'user', 'content' => $this->userMessageContent($message)];
             } elseif ($message instanceof AssistantMessage) {
                 $out[] = ['role' => 'assistant', 'content' => $message->content ?? ''];
             } elseif ($message instanceof ToolResultMessage) {
@@ -392,18 +449,46 @@ class NovaGateway implements Gateway
     }
 
     /**
+     * User message content as string or array of parts (text + image_url) for vision.
+     */
+    protected function userMessageContent(UserMessage $message): string|array
+    {
+        $attachments = $message->attachments->filter(function ($att) {
+            return is_object($att) && method_exists($att, 'content') && method_exists($att, 'mimeType');
+        });
+        if ($attachments->isEmpty()) {
+            return $message->content ?? '';
+        }
+        $parts = [];
+        if (trim((string) ($message->content ?? '')) !== '') {
+            $parts[] = ['type' => 'text', 'text' => $message->content];
+        }
+        foreach ($attachments as $att) {
+            $content = $att->content();
+            $mime = $att->mimeType() ?? 'image/jpeg';
+            if (is_string($content)) {
+                $parts[] = [
+                    'type' => 'image_url',
+                    'image_url' => ['url' => 'data:'.$mime.';base64,'.base64_encode($content)],
+                ];
+            }
+        }
+        return $parts;
+    }
+
+    /**
      * @param  array<Tool>  $tools
      * @return array<int, array{type: string, function: array{name: string, description: string, parameters: array}}>
      */
     protected function toOpenAiTools(array $tools): array
     {
-        $factory = new \Illuminate\JsonSchema\JsonSchemaTypeFactory;
+        $factory = new JsonSchemaTypeFactory;
         $out = [];
         foreach ($tools as $tool) {
             if (! $tool instanceof Tool) {
                 continue;
             }
-            $name = method_exists($tool, 'name') ? $tool->name() : class_basename($tool);
+            $name = $this->toolName($tool);
             $schema = $tool->schema($factory);
             $properties = [];
             $required = [];
@@ -428,47 +513,57 @@ class NovaGateway implements Gateway
         return $out;
     }
 
-    // Gateway stubs (Nova API is text/chat only via this driver)
-
+    /**
+     * {@inheritdoc}
+     */
     public function generateAudio(
-        \Laravel\Ai\Contracts\Providers\AudioProvider $provider,
+        AudioProvider $provider,
         string $model,
         string $text,
         string $voice,
         ?string $instructions = null,
-    ): \Laravel\Ai\Responses\AudioResponse {
-        throw new \LogicException('Nova API driver does not support audio generation.');
+    ): AudioResponse {
+        throw new LogicException('Nova API driver does not support audio generation.');
     }
 
+    /**
+     * {@inheritdoc}
+     */
     public function generateImage(
-        \Laravel\Ai\Contracts\Providers\ImageProvider $provider,
+        ImageProvider $provider,
         string $model,
         string $prompt,
         array $attachments = [],
         ?string $size = null,
         ?string $quality = null,
         ?int $timeout = null,
-    ): \Laravel\Ai\Responses\ImageResponse {
-        throw new \LogicException('Nova API driver does not support image generation.');
+    ): ImageResponse {
+        throw new LogicException('Nova API driver does not support image generation.');
     }
 
+    /**
+     * {@inheritdoc}
+     */
     public function generateEmbeddings(
-        \Laravel\Ai\Contracts\Providers\EmbeddingProvider $provider,
+        EmbeddingProvider $provider,
         string $model,
         array $inputs,
         int $dimensions
-    ): \Laravel\Ai\Responses\EmbeddingsResponse {
-        throw new \LogicException('Nova API driver does not support embeddings.');
+    ): EmbeddingsResponse {
+        throw new LogicException('Nova API driver does not support embeddings.');
     }
 
+    /**
+     * {@inheritdoc}
+     */
     public function generateTranscription(
-        \Laravel\Ai\Contracts\Providers\TranscriptionProvider $provider,
+        TranscriptionProvider $provider,
         string $model,
-        \Laravel\Ai\Contracts\Files\TranscribableAudio $audio,
+        TranscribableAudio $audio,
         ?string $language = null,
         bool $diarize = false,
         int $timeout = 30
-    ): \Laravel\Ai\Responses\TranscriptionResponse {
-        throw new \LogicException('Nova API driver does not support transcription.');
+    ): TranscriptionResponse {
+        throw new LogicException('Nova API driver does not support transcription.');
     }
 }

@@ -12,6 +12,14 @@ class DigitalizeAgent implements Agent, HasStructuredOutput
 {
     use Promptable;
 
+    /**
+     * Request timeout in seconds for AI extraction (large images / complex prompts).
+     */
+    public function timeout(): int
+    {
+        return (int) config('ai.request_timeout', 600);
+    }
+
     public function instructions(): Stringable|string
     {
         return 'You extract handwritten or printed content from the attached image(s). '

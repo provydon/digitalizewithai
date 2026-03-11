@@ -30,8 +30,8 @@ class ForceHttpsServiceProvider extends ServiceProvider
         } catch (\Throwable) {
             $host = '';
         }
-        // Force HTTPS for known production domains (Render, Fly, Railway) even if APP_ENV/APP_URL are wrong
-        $productionDomains = ['onrender.com', 'fly.dev', 'railway.app', 'up.railway.app'];
+        // Force HTTPS for known production domains (Render, Fly, Railway, custom) even if APP_ENV/APP_URL are wrong
+        $productionDomains = ['onrender.com', 'fly.dev', 'railway.app', 'up.railway.app', 'digitalizewithai.com'];
         $isProductionDomain = $host && array_filter($productionDomains, fn ($d) => str_ends_with($host, $d)) !== [];
         $shouldForce = $isProductionDomain
             || ! $this->app->environment('local')

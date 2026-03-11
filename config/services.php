@@ -42,7 +42,14 @@ return [
     'google' => [
         'client_id' => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),
-        'redirect' => env('APP_URL').'/oauth/google/callback',
+        'redirect' => (function () {
+            $base = rtrim(env('APP_URL', 'http://localhost'), '/');
+            // Google OAuth requires HTTPS in production; keep http only for localhost
+            if (! str_contains($base, 'localhost') && ! str_contains($base, '127.0.0.1') && ! str_contains($base, '.test')) {
+                $base = str_replace('http://', 'https://', $base);
+            }
+            return $base.'/oauth/google/callback';
+        })(),
     ],
 
 ];

@@ -951,6 +951,8 @@ watch(tableSearch, () => {
 const messages = ref<ChatMessage[]>([]);
 const askLoading = ref(false);
 const askError = ref<string | null>(null);
+let askAbortController: AbortController | null = null;
+const editMessageContent = ref<string | null>(null);
 const savedChats = ref<SavedChat[]>([]);
 const saveChatLoading = ref(false);
 const savedChatError = ref<string | null>(null);
@@ -981,11 +983,30 @@ function revokeAttachmentPreviews(msgs: ChatMessage[]) {
     });
 }
 
+function stopAsk() {
+    if (askAbortController) {
+        askAbortController.abort();
+    }
+}
+
+function editMessageAt(index: number) {
+    const msg = messages.value[index];
+    const content = msg?.role === 'user' ? (msg.content ?? '') : '';
+    messages.value = messages.value.slice(0, index);
+    editMessageContent.value = content;
+}
+
+function clearEditMessage() {
+    editMessageContent.value = null;
+}
+
 async function askAi(prompt?: string, attachments?: File[]) {
     const q = (prompt ?? '').trim();
     if (!q || !record.value) return;
+    editMessageContent.value = null;
     askLoading.value = true;
     askError.value = null;
+    askAbortController = new AbortController();
     const attachmentPreviews = attachments?.length ? buildAttachmentPreviews(attachments) : undefined;
     messages.value.push({ role: 'user', content: q, attachment_previews: attachmentPreviews });
     const assistantIndex = messages.value.length;
@@ -1015,6 +1036,7 @@ async function askAi(prompt?: string, attachments?: File[]) {
             headers,
             credentials: 'same-origin',
             body,
+            signal: askAbortController.signal,
         });
         if (!res.ok) {
             const errData = await res.json().catch(() => ({}));
@@ -1027,6 +1049,7 @@ async function askAi(prompt?: string, attachments?: File[]) {
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
+            if (askAbortController?.signal.aborted) break;
             buffer += decoder.decode(value, { stream: true });
             const lines = buffer.split('\n');
             buffer = lines.pop() ?? '';
@@ -1090,12 +1113,17 @@ async function askAi(prompt?: string, attachments?: File[]) {
         autosaveChat();
     } catch (e: unknown) {
         const err = e as Error;
-        askError.value = err.message ?? 'Request failed';
-        messages.value.pop();
-        const last = messages.value[messages.value.length - 1];
-        if (last?.role === 'assistant' && last.content === '') messages.value.pop();
+        if (err.name === 'AbortError') {
+            askError.value = null;
+        } else {
+            askError.value = err.message ?? 'Request failed';
+            messages.value.pop();
+            const last = messages.value[messages.value.length - 1];
+            if (last?.role === 'assistant' && last.content === '') messages.value.pop();
+        }
     } finally {
         askLoading.value = false;
+        askAbortController = null;
     }
 }
 
@@ -1334,8 +1362,9 @@ async function suggestChartFromAi() {
             `/dashboard/api/data/${record.value.id}/chart-suggestion`,
             { request: chartRequest.value.trim() || undefined },
         );
+        const chartType = ['bar', 'line', 'pie'].includes(data.chartType) ? data.chartType : 'bar';
         chartSuggestion.value = {
-            chartType: data.chartType === 'line' || data.chartType === 'pie' ? data.chartType : 'bar',
+            chartType,
             labelColumn: data.labelColumn,
             valueColumn: data.valueColumn,
             title: data.title ?? null,
@@ -1415,8 +1444,9 @@ async function saveCurrentChart() {
 function loadSavedChart(chart: SavedChart) {
     const cfg = chart.chart_config;
     if (cfg && typeof cfg.chartType === 'string' && typeof cfg.labelColumn === 'number' && typeof cfg.valueColumn === 'number') {
+        const chartType = ['bar', 'line', 'pie'].includes(cfg.chartType) ? cfg.chartType : 'bar';
         chartSuggestion.value = {
-            chartType: cfg.chartType === 'line' || cfg.chartType === 'pie' ? cfg.chartType : 'bar',
+            chartType,
             labelColumn: cfg.labelColumn,
             valueColumn: cfg.valueColumn,
             title: cfg.title ?? null,
@@ -1659,6 +1689,7 @@ const aiModelLabel = computed(() => {
                                     :record-name="record?.name ?? ''"
                                     :ai-model-label="aiModelLabel"
                                     :messages="messages"
+                                    :edit-message-content="editMessageContent"
                                     :suggested-prompts="suggestedPrompts"
                                     :insights="insights"
                                     :ask-loading="askLoading"
@@ -1668,6 +1699,9 @@ const aiModelLabel = computed(() => {
                                     :saved-chat-error="savedChatError"
                                     :can-save-chat="messages.length > 0"
                                     @ask="askAi"
+                                    @stop="stopAsk"
+                                    @edit-message="editMessageAt"
+                                    @clear-edit="clearEditMessage"
                                     @new-chat="startNewChat"
                                     @save-chat="saveCurrentChat"
                                     @load-chat="loadSavedChat"

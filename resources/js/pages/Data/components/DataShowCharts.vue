@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
     ArcElement,
+    BarController,
     BarElement,
     CategoryScale,
     Chart as ChartJS,
@@ -9,6 +10,7 @@ import {
     LinearScale,
     LineController,
     LineElement,
+    PieController,
     PointElement,
     Title,
 } from 'chart.js';
@@ -21,11 +23,13 @@ import type { ChartSuggestion, SavedChart } from '../types';
 ChartJS.register(
     CategoryScale,
     LinearScale,
+    BarController,
     BarElement,
     LineController,
     LineElement,
     PointElement,
     Filler,
+    PieController,
     ArcElement,
     Legend,
     Title,
@@ -189,8 +193,9 @@ function chartTitle(chart: SavedChart): string {
                 :disabled="!canChart || chartSuggestionLoading"
                 @click="emit('suggest-chart')"
             >
-                <BarChart3 class="h-4 w-4" />
-                {{ chartSuggestionLoading ? '…' : chartSuggestion ? 'Generate Another Chart' : 'Generate Chart' }}
+                <Loader2 v-if="chartSuggestionLoading" class="h-4 w-4 animate-spin" />
+                <BarChart3 v-else class="h-4 w-4" />
+                {{ chartSuggestionLoading ? 'Generating…' : chartSuggestion ? 'Generate Another Chart' : 'Generate Chart' }}
             </button>
             <button
                 v-if="canSaveChart"
@@ -218,11 +223,12 @@ function chartTitle(chart: SavedChart): string {
             />
             <button
                 type="button"
-                class="min-h-[44px] w-full rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 sm:h-fit sm:w-auto"
+                class="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 sm:h-fit sm:w-auto"
                 :disabled="!canChart || chartSuggestionLoading"
                 @click="emit('suggest-chart')"
             >
-                Send
+                <Loader2 v-if="chartSuggestionLoading" class="h-4 w-4 animate-spin" />
+                {{ chartSuggestionLoading ? 'Sending…' : 'Send' }}
             </button>
         </div>
         <div v-if="!chartSuggestion" class="space-y-3 rounded-lg border border-dashed border-sidebar-border/70 py-4 px-4 text-center dark:border-sidebar-border sm:py-6 sm:px-5">

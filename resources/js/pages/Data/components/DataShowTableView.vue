@@ -110,18 +110,9 @@ const tablePaginationSlots = computed(() => {
     const total = props.rowsMeta?.last_page ?? 0;
     if (total <= 0) return [];
     if (isDesktop.value) return Array.from({ length: total }, (_, i) => i + 1);
-    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
-    const current = props.tablePage;
-    const slots: (number | 'ellipsis')[] = [1];
-    const windowStart = Math.max(2, current - 1);
-    const windowEnd = Math.min(total - 1, current + 1);
-    if (windowStart > 2) slots.push('ellipsis');
-    for (let p = windowStart; p <= windowEnd; p++) {
-        if (p !== 1 && p !== total) slots.push(p);
-    }
-    if (windowEnd < total - 1) slots.push('ellipsis');
-    if (total > 1) slots.push(total);
-    return slots;
+    // Mobile: always 1, 2, ..., last so it fits in one row
+    if (total <= 3) return Array.from({ length: total }, (_, i) => i + 1);
+    return [1, 2, 'ellipsis' as const, total];
 });
 
 const readAloudModalOpen = ref(false);
@@ -141,9 +132,9 @@ function startReadAloudFromModal() {
 
 <template>
     <div class="table-paper space-y-4 rounded-xl bg-white p-4 text-gray-900 shadow-sm sm:p-5">
-        <div class="flex flex-wrap items-center gap-2 sm:gap-3">
-            <div class="flex min-w-0 w-full flex-1 basis-0 sm:w-1/2 sm:max-w-[50%]">
-                <div class="relative min-w-0 flex-1">
+        <div class="flex flex-nowrap items-center gap-2 sm:flex-wrap sm:gap-3">
+            <div class="flex min-w-0 flex-1 sm:w-1/2 sm:max-w-[50%]">
+                <div class="relative min-w-0 w-full flex-1">
                     <Search
                         class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500"
                     />
@@ -245,8 +236,8 @@ function startReadAloudFromModal() {
                     </Button>
                 </template>
             </div>
-            <!-- Mobile: Actions dropdown only -->
-            <DropdownMenu class="ml-auto sm:hidden">
+            <!-- Mobile: Actions dropdown on same line as search -->
+            <DropdownMenu class="ml-auto shrink-0 sm:hidden">
                 <DropdownMenuTrigger as-child>
                     <Button
                         size="sm"
@@ -336,11 +327,11 @@ function startReadAloudFromModal() {
         </p>
         <div
             v-if="rowsMeta && rowsMeta.last_page > 1"
-            class="flex flex-wrap items-center justify-center gap-1 py-2"
+            class="flex flex-nowrap items-center justify-center gap-1 overflow-x-auto py-2 sm:flex-wrap"
         >
             <button
                 type="button"
-                class="rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-sm font-medium text-gray-900 hover:bg-gray-100 disabled:opacity-50"
+                class="shrink-0 rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm font-medium text-gray-900 hover:bg-gray-100 disabled:opacity-50 sm:px-2.5"
                 :disabled="tablePage <= 1"
                 @click="emit('go-to-page', tablePage - 1)"
             >
@@ -350,17 +341,17 @@ function startReadAloudFromModal() {
                 <button
                     v-if="slot !== 'ellipsis'"
                     type="button"
-                    class="min-w-[2.25rem] rounded-lg border px-2.5 py-1.5 text-sm font-medium transition-colors"
+                    class="shrink-0 min-w-[2rem] rounded-lg border px-2 py-1.5 text-sm font-medium transition-colors sm:min-w-[2.25rem] sm:px-2.5"
                     :class="tablePage === slot ? 'border-primary bg-primary text-primary-foreground' : 'border-gray-300 bg-white text-gray-900 hover:bg-gray-100'"
                     @click="emit('go-to-page', slot)"
                 >
                     {{ slot }}
                 </button>
-                <span v-else class="px-1 text-gray-500">…</span>
+                <span v-else class="shrink-0 px-0.5 text-gray-500 sm:px-1">…</span>
             </template>
             <button
                 type="button"
-                class="rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-sm font-medium text-gray-900 hover:bg-gray-100 disabled:opacity-50"
+                class="shrink-0 rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm font-medium text-gray-900 hover:bg-gray-100 disabled:opacity-50 sm:px-2.5"
                 :disabled="tablePage >= (rowsMeta?.last_page ?? 1)"
                 @click="emit('go-to-page', tablePage + 1)"
             >
@@ -458,11 +449,11 @@ function startReadAloudFromModal() {
         </div>
         <div
             v-if="rowsMeta && rowsMeta.last_page > 1"
-            class="flex flex-wrap items-center justify-center gap-1 py-3 text-sm"
+            class="flex flex-nowrap items-center justify-center gap-1 overflow-x-auto py-3 text-sm sm:flex-wrap sm:gap-3"
         >
             <button
                 type="button"
-                class="rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 font-medium text-gray-900 hover:bg-gray-100 disabled:opacity-50"
+                class="shrink-0 rounded-lg border border-gray-300 bg-white px-2 py-1.5 font-medium text-gray-900 hover:bg-gray-100 disabled:opacity-50 sm:px-2.5"
                 :disabled="tablePage <= 1"
                 @click="emit('go-to-page', tablePage - 1)"
             >
@@ -472,17 +463,17 @@ function startReadAloudFromModal() {
                 <button
                     v-if="slot !== 'ellipsis'"
                     type="button"
-                    class="min-w-[2.25rem] rounded-lg border px-2.5 py-1.5 font-medium transition-colors"
+                    class="shrink-0 min-w-[2rem] rounded-lg border px-2 py-1.5 font-medium transition-colors sm:min-w-[2.25rem] sm:px-2.5"
                     :class="tablePage === slot ? 'border-primary bg-primary text-primary-foreground' : 'border-gray-300 bg-white text-gray-900 hover:bg-gray-100'"
                     @click="emit('go-to-page', slot)"
                 >
                     {{ slot }}
                 </button>
-                <span v-else class="px-1 text-gray-500">…</span>
+                <span v-else class="shrink-0 px-0.5 text-gray-500 sm:px-1">…</span>
             </template>
             <button
                 type="button"
-                class="rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 font-medium text-gray-900 hover:bg-gray-100 disabled:opacity-50"
+                class="shrink-0 rounded-lg border border-gray-300 bg-white px-2 py-1.5 font-medium text-gray-900 hover:bg-gray-100 disabled:opacity-50 sm:px-2.5"
                 :disabled="tablePage >= (rowsMeta?.last_page ?? 1)"
                 @click="emit('go-to-page', tablePage + 1)"
             >

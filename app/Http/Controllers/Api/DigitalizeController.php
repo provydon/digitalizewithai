@@ -483,6 +483,7 @@ class DigitalizeController extends Controller
 
     /**
      * Return available AI providers and models for digitalize (frontend selector).
+     * Only providers that are in digitalize_providers and have a non-empty API key in config are returned.
      */
     public function digitalizeOptions(): JsonResponse
     {
@@ -490,6 +491,11 @@ class DigitalizeController extends Controller
         $defaultDigitalize = config('ai.default_digitalize_provider', 'nova');
         $options = [];
         foreach ($config as $id => $entry) {
+            $providerConfig = config('ai.providers.'.$id, []);
+            $key = $providerConfig['key'] ?? null;
+            if ($key === null || $key === '') {
+                continue;
+            }
             $name = is_array($entry) ? ($entry['name'] ?? $id) : (string) $entry;
             $item = ['id' => $id, 'name' => $name, 'models' => []];
             if (is_array($entry) && ! empty($entry['models'])) {
@@ -499,7 +505,7 @@ class DigitalizeController extends Controller
             }
             $options[] = $item;
         }
-        $providerIds = array_keys($config);
+        $providerIds = array_column($options, 'id');
         $defaultProvider = in_array($defaultDigitalize, $providerIds, true) ? $defaultDigitalize : ($providerIds[0] ?? null);
 
         $maxFileSizeMb = config('upload.max_file_size_mb', 100);

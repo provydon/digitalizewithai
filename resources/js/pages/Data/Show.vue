@@ -345,6 +345,55 @@ const selectedReadAloudVoiceId = ref<string>('');
 const availableReadAloudVoices = ref<{ lang: string; label: string }[]>([]);
 let readAloudStopped = false;
 
+/** iOS/mobile: must request audio permission (getUserMedia) so the system activates the speaker for TTS. */
+const READ_ALOUD_UNLOCK_KEY = 'readAloudAudioUnlocked';
+const readAloudAudioUnlocked = ref(
+    typeof sessionStorage !== 'undefined' && sessionStorage.getItem(READ_ALOUD_UNLOCK_KEY) === '1',
+);
+const isLikelyIOS = computed(
+    () =>
+        typeof navigator !== 'undefined' &&
+        (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
+            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)),
+);
+/** On iOS, show "Enable audio" step in read-aloud modal until user has allowed. */
+const readAloudNeedsEnableStep = computed(
+    () => isLikelyIOS.value && !readAloudAudioUnlocked.value,
+);
+
+function requestReadAloudAudioPermission(): Promise<void> {
+    if (readAloudAudioUnlocked.value) return Promise.resolve();
+    const nav = typeof navigator !== 'undefined' ? navigator : null;
+    const mediaDevices = nav?.mediaDevices;
+    if (!mediaDevices?.getUserMedia) {
+        readAloudAudioUnlocked.value = true;
+        if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(READ_ALOUD_UNLOCK_KEY, '1');
+        return Promise.resolve();
+    }
+    return mediaDevices
+        .getUserMedia({ audio: true })
+        .then((stream) => {
+            stream.getTracks().forEach((t) => t.stop());
+            readAloudAudioUnlocked.value = true;
+            if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(READ_ALOUD_UNLOCK_KEY, '1');
+        })
+        .catch(() => {
+            // Permission denied or error; don't persist so we can show the step again
+        });
+}
+
+let readAloudAudioContext: AudioContext | null = null;
+/** Call in same user gesture as play button to unlock speaker on iOS. */
+function resumeReadAloudAudioContext(): void {
+    if (typeof window === 'undefined' || !window.AudioContext) return;
+    try {
+        if (!readAloudAudioContext) readAloudAudioContext = new window.AudioContext();
+        if (readAloudAudioContext.state === 'suspended') readAloudAudioContext.resume();
+    } catch {
+        // ignore
+    }
+}
+
 function loadReadAloudVoices() {
     if (typeof window === 'undefined' || !window.speechSynthesis) return;
     const list = window.speechSynthesis.getVoices();
@@ -453,6 +502,8 @@ function playReadAloud() {
         readAloudError.value = 'Speech is not supported in this browser.';
         return;
     }
+    // Unlock speaker on iOS (must run in same user gesture as the tap)
+    resumeReadAloudAudioContext();
     window.speechSynthesis.cancel();
     readAloudStopped = false;
     readAloudPlaying.value = true;
@@ -521,8 +572,7 @@ function playReadAloud() {
     // iOS (and some mobile browsers) only allow speech when speak() is called synchronously
     // within the user gesture. We speak a minimal utterance now to "unlock" audio, then
     // start the real content in its onend so subsequent speak() calls are allowed.
-    const isLikelyIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    if (isLikelyIOS) {
+    if (isLikelyIOS.value) {
         const unlock = createUtterance('\u00A0'); // non-breaking space
         unlock.volume = 0; // silent; we only need to unlock the audio context
         unlock.onend = () => {
@@ -1651,6 +1701,9 @@ const aiModelLabel = computed(() => {
                                         :read-aloud-error="readAloudError"
                                         :read-aloud-voices="availableReadAloudVoices"
                                         :read-aloud-voice-id="selectedReadAloudVoiceId"
+                                        :read-aloud-needs-enable-step="readAloudNeedsEnableStep"
+                                        :read-aloud-audio-unlocked="readAloudAudioUnlocked"
+                                        :request-read-aloud-audio-permission="requestReadAloudAudioPermission"
                                         @update:doc-search="docSearch = $event"
                                         @start-edit="startDocEdit"
                                         @cancel-edit="cancelDocEdit"
@@ -1684,6 +1737,9 @@ const aiModelLabel = computed(() => {
                                         :read-aloud-error="readAloudError"
                                         :read-aloud-voices="availableReadAloudVoices"
                                         :read-aloud-voice-id="selectedReadAloudVoiceId"
+                                        :read-aloud-needs-enable-step="readAloudNeedsEnableStep"
+                                        :read-aloud-audio-unlocked="readAloudAudioUnlocked"
+                                        :request-read-aloud-audio-permission="requestReadAloudAudioPermission"
                                         @update:table-search="tableSearch = $event"
                                         @update:table-page="tablePage = $event"
                                         @go-to-page="goToTablePage"

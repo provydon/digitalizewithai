@@ -25,24 +25,34 @@ import {
 import type { RowsMeta, TableRowRecord } from '../types';
 import ReadAloudPlayingIcon from './ReadAloudPlayingIcon.vue';
 
-const props = defineProps<{
-    tableSearch: string;
-    tableHeaders: string[];
-    tableRows: TableRowRecord[];
-    rowsMeta: RowsMeta | null;
-    rowsLoading: boolean;
-    rowsError: string | null;
-    tablePage: number;
-    tablePerPage: number;
-    copyFeedback: boolean;
-    copyTooltipOpen?: boolean;
-    canReadAloud?: boolean;
-    readAloudPlaying?: boolean;
-    readAloudPaused?: boolean;
-    readAloudError?: string | null;
-    readAloudVoices?: { lang: string; label: string }[];
-    readAloudVoiceId?: string;
-}>();
+const props = withDefaults(
+    defineProps<{
+        tableSearch: string;
+        tableHeaders: string[];
+        tableRows: TableRowRecord[];
+        rowsMeta: RowsMeta | null;
+        rowsLoading: boolean;
+        rowsError: string | null;
+        tablePage: number;
+        tablePerPage: number;
+        copyFeedback: boolean;
+        copyTooltipOpen?: boolean;
+        canReadAloud?: boolean;
+        readAloudPlaying?: boolean;
+        readAloudPaused?: boolean;
+        readAloudError?: string | null;
+        readAloudVoices?: { lang: string; label: string }[];
+        readAloudVoiceId?: string;
+        readAloudNeedsEnableStep?: boolean;
+        readAloudAudioUnlocked?: boolean;
+        requestReadAloudAudioPermission?: () => Promise<void>;
+    }>(),
+    {
+        readAloudNeedsEnableStep: false,
+        readAloudAudioUnlocked: true,
+        requestReadAloudAudioPermission: undefined,
+    },
+);
 
 const emit = defineEmits<{
     'update:tableSearch': [v: string];
@@ -119,9 +129,12 @@ const tablePaginationSlots = computed(() => {
 const readAloudModalOpen = ref(false);
 const readAloudModalAccent = ref('');
 const readAloudModalFocusGuardRef = ref<HTMLSpanElement | null>(null);
+const readAloudEnableStepDone = ref(false);
+const readAloudEnabling = ref(false);
 
 function openReadAloudModal() {
     readAloudModalAccent.value = props.readAloudVoiceId ?? '';
+    readAloudEnableStepDone.value = props.readAloudAudioUnlocked ?? true;
     readAloudModalOpen.value = true;
 }
 
@@ -131,6 +144,25 @@ watch(readAloudModalOpen, (open) => {
         void nextTick(() => readAloudModalFocusGuardRef.value?.focus({ preventScroll: true }));
     }
 });
+
+const showReadAloudEnableStep = computed(
+    () => (props.readAloudNeedsEnableStep ?? false) && !readAloudEnableStepDone.value,
+);
+
+async function enableReadAloudAudio() {
+    const request = props.requestReadAloudAudioPermission;
+    if (!request) {
+        readAloudEnableStepDone.value = true;
+        return;
+    }
+    readAloudEnabling.value = true;
+    try {
+        await request();
+        readAloudEnableStepDone.value = true;
+    } finally {
+        readAloudEnabling.value = false;
+    }
+}
 
 function startReadAloudFromModal() {
     emit('update:read-aloud-voice', readAloudModalAccent.value);
@@ -322,7 +354,7 @@ function startReadAloudFromModal() {
                 Stop
             </button>
         </div>
-        <!-- Read aloud modal: choose accent then start -->
+        <!-- Read aloud modal: on iPhone optionally "Enable audio", then choose accent and start -->
         <Dialog :open="readAloudModalOpen" @update:open="readAloudModalOpen = $event">
             <DialogContent class="sm:max-w-sm">
                 <span
@@ -334,37 +366,59 @@ function startReadAloudFromModal() {
                 <DialogHeader>
                     <DialogTitle>Read aloud</DialogTitle>
                 </DialogHeader>
-                <p class="text-sm text-muted-foreground">
-                    Choose accent (optional), then start. All pages will be read in order.
-                </p>
-                <select
-                    v-if="readAloudVoices?.length"
-                    v-model="readAloudModalAccent"
-                    tabindex="-1"
-                    class="mt-2 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary"
-                    aria-label="Choose accent (optional)"
-                >
-                    <option value="">Default accent</option>
-                    <option
-                        v-for="a in readAloudVoices"
-                        :key="a.lang"
-                        :value="a.lang"
+                <template v-if="showReadAloudEnableStep">
+                    <p class="text-sm text-muted-foreground">
+                        On this device, read aloud needs access to audio. When you tap Enable, your browser may ask to use the microphone &mdash; that permission activates the speaker so you can hear the reading. We don't record anything.
+                    </p>
+                    <DialogFooter class="mt-4 gap-2">
+                        <Button
+                            variant="outline"
+                            @click="readAloudModalOpen = false"
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            :disabled="readAloudEnabling"
+                            @click="enableReadAloudAudio"
+                        >
+                            <Mic class="mr-2 h-4 w-4" />
+                            {{ readAloudEnabling ? 'Enabling…' : 'Enable audio' }}
+                        </Button>
+                    </DialogFooter>
+                </template>
+                <template v-else>
+                    <p class="text-sm text-muted-foreground">
+                        Choose accent (optional), then start. All pages will be read in order.
+                    </p>
+                    <select
+                        v-if="readAloudVoices?.length"
+                        v-model="readAloudModalAccent"
+                        tabindex="-1"
+                        class="mt-2 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary"
+                        aria-label="Choose accent (optional)"
                     >
-                        {{ a.label }}
-                    </option>
-                </select>
-                <DialogFooter class="mt-4 gap-2">
-                    <Button
-                        variant="outline"
-                        @click="readAloudModalOpen = false"
-                    >
-                        Cancel
-                    </Button>
-                    <Button @click="startReadAloudFromModal">
-                        <Mic class="mr-2 h-4 w-4" />
-                        Start
-                    </Button>
-                </DialogFooter>
+                        <option value="">Default accent</option>
+                        <option
+                            v-for="a in readAloudVoices"
+                            :key="a.lang"
+                            :value="a.lang"
+                        >
+                            {{ a.label }}
+                        </option>
+                    </select>
+                    <DialogFooter class="mt-4 gap-2">
+                        <Button
+                            variant="outline"
+                            @click="readAloudModalOpen = false"
+                        >
+                            Cancel
+                        </Button>
+                        <Button @click="startReadAloudFromModal">
+                            <Mic class="mr-2 h-4 w-4" />
+                            Start
+                        </Button>
+                    </DialogFooter>
+                </template>
             </DialogContent>
         </Dialog>
         <p v-if="readAloudError" class="text-sm text-destructive">

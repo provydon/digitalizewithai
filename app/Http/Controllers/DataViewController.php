@@ -64,6 +64,7 @@ class DataViewController extends Controller
         return response()->json([
             'id' => $data->id,
             'name' => $data->name,
+            'folder_id' => $data->folder_id,
             'status' => $status,
             'raw_data' => $data->raw_data,
             'digital_data' => $digitalData,
@@ -252,19 +253,40 @@ class DataViewController extends Controller
         return response()->json($payload);
     }
 
-    /** Update data record name. PATCH body: { "name": "..." }. */
+    /** Update data record (name and/or folder_id). PATCH body: { "name": "..." } and/or { "folder_id": null|id }. */
     public function update(Request $request, Data $data): JsonResponse
     {
         if ($data->user_id !== auth()->id()) {
             abort(404);
         }
+        $updates = [];
         $name = $request->input('name');
-        if (! is_string($name) || trim($name) === '') {
-            return response()->json(['message' => 'name is required and must be non-empty.'], 422);
+        if ($name !== null) {
+            if (! is_string($name) || trim($name) === '') {
+                return response()->json(['message' => 'name must be non-empty when provided.'], 422);
+            }
+            $updates['name'] = trim($name);
         }
-        $data->update(['name' => trim($name)]);
+        if ($request->has('folder_id')) {
+            $folderId = $request->input('folder_id');
+            if ($folderId !== null) {
+                $folder = \App\Models\Folder::where('id', $folderId)->forUser(auth()->id())->first();
+                if (! $folder) {
+                    return response()->json(['message' => 'Folder not found.'], 404);
+                }
+            }
+            $updates['folder_id'] = $folderId;
+        }
+        if ($updates !== []) {
+            $data->update($updates);
+        }
 
-        return response()->json(['name' => $data->name]);
+        $payload = ['name' => $data->name];
+        if (array_key_exists('folder_id', $updates)) {
+            $payload['folder_id'] = $data->folder_id;
+        }
+
+        return response()->json($payload);
     }
 
     /**

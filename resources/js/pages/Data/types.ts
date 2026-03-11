@@ -16,6 +16,7 @@ export type DigitalData = {
 export type DataRecord = {
     id: number;
     name: string;
+    folder_id?: number | null;
     status?: string;
     raw_data: Record<string, unknown> | null;
     digital_data: DigitalData | null;

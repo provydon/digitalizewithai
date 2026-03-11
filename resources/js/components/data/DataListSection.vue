@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { FileText, Search } from 'lucide-vue-next';
+import { FileText, Folder, Search } from 'lucide-vue-next';
 import { Trash2 } from 'lucide-vue-next';
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import DataListTable from '@/components/data/DataListTable.vue';
@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import api from '@/lib/api';
 import { isBroadcastingEnabled, subscribeDataRecord } from '@/lib/echo';
-import type { DataListMeta, DigitalizedItem } from '@/types';
+import type { DataListMeta, DigitalizedItem, FolderItem } from '@/types';
 
 const props = withDefaults(
     defineProps<{
@@ -30,16 +30,23 @@ const props = withDefaults(
         viewBasePath?: string;
         /** Context for item links so Show page can show correct back/breadcrumb: 'dashboard' | 'data' */
         fromContext?: 'dashboard' | 'data';
+        /** Filter by folder: 'all' | 'uncategorized' | folder id (number) */
+        folderId?: 'all' | 'uncategorized' | number;
+        /** When set, show "Move to" for selected items (e.g. from Data/Index with folder sidebar) */
+        folders?: FolderItem[];
     }>(),
     {
         perPage: 15,
         viewBasePath: '/dashboard/data',
         fromContext: 'dashboard',
+        folderId: 'all',
+        folders: undefined,
     }
 );
 
 const emit = defineEmits<{
     refreshed: [];
+    'update:folders': [folders: FolderItem[]];
 }>();
 
 const items = ref<DigitalizedItem[]>([]);
@@ -57,6 +64,10 @@ const selectedItemsToDelete = ref<DigitalizedItem[]>([]);
 const deleteSelectedLoading = ref(false);
 const deleteSelectedError = ref<string | null>(null);
 const selectedIds = ref<number[]>([]);
+
+const moveToModalOpen = ref(false);
+const moveToLoading = ref(false);
+const moveToError = ref<string | null>(null);
 
 const effectivePerPage = props.mode === 'preview' ? 10 : props.perPage;
 
@@ -76,12 +87,19 @@ async function loadList() {
     if (listSearch.value.trim()) {
         params.set('search', listSearch.value.trim());
     }
+    if (props.folderId !== undefined && props.folderId !== 'all') {
+        params.set('folder_id', props.folderId === 'uncategorized' ? 'uncategorized' : String(props.folderId));
+    }
     const { data } = await api.get<{
         data: DigitalizedItem[];
+        folders?: FolderItem[];
         meta: DataListMeta;
     }>(`/dashboard/api/data?${params}`);
     items.value = Array.isArray(data?.data) ? data.data : [];
     listMeta.value = data?.meta ?? null;
+    if (Array.isArray(data?.folders)) {
+        emit('update:folders', data.folders);
+    }
     selectedIds.value = selectedIds.value.filter((id) => items.value.some((i) => i.id === id));
     } catch (e: unknown) {
     const err = e as { response?: { data?: { message?: string } }; message?: string };
@@ -150,7 +168,37 @@ async function confirmDeleteSelected() {
     }
 }
 
+function openMoveToModal() {
+    moveToError.value = null;
+    moveToModalOpen.value = true;
+}
+
+async function moveSelectedToFolder(folderId: number | null) {
+    const ids = selectedIds.value;
+    if (!ids.length) return;
+    moveToLoading.value = true;
+    moveToError.value = null;
+    try {
+        for (const id of ids) {
+            await api.patch(`/dashboard/api/data/${id}`, { folder_id: folderId });
+        }
+        moveToModalOpen.value = false;
+        selectedIds.value = [];
+        loadList();
+        emit('refreshed');
+    } catch (e: unknown) {
+        const err = e as { response?: { data?: { message?: string } }; message?: string };
+        moveToError.value = err.response?.data?.message ?? err.message ?? 'Failed to move';
+    } finally {
+        moveToLoading.value = false;
+    }
+}
+
 watch(listPage, () => loadList());
+watch(() => props.folderId, () => {
+    listPage.value = 1;
+    loadList();
+});
 
 watch(listSearch, () => {
     if (listSearchDebounce) clearTimeout(listSearchDebounce);
@@ -313,6 +361,16 @@ defineExpose({
                 <Button variant="outline" size="sm" class="h-8" @click="updateSelectedIds([])">
                     Clear
                 </Button>
+                <Button
+                    v-if="folders !== undefined"
+                    variant="outline"
+                    size="sm"
+                    class="h-8 gap-1.5"
+                    @click="openMoveToModal"
+                >
+                    <Folder class="h-4 w-4" aria-hidden />
+                    Move to
+                </Button>
                 <button
                     type="button"
                     class="inline-flex items-center gap-1.5 rounded-lg p-2 text-destructive hover:bg-destructive/10"
@@ -405,6 +463,43 @@ defineExpose({
         @update:open="deleteModalOpen = $event"
         @deleted="onDeleted"
     />
+
+    <!-- Move to folder modal -->
+    <Dialog :open="moveToModalOpen" @update:open="moveToModalOpen = $event">
+        <DialogContent class="sm:max-w-sm" aria-describedby="move-to-desc">
+            <DialogHeader>
+                <DialogTitle>Move to folder</DialogTitle>
+            </DialogHeader>
+            <p id="move-to-desc" class="text-sm text-muted-foreground">
+                Choose a destination for {{ selectedIds.length }} item{{ selectedIds.length !== 1 ? 's' : '' }}.
+            </p>
+            <div class="flex flex-col gap-0.5 py-2">
+                <button
+                    type="button"
+                    class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50"
+                    :disabled="moveToLoading"
+                    @click="moveSelectedToFolder(null)"
+                >
+                    <FileText class="h-4 w-4 shrink-0 opacity-60" aria-hidden />
+                    Uncategorized
+                </button>
+                <button
+                    v-for="f in (folders || [])"
+                    :key="f.id"
+                    type="button"
+                    class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50"
+                    :disabled="moveToLoading"
+                    @click="moveSelectedToFolder(f.id)"
+                >
+                    <Folder class="h-4 w-4 shrink-0" aria-hidden />
+                    <span class="min-w-0 truncate">{{ f.name }}</span>
+                </button>
+            </div>
+            <p v-if="moveToError" class="text-sm text-destructive">
+                {{ moveToError }}
+            </p>
+        </DialogContent>
+    </Dialog>
 
     <Dialog :open="deleteSelectedModalOpen" @update:open="deleteSelectedModalOpen = $event">
         <DialogContent class="sm:max-w-md">

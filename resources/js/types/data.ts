@@ -1,6 +1,13 @@
+export type FolderItem = {
+    id: number;
+    parent_id: number | null;
+    name: string;
+};
+
 export type DigitalizedItem = {
     id: number;
     name: string;
+    folder_id?: number | null;
     type: string | null;
     /** Display status: ready | processing | failed */
     status?: 'ready' | 'processing' | 'failed';

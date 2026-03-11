@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\DigitalizeController as ApiDigitalizeController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DataTableRowsController;
 use App\Http\Controllers\DataViewController;
+use App\Http\Controllers\FolderController;
 use App\Http\Controllers\OAuthController;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
@@ -25,6 +26,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('dashboard/api/data/{data}/append-rows', [ApiDigitalizeController::class, 'appendToTable'])->name('dashboard.api.data.append-rows');
     Route::post('dashboard/api/data/{data}/append-doc', [ApiDigitalizeController::class, 'appendToDoc'])->name('dashboard.api.data.append-doc');
     Route::get('dashboard/api/data', [DashboardController::class, 'dataIndex'])->name('dashboard.api.data.index');
+    Route::get('dashboard/api/folders', [FolderController::class, 'index'])->name('dashboard.api.folders.index');
+    Route::post('dashboard/api/folders', [FolderController::class, 'store'])->name('dashboard.api.folders.store');
+    Route::patch('dashboard/api/folders/{folder}', [FolderController::class, 'update'])->name('dashboard.api.folders.update');
+    Route::delete('dashboard/api/folders/{folder}', [FolderController::class, 'destroy'])->name('dashboard.api.folders.destroy');
     Route::delete('dashboard/api/data/{data}', [DashboardController::class, 'destroyData'])->name('dashboard.api.data.destroy');
     Route::get('dashboard/api/data/{data}', [DataViewController::class, 'dataShow'])->name('dashboard.api.data.show');
     Route::get('dashboard/api/data/{data}/original-file', [DataViewController::class, 'originalFile'])->name('dashboard.api.data.original-file');

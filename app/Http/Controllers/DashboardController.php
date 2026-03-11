@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Data;
+use App\Models\Folder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -21,17 +22,33 @@ class DashboardController extends Controller
         return Inertia::render('Data/Index');
     }
 
-    /** List data for dashboard (JSON). Paginated and searchable by name. Only current user's data. */
+    /** List data for dashboard (JSON). Paginated, filterable by folder_id, searchable by name. Only current user's data. */
     public function dataIndex(Request $request): JsonResponse
     {
         $perPage = (int) $request->input('per_page', 15);
         $perPage = max(5, min(50, $perPage));
         $search = $request->input('search');
         $search = is_string($search) ? trim($search) : '';
+        $folderIdParam = $request->input('folder_id');
+        // Omit or "all" = show all; "uncategorized" or empty = only items with no folder; number = that folder
+        $filterFolderId = null;
+        if ($folderIdParam !== null && $folderIdParam !== '') {
+            if ($folderIdParam === 'uncategorized' || $folderIdParam === 'null') {
+                $filterFolderId = 'uncategorized';
+            } elseif (is_numeric($folderIdParam)) {
+                $filterFolderId = (int) $folderIdParam;
+            }
+        }
 
         $query = Data::query()
             ->forUser(auth()->id())
             ->latest();
+
+        if ($filterFolderId === 'uncategorized') {
+            $query->whereNull('folder_id');
+        } elseif ($filterFolderId !== null) {
+            $query->where('folder_id', $filterFolderId);
+        }
 
         if ($search !== '') {
             if ($query->getConnection()->getDriverName() === 'pgsql') {
@@ -52,6 +69,7 @@ class DashboardController extends Controller
             return [
                 'id' => $d->id,
                 'name' => $d->name,
+                'folder_id' => $d->folder_id,
                 'type' => $dd['type'] ?? null,
                 'status' => $status,
                 'processing' => $processing,
@@ -65,8 +83,17 @@ class DashboardController extends Controller
             ];
         })->all();
 
+        $folders = Folder::query()
+            ->forUser(auth()->id())
+            ->orderBy('name')
+            ->get(['id', 'parent_id', 'name'])
+            ->map(fn (Folder $f) => ['id' => $f->id, 'parent_id' => $f->parent_id, 'name' => $f->name])
+            ->values()
+            ->all();
+
         return response()->json([
             'data' => $items,
+            'folders' => $folders,
             'meta' => [
                 'current_page' => $paginator->currentPage(),
                 'last_page' => $paginator->lastPage(),

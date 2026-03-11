@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/collapsible';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
-import type { BreadcrumbItem } from '@/types';
+import type { BreadcrumbItem, FolderItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -21,6 +21,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const dataListRef = ref<InstanceType<typeof DataListSection> | null>(null);
+const folders = ref<FolderItem[]>([]);
 
 function onItemCreated() {
     dataListRef.value?.loadList();
@@ -28,6 +29,10 @@ function onItemCreated() {
 
 function onUploaded() {
     dataListRef.value?.loadList();
+}
+
+function onUpdateFolders(newFolders: FolderItem[]) {
+    folders.value = newFolders;
 }
 </script>
 
@@ -71,8 +76,10 @@ function onUploaded() {
                     ref="dataListRef"
                     mode="preview"
                     :per-page="10"
+                    :folders="folders"
                     see-more-href="/data"
                     view-base-path="/dashboard/data"
+                    @update:folders="onUpdateFolders"
                 />
             </div>
         </div>

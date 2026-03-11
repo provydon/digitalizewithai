@@ -40,7 +40,7 @@ import type {
     TableRowRecord,
 } from '@/pages/Data/types';
 import { dashboard } from '@/routes';
-import type { BreadcrumbItem } from '@/types';
+import type { BreadcrumbItem, FolderItem } from '@/types';
 
 type Props = {
     id: number;
@@ -55,6 +55,7 @@ const page = usePage();
 const canReadAloud = computed(() => (page.props.features as { audioReadOut?: boolean } | undefined)?.audioReadOut === true);
 
 const record = ref<DataRecord | null>(null);
+const folders = ref<FolderItem[]>([]);
 const loading = ref(true);
 const error = ref<string | null>(null);
 const activeTab = ref('data');
@@ -114,11 +115,13 @@ const processingBatches = computed(() => {
 
 onMounted(async () => {
     try {
-        const [{ data }, optionsRes] = await Promise.all([
+        const [recordRes, optionsRes, foldersRes] = await Promise.all([
             api.get<DataRecord>(`/dashboard/api/data/${props.id}`),
             api.get<{ max_file_size_bytes?: number }>('/dashboard/api/digitalize-options').catch(() => ({ data: {} })),
+            api.get<{ data: FolderItem[] }>('/dashboard/api/folders').catch(() => ({ data: { data: [] } })),
         ]);
-        record.value = data;
+        record.value = recordRes.data;
+        folders.value = Array.isArray(foldersRes.data?.data) ? foldersRes.data.data : [];
         if (typeof optionsRes.data?.max_file_size_bytes === 'number' && optionsRes.data.max_file_size_bytes > 0) {
             appendMaxBytes.value = optionsRes.data.max_file_size_bytes;
         }
@@ -1613,7 +1616,9 @@ const aiModelLabel = computed(() => {
                     <div class="border-b border-sidebar-border/70 px-3 pt-4 dark:border-sidebar-border sm:px-4">
                         <DataShowHeader
                             :record="record"
+                            :folders="folders"
                             @update:name="(name) => { if (record) record.name = name }"
+                            @update:folder-id="(id) => { if (record) record.folder_id = id }"
                         />
 
                         <div

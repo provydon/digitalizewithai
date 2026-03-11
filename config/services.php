@@ -48,6 +48,7 @@ return [
             if (! str_contains($base, 'localhost') && ! str_contains($base, '127.0.0.1') && ! str_contains($base, '.test')) {
                 $base = str_replace('http://', 'https://', $base);
             }
+
             return $base.'/oauth/google/callback';
         })(),
     ],

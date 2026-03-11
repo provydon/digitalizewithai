@@ -14,7 +14,7 @@ class Data extends Model
 
     protected $table = 'data';
 
-    protected $fillable = ['user_id', 'name', 'status', 'raw_data', 'digital_data', 'ai_provider', 'ai_model', 'extraction_started_at', 'extraction_duration_seconds', 'extraction_failure_message'];
+    protected $fillable = ['user_id', 'folder_id', 'name', 'status', 'raw_data', 'digital_data', 'ai_provider', 'ai_model', 'extraction_started_at', 'extraction_duration_seconds', 'extraction_failure_message'];
 
     protected $casts = [
         'raw_data' => 'array',
@@ -35,6 +35,11 @@ class Data extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function folder(): BelongsTo
+    {
+        return $this->belongsTo(Folder::class);
     }
 
     public function tableRows(): HasMany

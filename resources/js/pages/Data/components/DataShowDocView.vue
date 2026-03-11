@@ -354,7 +354,7 @@ function startReadAloudFromModal() {
                 <!-- Step 1: On iPhone, allow audio so the speaker works for read aloud -->
                 <template v-if="showReadAloudEnableStep">
                     <p class="text-sm text-muted-foreground">
-                        On this device, read aloud needs access to audio. When you tap Enable, your browser may ask to use the microphone &mdash; that permission activates the speaker so you can hear the reading. We don't record anything.
+                        Read aloud needs access to your speaker so you can hear the text. When you tap Enable, your browser may ask for microphone access &mdash; that permission also activates the speaker. We don't record anything.
                     </p>
                     <DialogFooter class="mt-4 gap-2">
                         <Button

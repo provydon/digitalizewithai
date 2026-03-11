@@ -362,6 +362,8 @@ const readAloudNeedsEnableStep = computed(
 );
 
 function requestReadAloudAudioPermission(): Promise<void> {
+    // Unlock speaker (AudioContext) in this same user gesture so output works on iOS
+    resumeReadAloudAudioContext();
     if (readAloudAudioUnlocked.value) return Promise.resolve();
     const nav = typeof navigator !== 'undefined' ? navigator : null;
     const mediaDevices = nav?.mediaDevices;

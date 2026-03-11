@@ -487,7 +487,7 @@ class DigitalizeController extends Controller
     public function digitalizeOptions(): JsonResponse
     {
         $config = config('ai.digitalize_providers', []);
-        $defaultProvider = config('ai.default');
+        $defaultDigitalize = config('ai.default_digitalize_provider', 'nova');
         $options = [];
         foreach ($config as $id => $entry) {
             $name = is_array($entry) ? ($entry['name'] ?? $id) : (string) $entry;
@@ -499,6 +499,8 @@ class DigitalizeController extends Controller
             }
             $options[] = $item;
         }
+        $providerIds = array_keys($config);
+        $defaultProvider = in_array($defaultDigitalize, $providerIds, true) ? $defaultDigitalize : ($providerIds[0] ?? null);
 
         $maxFileSizeMb = config('upload.max_file_size_mb', 100);
 

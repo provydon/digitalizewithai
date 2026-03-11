@@ -23,10 +23,10 @@ return [
     | Set to empty or remove to run as a standalone product (no partner branding).
     |
     | Hackathon: APP_AI_ATTRIBUTION=Amazon Nova
-    | Product:   APP_AI_ATTRIBUTION=  (or omit)
+    | Product:   APP_AI_ATTRIBUTION=  (or omit) — default: standalone, no partner branding.
     |
     */
 
-    'ai_attribution' => env('APP_AI_ATTRIBUTION', 'Amazon Nova'),
+    'ai_attribution' => env('APP_AI_ATTRIBUTION', ''),
 
 ];

@@ -1,33 +1,27 @@
 # Rebranding (Hackathon vs Product)
 
-The app supports two modes via environment variables so you can submit to the **Amazon Nova hackathon** and later release as a **standalone product** without code changes.
+The app runs as a **standalone product** by default (no Amazon Nova theme). Nova is available as an extraction option in the upload section and defaults to **Amazon Nova** there so hackathon submissions can show Nova is enabled without app-wide Nova branding.
 
-## Hackathon (Amazon Nova)
+## Default (standalone)
 
-- **APP_NAME** = `"Digitalize with AI"` (or any display name)
+- **APP_NAME** = `"Digitalize with AI"` (or your product name)
+- **APP_AI_ATTRIBUTION** = leave empty or omit (default)
+
+Result: App icon + app name everywhere. No “Powered by” or Nova wordmark. Upload section includes an **Extraction model** dropdown that defaults to **Amazon Nova**; when Nova is selected, a “Nova enabled” badge is shown.
+
+## Optional: app-wide Nova attribution (legacy hackathon theme)
+
 - **APP_AI_ATTRIBUTION** = `Amazon Nova`
 
-Result: “Powered by Amazon Nova” and Nova wordmark appear; copy uses “Nova” where appropriate.
-
-## Product (standalone)
-
-- **APP_NAME** = your product name (e.g. `"Scanflow"`, `"Notable"`)
-- **APP_AI_ATTRIBUTION** = leave empty or omit
-
-Result: No “Powered by” line, no Nova logo; copy uses “AI” instead of “Nova”. Sidebar and welcome page show your app name and the generic app icon.
+Result: If you re-enable this, “Powered by Amazon Nova” and Nova wordmark can appear where the app still references `branding.ai_attribution` (e.g. NovaLogo component). The app is now designed to run without this; the upload dropdown is the primary place Nova is indicated.
 
 ## Where it’s used
 
 - **config/branding.php** – reads `APP_NAME` and `APP_AI_ATTRIBUTION`
 - **Shared to frontend** – `branding.name`, `branding.ai_attribution` (null when empty)
-- **Welcome page** – hero, feature copy, header logo
-- **NovaLogo component** – shows Nova logo + name when attribution is set; otherwise app icon + name
-- **Page title** – `{name}` or `{name} — {ai_attribution}`
+- **Upload section** – Extraction model dropdown (default: Amazon Nova from `config/ai.default_digitalize_provider`); “Nova enabled” badge when Nova is selected
+- **config/ai.php** – `default_digitalize_provider` (default `nova`), `digitalize_providers` list
 
-## Switching after the hackathon
+## Default extraction provider
 
-1. Set `APP_NAME` to your product name.
-2. Set `APP_AI_ATTRIBUTION=` (empty) or remove the line.
-3. Restart the app / clear config cache if you use `php artisan config:cache`.
-
-No code or asset changes required.
+- **AI_DEFAULT_DIGITALIZE_PROVIDER** = `nova` (default) — dropdown in the upload section defaults to Amazon Nova. Set to `anthropic`, `openai`, etc. to change the default; Nova remains selectable if listed in `digitalize_providers`.

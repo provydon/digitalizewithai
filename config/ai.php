@@ -178,6 +178,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Default provider for digitalize (upload extraction)
+    |--------------------------------------------------------------------------
+    |
+    | Used as the default selection in the upload section provider dropdown.
+    | Set to 'nova' to default to Amazon Nova (e.g. for hackathon); other
+    | options: anthropic, gemini, openai, azure.
+    |
+    */
+    'default_digitalize_provider' => env('AI_DEFAULT_DIGITALIZE_PROVIDER', 'nova'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Digitalize (image/video extraction) providers
     |--------------------------------------------------------------------------
     |

@@ -23,6 +23,11 @@ const ACCEPT = 'image/*,video/*';
 /** Max file size in bytes; synced from backend via digitalize-options (default 100 MB). */
 const maxFileSizeBytes = ref(100 * 1024 * 1024);
 
+/** Available AI providers for extraction (id + name). */
+const digitalizeProviders = ref<{ id: string; name: string }[]>([]);
+/** Selected provider key; defaults to API default_provider (e.g. nova). */
+const selectedProvider = ref<string>('nova');
+
 const uploadSectionOpen = ref(false);
 const uploadLoading = ref(false);
 const uploadProgress = ref(0);
@@ -115,6 +120,9 @@ type DigitalizeResponse = {
 async function postOneFile(file: File): Promise<{ status: number; data: DigitalizeResponse }> {
     const formData = new FormData();
     formData.append('file', file);
+    if (selectedProvider.value) {
+        formData.append('ai_provider', selectedProvider.value);
+    }
     const res = await api.post<DigitalizeResponse>('/dashboard/digitalize', formData, {
         timeout: 120000,
         onUploadProgress(ev: { loaded: number; total?: number }) {
@@ -134,6 +142,9 @@ async function postBatchFiles(files: File[]): Promise<{ status: number; data: Di
     const formData = new FormData();
     for (const file of files) {
         formData.append('files[]', file);
+    }
+    if (selectedProvider.value) {
+        formData.append('ai_provider', selectedProvider.value);
     }
     const res = await api.post<DigitalizeResponse>('/dashboard/digitalize/batch', formData, {
         timeout: 300000,
@@ -225,12 +236,24 @@ onMounted(async () => {
         localStorage.setItem(props.storageKey, '1');
     }
     try {
-        const res = await api.get<{ max_file_size_bytes?: number }>('/dashboard/api/digitalize-options');
+        const res = await api.get<{
+            max_file_size_bytes?: number;
+            providers?: { id: string; name: string }[];
+            default_provider?: string;
+        }>('/dashboard/api/digitalize-options');
         if (typeof res.data?.max_file_size_bytes === 'number' && res.data.max_file_size_bytes > 0) {
             maxFileSizeBytes.value = res.data.max_file_size_bytes;
         }
+        if (Array.isArray(res.data?.providers) && res.data.providers.length > 0) {
+            digitalizeProviders.value = res.data.providers;
+            const defaultId = res.data.default_provider ?? 'nova';
+            const validDefault = res.data.providers.some((p) => p.id === defaultId)
+                ? defaultId
+                : res.data.providers[0].id;
+            selectedProvider.value = validDefault;
+        }
     } catch {
-        // keep default 20 MB
+        // keep defaults
     }
 });
 </script>
@@ -258,6 +281,25 @@ onMounted(async () => {
             <p class="mb-4 text-sm text-muted-foreground">
                 Add a photo or video — we’ll extract the text or table and save it as an item in your workspace. You can edit it, chart it, and ask AI to change it anytime.
             </p>
+            <div v-if="digitalizeProviders.length > 0" class="mb-4 flex flex-wrap items-center gap-2">
+                <label for="upload-ai-provider" class="text-xs font-medium text-muted-foreground">Extraction model</label>
+                <select
+                    id="upload-ai-provider"
+                    v-model="selectedProvider"
+                    class="rounded-lg border border-input bg-background px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    :disabled="uploadLoading"
+                >
+                    <option v-for="p in digitalizeProviders" :key="p.id" :value="p.id">
+                        {{ p.name }}
+                    </option>
+                </select>
+                <span
+                    v-if="selectedProvider === 'nova'"
+                    class="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
+                >
+                    Nova enabled
+                </span>
+            </div>
             <input
                 ref="fileInput"
                 type="file"

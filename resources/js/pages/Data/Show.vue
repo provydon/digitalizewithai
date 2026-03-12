@@ -1619,6 +1619,7 @@ const aiModelLabel = computed(() => {
                             :folders="folders"
                             @update:name="(name) => { if (record) record.name = name }"
                             @update:folder-id="(id) => { if (record) record.folder_id = id }"
+                            @update:folders="(list) => { folders.value = list }"
                         />
 
                         <div

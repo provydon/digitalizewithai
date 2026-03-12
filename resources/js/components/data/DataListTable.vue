@@ -13,7 +13,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-    'update:selectedIds': [ids: number[]];
+    'update:selected-ids': [ids: number[]];
     deleteRequest: [item: DigitalizedItem];
     deleteSelectedRequest: [items: DigitalizedItem[]];
 }>();
@@ -28,11 +28,12 @@ function headerCheckboxState(): boolean | 'indeterminate' {
     return false;
 }
 
-function toggleSelectAll(checked: boolean | 'indeterminate') {
-    if (checked === true) {
-        emit('update:selectedIds', props.items.map((i) => i.id));
+/** Toggle select-all: if all currently selected then clear, otherwise select all. */
+function onHeaderCheckboxClick() {
+    if (allSelected()) {
+        emit('update:selected-ids', []);
     } else {
-        emit('update:selectedIds', []);
+        emit('update:selected-ids', props.items.map((i) => i.id));
     }
 }
 
@@ -40,7 +41,7 @@ function toggleSelect(id: number, checked: boolean) {
     const next = new Set(props.selectedIds);
     if (checked) next.add(id);
     else next.delete(id);
-    emit('update:selectedIds', Array.from(next));
+    emit('update:selected-ids', Array.from(next));
 }
 
 function formatDate(iso: string | null): string {
@@ -92,12 +93,17 @@ function onRowClick(item: DigitalizedItem) {
         <table class="w-full min-w-[320px] text-left text-sm text-foreground sm:min-w-[400px]" role="grid">
             <thead>
                 <tr class="border-b border-border">
-                    <th class="w-10 pb-3 pr-2 font-medium text-muted-foreground sm:pr-3">
-                        <Checkbox
-                            :checked="headerCheckboxState()"
-                            aria-label="Select all"
-                            @update:checked="(v) => toggleSelectAll(v === true)"
-                        />
+                    <th
+                        class="w-10 cursor-pointer pb-3 pr-2 font-medium text-muted-foreground sm:pr-3"
+                        role="button"
+                        tabindex="0"
+                        aria-label="Select all"
+                        @click="onHeaderCheckboxClick"
+                        @keydown.enter.space.prevent="onHeaderCheckboxClick"
+                    >
+                        <span class="pointer-events-none inline-block">
+                            <Checkbox :model-value="headerCheckboxState()" aria-hidden />
+                        </span>
                     </th>
                     <th class="pb-3 pr-3 font-medium text-muted-foreground sm:pr-4">ID</th>
                     <th class="pb-3 pr-3 font-medium text-muted-foreground sm:pr-4">Name</th>
@@ -120,9 +126,9 @@ function onRowClick(item: DigitalizedItem) {
                 >
                     <td class="w-10 py-3.5 pr-2" @click.stop>
                         <Checkbox
-                            :checked="selectedIds.includes(item.id)"
+                            :model-value="selectedIds.includes(item.id)"
                             aria-label="Select row"
-                            @update:checked="(v) => toggleSelect(item.id, !!v)"
+                            @update:model-value="(v) => toggleSelect(item.id, !!v)"
                         />
                     </td>
                     <td class="py-3.5 pr-3 font-mono text-xs text-muted-foreground sm:pr-4">

@@ -1,13 +1,8 @@
 <script setup lang="ts">
-import { Folder, Pencil } from 'lucide-vue-next';
+import { Pencil } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { Button } from '@/components/ui/button';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import FoldersDropdown from '@/components/data/FoldersDropdown.vue';
 import api from '@/lib/api';
 import type { FolderItem } from '@/types';
 import type { DataRecord } from '../types';
@@ -20,14 +15,8 @@ const props = defineProps<{
 const emit = defineEmits<{
     'update:name': [name: string];
     'update:folderId': [folderId: number | null];
+    'update:folders': [folders: FolderItem[]];
 }>();
-
-const currentFolderLabel = computed(() => {
-    const fid = props.record.folder_id;
-    if (fid == null) return 'Uncategorized';
-    const f = props.folders?.find((x) => x.id === fid);
-    return f?.name ?? 'Uncategorized';
-});
 
 const moveToLoading = ref(false);
 
@@ -156,34 +145,13 @@ async function saveNameEdit() {
     </p>
     <div v-if="folders !== undefined" class="mb-4 flex items-center gap-2">
         <span class="text-xs text-muted-foreground">Location:</span>
-        <DropdownMenu>
-            <DropdownMenuTrigger as-child>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    class="h-8 gap-1.5 text-xs font-normal"
-                    :disabled="moveToLoading"
-                >
-                    <Folder class="h-3.5 w-3.5 shrink-0" aria-hidden />
-                    {{ currentFolderLabel }}
-                </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" class="max-h-[min(16rem,60vh)] overflow-y-auto">
-                <DropdownMenuItem
-                    :disabled="moveToLoading || record.folder_id == null"
-                    @select="moveToFolder(null)"
-                >
-                    Uncategorized
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                    v-for="f in (folders || [])"
-                    :key="f.id"
-                    :disabled="moveToLoading || record.folder_id === f.id"
-                    @select="moveToFolder(f.id)"
-                >
-                    {{ f.name }}
-                </DropdownMenuItem>
-            </DropdownMenuContent>
-        </DropdownMenu>
+        <FoldersDropdown
+            :folders="folders"
+            :current-folder-id="record.folder_id"
+            :disabled="moveToLoading"
+            variant="dropdown"
+            @select="moveToFolder"
+            @update:folders="emit('update:folders', $event)"
+        />
     </div>
 </template>

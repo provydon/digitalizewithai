@@ -5,6 +5,7 @@ import { Trash2 } from 'lucide-vue-next';
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import DataListTable from '@/components/data/DataListTable.vue';
 import DeleteDataModal from '@/components/data/DeleteDataModal.vue';
+import FoldersDropdown from '@/components/data/FoldersDropdown.vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -371,15 +372,17 @@ defineExpose({
                     <Folder class="h-4 w-4" aria-hidden />
                     Move to
                 </Button>
-                <button
-                    type="button"
-                    class="inline-flex items-center gap-1.5 rounded-lg p-2 text-destructive hover:bg-destructive/10"
+                <Button
+                    variant="outline"
+                    size="sm"
+                    class="h-8 gap-1.5 border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive"
                     title="Delete selected"
                     aria-label="Delete selected items"
                     @click="openBulkDeleteFromHeader"
                 >
                     <Trash2 class="h-4 w-4" />
-                </button>
+                    Delete
+                </Button>
             </div>
         </div>
         <div class="p-4 sm:px-5 sm:pb-5">
@@ -473,27 +476,15 @@ defineExpose({
             <p id="move-to-desc" class="text-sm text-muted-foreground">
                 Choose a destination for {{ selectedIds.length }} item{{ selectedIds.length !== 1 ? 's' : '' }}.
             </p>
-            <div class="flex flex-col gap-0.5 py-2">
-                <button
-                    type="button"
-                    class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50"
+            <div class="py-2">
+                <FoldersDropdown
+                    v-if="folders !== undefined"
+                    :folders="folders"
+                    variant="list"
                     :disabled="moveToLoading"
-                    @click="moveSelectedToFolder(null)"
-                >
-                    <FileText class="h-4 w-4 shrink-0 opacity-60" aria-hidden />
-                    Uncategorized
-                </button>
-                <button
-                    v-for="f in (folders || [])"
-                    :key="f.id"
-                    type="button"
-                    class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50"
-                    :disabled="moveToLoading"
-                    @click="moveSelectedToFolder(f.id)"
-                >
-                    <Folder class="h-4 w-4 shrink-0" aria-hidden />
-                    <span class="min-w-0 truncate">{{ f.name }}</span>
-                </button>
+                    @select="moveSelectedToFolder"
+                    @update:folders="emit('update:folders', $event)"
+                />
             </div>
             <p v-if="moveToError" class="text-sm text-destructive">
                 {{ moveToError }}

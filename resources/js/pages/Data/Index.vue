@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
-import { Folder, FolderPlus, Inbox } from 'lucide-vue-next';
+import { Folder, FolderPlus, Inbox, Trash2 } from 'lucide-vue-next';
 import { ref } from 'vue';
 import DataListSection from '@/components/data/DataListSection.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -59,6 +59,40 @@ async function createFolder() {
         newFolderLoading.value = false;
     }
 }
+
+const folderToDelete = ref<FolderItem | null>(null);
+const deleteFolderLoading = ref(false);
+const deleteFolderError = ref<string | null>(null);
+
+function openDeleteFolderModal(f: FolderItem) {
+    folderToDelete.value = f;
+    deleteFolderError.value = null;
+}
+
+function closeDeleteFolderModal() {
+    folderToDelete.value = null;
+    deleteFolderError.value = null;
+}
+
+async function confirmDeleteFolder() {
+    const f = folderToDelete.value;
+    if (!f) return;
+    deleteFolderLoading.value = true;
+    deleteFolderError.value = null;
+    try {
+        await api.delete(`/dashboard/api/folders/${f.id}`);
+        folders.value = folders.value.filter((x) => x.id !== f.id);
+        if (selectedFolderId.value === f.id) {
+            selectedFolderId.value = 'all';
+        }
+        closeDeleteFolderModal();
+    } catch (e: unknown) {
+        const err = e as { response?: { data?: { message?: string } }; message?: string };
+        deleteFolderError.value = err.response?.data?.message ?? err.message ?? 'Failed to delete folder';
+    } finally {
+        deleteFolderLoading.value = false;
+    }
+}
 </script>
 
 <template>
@@ -95,17 +129,30 @@ async function createFolder() {
                         >
                             Uncategorized
                         </button>
-                        <button
+                        <div
                             v-for="f in folders"
                             :key="f.id"
-                            type="button"
-                            class="shrink-0 max-w-[8rem] truncate rounded-full px-3 py-1.5 text-sm font-medium transition-colors"
-                            :class="selectedFolderId === f.id ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground hover:bg-muted/80'"
-                            :title="f.name"
-                            @click="selectFolder(f.id)"
+                            class="flex shrink-0 items-center gap-0.5"
                         >
-                            {{ f.name }}
-                        </button>
+                            <button
+                                type="button"
+                                class="max-w-[7rem] truncate rounded-full px-3 py-1.5 text-sm font-medium transition-colors"
+                                :class="selectedFolderId === f.id ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground hover:bg-muted/80'"
+                                :title="f.name"
+                                @click="selectFolder(f.id)"
+                            >
+                                {{ f.name }}
+                            </button>
+                            <button
+                                type="button"
+                                class="shrink-0 rounded-full p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                                :title="`Delete ${f.name}`"
+                                aria-label="Delete folder"
+                                @click.stop="openDeleteFolderModal(f)"
+                            >
+                                <Trash2 class="h-3 w-3" aria-hidden />
+                            </button>
+                        </div>
                         <Button
                             variant="outline"
                             size="sm"
@@ -144,15 +191,28 @@ async function createFolder() {
                                 Uncategorized
                             </button>
                             <template v-for="f in folders" :key="f.id">
-                                <button
-                                    type="button"
-                                    class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm font-medium transition-colors hover:bg-muted"
+                                <div
+                                    class="group flex items-center gap-0 rounded-lg text-left text-sm font-medium transition-colors"
                                     :class="selectedFolderId === f.id ? 'bg-primary/10 text-primary' : 'text-foreground'"
-                                    @click="selectFolder(f.id)"
                                 >
-                                    <Folder class="h-4 w-4 shrink-0" aria-hidden />
-                                    <span class="min-w-0 truncate">{{ f.name }}</span>
-                                </button>
+                                    <button
+                                        type="button"
+                                        class="min-w-0 flex-1 flex items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-muted"
+                                        @click="selectFolder(f.id)"
+                                    >
+                                        <Folder class="h-4 w-4 shrink-0" aria-hidden />
+                                        <span class="min-w-0 truncate">{{ f.name }}</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="shrink-0 rounded p-1.5 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100 focus:opacity-100 focus:outline-none"
+                                        title="Delete folder"
+                                        aria-label="Delete folder"
+                                        @click.stop="openDeleteFolderModal(f)"
+                                    >
+                                        <Trash2 class="h-3.5 w-3.5" aria-hidden />
+                                    </button>
+                                </div>
                             </template>
                         </nav>
                         <div class="mt-2 border-t border-border pt-2">
@@ -212,6 +272,37 @@ async function createFolder() {
                     </Button>
                 </DialogFooter>
             </form>
+        </DialogContent>
+    </Dialog>
+
+    <Dialog :open="folderToDelete !== null" @update:open="(v) => !v && closeDeleteFolderModal()">
+        <DialogContent class="sm:max-w-sm" aria-describedby="delete-folder-desc">
+            <DialogHeader>
+                <DialogTitle>Delete folder?</DialogTitle>
+            </DialogHeader>
+            <p id="delete-folder-desc" class="text-sm text-muted-foreground">
+                <template v-if="folderToDelete">
+                    <strong class="font-medium text-foreground">{{ folderToDelete.name }}</strong> will be deleted.
+                    Items in this folder will become uncategorized.
+                </template>
+            </p>
+            <p v-if="deleteFolderError" class="text-sm text-destructive">
+                {{ deleteFolderError }}
+            </p>
+            <DialogFooter class="gap-2">
+                <DialogClose as-child>
+                    <Button variant="secondary" :disabled="deleteFolderLoading">
+                        Cancel
+                    </Button>
+                </DialogClose>
+                <Button
+                    variant="destructive"
+                    :disabled="deleteFolderLoading"
+                    @click="confirmDeleteFolder"
+                >
+                    {{ deleteFolderLoading ? 'Deleting…' : 'Delete' }}
+                </Button>
+            </DialogFooter>
         </DialogContent>
     </Dialog>
 </template>

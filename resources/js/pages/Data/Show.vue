@@ -1599,8 +1599,8 @@ const aiModelLabel = computed(() => {
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <TooltipProvider :delay-duration="300">
-            <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl px-3 py-4 sm:p-4">
-                <div class="flex items-center gap-4">
+            <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl px-0 py-4 sm:p-4">
+                <div class="flex items-center gap-4 px-3">
                     <Link
                         :href="backHref"
                         class="min-h-[44px] shrink-0 py-2 text-sm text-muted-foreground underline-offset-4 hover:underline sm:min-h-0"
@@ -1686,7 +1686,7 @@ const aiModelLabel = computed(() => {
                             </TabsList>
 
                             <TabsContent value="data" class="mt-0 rounded-b-xl">
-                                <div class="p-3 pt-4 sm:p-6">
+                                <div class="px-0 pt-4 pb-3 sm:p-6">
                                     <DataShowDocView
                                         v-if="isDocData"
                                         :doc-search="docSearch"

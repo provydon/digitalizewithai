@@ -167,7 +167,8 @@ function startReadAloudFromModal() {
 </script>
 
 <template>
-    <div class="content-paper space-y-5 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+    <div class="content-paper space-y-5 rounded-xl border border-gray-200 bg-white px-0 py-4 shadow-sm sm:p-6">
+        <div class="content-paper__top space-y-5 px-4 sm:px-0">
         <div class="flex flex-nowrap items-center justify-between gap-2 sm:flex-wrap sm:gap-3">
             <div class="relative min-w-0 flex-1 sm:max-w-xs">
                 <Search
@@ -422,6 +423,7 @@ function startReadAloudFromModal() {
                 @go-to="emit('go-to-page', $event)"
             />
         </div>
+        </div>
         <div
             v-if="docPageLoading"
             class="py-12 text-center text-sm text-gray-500"
@@ -461,7 +463,7 @@ function startReadAloudFromModal() {
             </div>
             <div
                 v-else
-                class="doc-prose max-w-full overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 px-4 py-5 sm:px-6 sm:py-6"
+                class="doc-prose max-w-full overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 px-0 py-5 sm:px-6 sm:py-6"
                 :class="{ 'max-h-[70vh] overflow-y-auto': isMultiPage && sectionsToShow.length > 1 }"
             >
                 <template v-if="isMultiPage && sectionsToShow.length > 0">

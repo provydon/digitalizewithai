@@ -645,7 +645,7 @@ const addRowOpen = ref(false);
 const addRowCells = ref<string[]>([]);
 const addRowSaving = ref(false);
 const addRowsTab = ref<'manual' | 'upload'>('manual');
-const appendFile = ref<File | null>(null);
+const appendFiles = ref<File[]>([]);
 const appendLoading = ref(false);
 const appendProgress = ref(0);
 const appendPhase = ref<'uploading' | 'extracting'>('uploading');
@@ -660,7 +660,7 @@ const appendMaxBytes = ref(100 * 1024 * 1024);
 
 // —— Doc append (append from photo/video) ——
 const appendDocOpen = ref(false);
-const appendDocFile = ref<File | null>(null);
+const appendDocFiles = ref<File[]>([]);
 const appendDocLoading = ref(false);
 const appendDocProgress = ref(0);
 const appendDocPhase = ref<'uploading' | 'extracting'>('uploading');
@@ -786,7 +786,7 @@ async function deleteSelectedRows(rows: TableRowRecord[]) {
 function openAddRow() {
     addRowCells.value = tableHeaders.value.map(() => '');
     addRowsTab.value = 'manual';
-    appendFile.value = null;
+    appendFiles.value = [];
     appendError.value = null;
     appendSuccess.value = false;
     addRowOpen.value = true;
@@ -795,21 +795,30 @@ function openAddRow() {
 function closeAddRow() {
     addRowOpen.value = false;
     addRowCells.value = [];
-    appendFile.value = null;
+    appendFiles.value = [];
     appendError.value = null;
     appendSuccess.value = false;
 }
 
 function onAppendFileChange(e: Event) {
     const input = e.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (file) appendFile.value = file;
+    const files = input.files;
+    if (files?.length) {
+        appendFiles.value = [...appendFiles.value, ...Array.from(files)];
+        input.value = '';
+    }
 }
 
 function onAppendDrop(e: DragEvent) {
     e.preventDefault();
-    const file = e.dataTransfer?.files?.[0];
-    if (file) appendFile.value = file;
+    const files = e.dataTransfer?.files;
+    if (files?.length) {
+        appendFiles.value = [...appendFiles.value, ...Array.from(files)];
+    }
+}
+
+function removeAppendFile(index: number) {
+    appendFiles.value = appendFiles.value.filter((_, i) => i !== index);
 }
 
 function openAppendFilePicker() {
@@ -831,38 +840,47 @@ function openAppendCameraVideo() {
 }
 
 async function submitAppendUpload() {
-    const file = appendFile.value;
-    if (!file || !record.value) return;
-    if (file.size > appendMaxBytes.value) {
-        const maxMb = Math.round(appendMaxBytes.value / (1024 * 1024));
-        appendError.value = `File must be under ${maxMb} MB.`;
-        return;
+    const files = appendFiles.value;
+    if (!files.length || !record.value) return;
+    const maxMb = Math.round(appendMaxBytes.value / (1024 * 1024));
+    for (const file of files) {
+        if (file.size > appendMaxBytes.value) {
+            appendError.value = `"${file.name}" is over ${maxMb} MB.`;
+            return;
+        }
     }
     appendLoading.value = true;
     appendProgress.value = 0;
     appendPhase.value = 'uploading';
     appendError.value = null;
     appendSuccess.value = false;
-    const formData = new FormData();
-    formData.append('file', file);
+    const total = files.length;
+    let done = 0;
     try {
-        await api.post<{ added: number; message?: string }>(
-            `/dashboard/api/data/${record.value.id}/append-rows`,
-            formData,
-            {
-                timeout: 300000,
-                onUploadProgress(ev: { loaded: number; total?: number }) {
-                    if (ev.total && ev.total > 0) {
-                        appendProgress.value = Math.round((ev.loaded / ev.total) * 100);
-                        if (appendProgress.value >= 100) appendPhase.value = 'extracting';
-                    }
+        for (const file of files) {
+            const formData = new FormData();
+            formData.append('file', file);
+            await api.post<{ added: number; message?: string }>(
+                `/dashboard/api/data/${record.value.id}/append-rows`,
+                formData,
+                {
+                    timeout: 300000,
+                    onUploadProgress(ev: { loaded: number; total?: number }) {
+                        if (ev.total && ev.total > 0 && total > 0) {
+                            const fileProgress = ev.loaded / ev.total;
+                            appendProgress.value = Math.round(((done + fileProgress) / total) * 100);
+                            if (appendProgress.value >= 100) appendPhase.value = 'extracting';
+                        }
+                    },
                 },
-            },
-        );
+            );
+            done += 1;
+            if (done < total) appendPhase.value = 'uploading';
+        }
         appendProgress.value = 100;
         appendPhase.value = 'extracting';
         appendSuccess.value = true;
-        appendFile.value = null;
+        appendFiles.value = [];
         if (appendFileInput.value) appendFileInput.value.value = '';
         if (appendCameraPhoto.value) appendCameraPhoto.value.value = '';
         if (appendCameraVideo.value) appendCameraVideo.value.value = '';
@@ -882,27 +900,36 @@ async function submitAppendUpload() {
 function openAppendDocDialog() {
     appendDocError.value = null;
     appendDocSuccess.value = false;
-    appendDocFile.value = null;
+    appendDocFiles.value = [];
     appendDocOpen.value = true;
 }
 
 function closeAppendDocDialog() {
     appendDocOpen.value = false;
-    appendDocFile.value = null;
+    appendDocFiles.value = [];
     appendDocError.value = null;
     appendDocSuccess.value = false;
 }
 
 function onAppendDocFileChange(e: Event) {
     const input = e.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (file) appendDocFile.value = file;
+    const files = input.files;
+    if (files?.length) {
+        appendDocFiles.value = [...appendDocFiles.value, ...Array.from(files)];
+        input.value = '';
+    }
 }
 
 function onAppendDocDrop(e: DragEvent) {
     e.preventDefault();
-    const file = e.dataTransfer?.files?.[0];
-    if (file) appendDocFile.value = file;
+    const files = e.dataTransfer?.files;
+    if (files?.length) {
+        appendDocFiles.value = [...appendDocFiles.value, ...Array.from(files)];
+    }
+}
+
+function removeAppendDocFile(index: number) {
+    appendDocFiles.value = appendDocFiles.value.filter((_, i) => i !== index);
 }
 
 function openAppendDocFilePicker() {
@@ -924,38 +951,47 @@ function openAppendDocCameraVideo() {
 }
 
 async function submitAppendDoc() {
-    const file = appendDocFile.value;
-    if (!file || !record.value) return;
-    if (file.size > appendMaxBytes.value) {
-        const maxMb = Math.round(appendMaxBytes.value / (1024 * 1024));
-        appendDocError.value = `File must be under ${maxMb} MB.`;
-        return;
+    const files = appendDocFiles.value;
+    if (!files.length || !record.value) return;
+    const maxMb = Math.round(appendMaxBytes.value / (1024 * 1024));
+    for (const file of files) {
+        if (file.size > appendMaxBytes.value) {
+            appendDocError.value = `"${file.name}" is over ${maxMb} MB.`;
+            return;
+        }
     }
     appendDocLoading.value = true;
     appendDocProgress.value = 0;
     appendDocPhase.value = 'uploading';
     appendDocError.value = null;
     appendDocSuccess.value = false;
-    const formData = new FormData();
-    formData.append('file', file);
+    const total = files.length;
+    let done = 0;
     try {
-        await api.post<{ added: number; message?: string }>(
-            `/dashboard/api/data/${record.value.id}/append-doc`,
-            formData,
-            {
-                timeout: 120000,
-                onUploadProgress(ev: { loaded: number; total?: number }) {
-                    if (ev.total && ev.total > 0) {
-                        appendDocProgress.value = Math.round((ev.loaded / ev.total) * 100);
-                        if (appendDocProgress.value >= 100) appendDocPhase.value = 'extracting';
-                    }
+        for (const file of files) {
+            const formData = new FormData();
+            formData.append('file', file);
+            await api.post<{ added: number; message?: string }>(
+                `/dashboard/api/data/${record.value.id}/append-doc`,
+                formData,
+                {
+                    timeout: 120000,
+                    onUploadProgress(ev: { loaded: number; total?: number }) {
+                        if (ev.total && ev.total > 0 && total > 0) {
+                            const fileProgress = ev.loaded / ev.total;
+                            appendDocProgress.value = Math.round(((done + fileProgress) / total) * 100);
+                            if (appendDocProgress.value >= 100) appendDocPhase.value = 'extracting';
+                        }
+                    },
                 },
-            },
-        );
+            );
+            done += 1;
+            if (done < total) appendDocPhase.value = 'uploading';
+        }
         appendDocProgress.value = 100;
         appendDocPhase.value = 'extracting';
         appendDocSuccess.value = true;
-        appendDocFile.value = null;
+        appendDocFiles.value = [];
         if (appendDocFileInput.value) appendDocFileInput.value.value = '';
         if (appendDocCameraPhoto.value) appendDocCameraPhoto.value.value = '';
         if (appendDocCameraVideo.value) appendDocCameraVideo.value.value = '';
@@ -1924,7 +1960,7 @@ const aiModelLabel = computed(() => {
                             :add-row-cells="addRowCells"
                             :add-row-saving="addRowSaving"
                             :add-rows-tab="addRowsTab"
-                            :append-file="appendFile"
+                            :append-files="appendFiles"
                             :append-loading="appendLoading"
                             :append-progress="appendProgress"
                             :append-phase="appendPhase"
@@ -1937,6 +1973,7 @@ const aiModelLabel = computed(() => {
                             @close="closeAddRow"
                             @append-file-change="onAppendFileChange"
                             @append-drop="onAppendDrop"
+                            @remove-append-file="removeAppendFile"
                             @open-append-file-picker="openAppendFilePicker"
                             @open-append-camera-photo="openAppendCameraPhoto"
                             @open-append-camera-video="openAppendCameraVideo"
@@ -1947,6 +1984,7 @@ const aiModelLabel = computed(() => {
                                     ref="appendFileInput"
                                     type="file"
                                     :accept="ACCEPT_TABLE_UPLOAD"
+                                    multiple
                                     class="hidden"
                                     @change="onAppendFileChange"
                                 />
@@ -1983,7 +2021,7 @@ const aiModelLabel = computed(() => {
                         <DataAppendDocDialog
                             v-if="isDocData"
                             :open="appendDocOpen"
-                            :append-file="appendDocFile"
+                            :append-files="appendDocFiles"
                             :append-loading="appendDocLoading"
                             :append-progress="appendDocProgress"
                             :append-phase="appendDocPhase"
@@ -1992,6 +2030,7 @@ const aiModelLabel = computed(() => {
                             @update:open="appendDocOpen = $event"
                             @append-file-change="onAppendDocFileChange"
                             @append-drop="onAppendDocDrop"
+                            @remove-append-file="removeAppendDocFile"
                             @open-append-file-picker="openAppendDocFilePicker"
                             @open-append-camera-photo="openAppendDocCameraPhoto"
                             @open-append-camera-video="openAppendDocCameraVideo"
@@ -2003,6 +2042,7 @@ const aiModelLabel = computed(() => {
                                     ref="appendDocFileInput"
                                     type="file"
                                     :accept="ACCEPT_DOC_UPLOAD"
+                                    multiple
                                     class="hidden"
                                     @change="onAppendDocFileChange"
                                 />

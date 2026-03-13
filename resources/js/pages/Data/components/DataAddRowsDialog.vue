@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Camera, Upload, Video } from 'lucide-vue-next';
+import { Camera, Upload, Video, X } from 'lucide-vue-next';
 import { TabsContent, TabsList, TabsRoot, TabsTrigger } from 'reka-ui';
 import { Button } from '@/components/ui/button';
 import {
@@ -19,7 +19,7 @@ const props = defineProps<{
     addRowCells: string[];
     addRowSaving: boolean;
     addRowsTab: 'manual' | 'upload';
-    appendFile: File | null;
+    appendFiles: File[];
     appendLoading: boolean;
     appendProgress: number;
     appendPhase: 'uploading' | 'extracting';
@@ -31,11 +31,11 @@ const emit = defineEmits<{
     'update:open': [v: boolean];
     'update:addRowCells': [v: string[]];
     'update:addRowsTab': [v: 'manual' | 'upload'];
-    'update:appendFile': [v: File | null];
     'save-add-row': [];
     'close': [];
     'append-file-change': [e: Event];
     'append-drop': [e: DragEvent];
+    'remove-append-file': [index: number];
     'open-append-file-picker': [];
     'open-append-camera-photo': [];
     'open-append-camera-video': [];
@@ -95,7 +95,7 @@ function updateAddCell(index: number, value: string | number) {
                 </TabsContent>
                 <TabsContent value="upload" class="mt-3">
                     <p class="mb-3 text-sm text-muted-foreground">
-                        Upload a photo or video of a table — we'll extract the rows and append them to this table.
+                        Upload photos or videos of a table. Take or add multiple — each new one is added to the list. We'll extract the rows and append them to this table.
                     </p>
                     <slot name="file-inputs" />
                     <div class="mb-3 flex flex-wrap gap-2">
@@ -127,8 +127,29 @@ function updateAddCell(index: number, value: string | number) {
                             @click="emit('open-append-file-picker')"
                         >
                             <Upload class="mr-1.5 h-4 w-4" />
-                            Choose a file
+                            Choose file(s)
                         </Button>
+                    </div>
+                    <div
+                        v-if="appendFiles.length > 0"
+                        class="mb-3 flex flex-wrap gap-2"
+                    >
+                        <div
+                            v-for="(file, i) in appendFiles"
+                            :key="`${file.name}-${i}`"
+                            class="flex items-center gap-1.5 rounded-md border border-sidebar-border/70 bg-muted/40 px-2.5 py-1.5 text-sm"
+                        >
+                            <span class="truncate max-w-[180px]" :title="file.name">{{ file.name }}</span>
+                            <button
+                                type="button"
+                                class="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                                aria-label="Remove"
+                                :disabled="appendLoading"
+                                @click="emit('remove-append-file', i)"
+                            >
+                                <X class="h-3.5 w-3.5" />
+                            </button>
+                        </div>
                     </div>
                     <div
                         class="cursor-pointer rounded-lg border-2 border-dashed border-sidebar-border/70 bg-muted/30 p-4 text-center transition-colors dark:border-sidebar-border"
@@ -143,13 +164,13 @@ function updateAddCell(index: number, value: string | number) {
                     >
                         <Upload class="mx-auto mb-2 h-6 w-6 text-muted-foreground" />
                         <p class="mb-1 text-sm text-muted-foreground">
-                            Or drag a file here
+                            Or drag files here
                         </p>
-                        <p v-if="appendFile" class="mb-2 text-sm font-medium text-foreground">
-                            {{ appendFile.name }}
+                        <p v-if="appendFiles.length" class="mb-2 text-sm font-medium text-foreground">
+                            {{ appendFiles.length }} file(s) selected
                         </p>
                         <p class="mb-2 text-xs text-muted-foreground">
-                            Images: JPEG, PNG, GIF, WebP. Video: MP4, WebM. Max 20 MB.
+                            Images: JPEG, PNG, GIF, WebP. Video: MP4, WebM. Max 20 MB each.
                         </p>
                         <div v-if="appendLoading" class="mt-2 space-y-2">
                             <div class="flex justify-between text-sm text-muted-foreground">
@@ -177,10 +198,10 @@ function updateAddCell(index: number, value: string | number) {
                             </Button>
                         </DialogClose>
                         <Button
-                            :disabled="!appendFile || appendLoading"
+                            :disabled="appendFiles.length === 0 || appendLoading"
                             @click="emit('submit-append-upload')"
                         >
-                            {{ appendLoading ? 'Adding…' : 'Add rows from file' }}
+                            {{ appendLoading ? 'Adding…' : appendFiles.length > 1 ? `Add rows from ${appendFiles.length} files` : 'Add rows from file' }}
                         </Button>
                     </DialogFooter>
                 </TabsContent>

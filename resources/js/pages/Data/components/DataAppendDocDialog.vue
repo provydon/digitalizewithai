@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Camera, Upload, Video } from 'lucide-vue-next';
+import { Camera, Upload, Video, X } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -12,7 +12,7 @@ import {
 
 defineProps<{
     open: boolean;
-    appendFile: File | null;
+    appendFiles: File[];
     appendLoading: boolean;
     appendProgress: number;
     appendPhase: 'uploading' | 'extracting';
@@ -24,6 +24,7 @@ const emit = defineEmits<{
     'update:open': [v: boolean];
     'append-file-change': [e: Event];
     'append-drop': [e: DragEvent];
+    'remove-append-file': [index: number];
     'open-append-file-picker': [];
     'open-append-camera-photo': [];
     'open-append-camera-video': [];
@@ -39,7 +40,7 @@ const emit = defineEmits<{
                 <DialogTitle>Add content from photo or video</DialogTitle>
             </DialogHeader>
             <p class="mb-3 text-sm text-muted-foreground">
-                Upload a photo or video. We'll extract the text and add it to the end of this document. The AI will avoid duplicating content already in the doc.
+                Upload photos or videos. We'll extract the text and add it to the end of this document. Take or add multiple — each new one is added to the list. The AI will avoid duplicating content already in the doc.
             </p>
             <slot name="file-inputs" />
             <div class="mb-3 flex flex-wrap gap-2">
@@ -71,8 +72,29 @@ const emit = defineEmits<{
                     @click="emit('open-append-file-picker')"
                 >
                     <Upload class="mr-1.5 h-4 w-4" />
-                    Choose a file
+                    Choose file(s)
                 </Button>
+            </div>
+            <div
+                v-if="appendFiles.length > 0"
+                class="mb-3 flex flex-wrap gap-2"
+            >
+                <div
+                    v-for="(file, i) in appendFiles"
+                    :key="`${file.name}-${i}`"
+                    class="flex items-center gap-1.5 rounded-md border border-sidebar-border/70 bg-muted/40 px-2.5 py-1.5 text-sm"
+                >
+                    <span class="truncate max-w-[180px]" :title="file.name">{{ file.name }}</span>
+                    <button
+                        type="button"
+                        class="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                        aria-label="Remove"
+                        :disabled="appendLoading"
+                        @click="emit('remove-append-file', i)"
+                    >
+                        <X class="h-3.5 w-3.5" />
+                    </button>
+                </div>
             </div>
             <div
                 class="cursor-pointer rounded-lg border-2 border-dashed border-sidebar-border/70 bg-muted/30 p-4 text-center transition-colors dark:border-sidebar-border"
@@ -87,13 +109,13 @@ const emit = defineEmits<{
             >
                 <Upload class="mx-auto mb-2 h-6 w-6 text-muted-foreground" />
                 <p class="mb-1 text-sm text-muted-foreground">
-                    Or drag a file here
+                    Or drag files here
                 </p>
-                <p v-if="appendFile" class="mb-2 text-sm font-medium text-foreground">
-                    {{ appendFile.name }}
+                <p v-if="appendFiles.length" class="mb-2 text-sm font-medium text-foreground">
+                    {{ appendFiles.length }} file(s) selected
                 </p>
                 <p class="mb-2 text-xs text-muted-foreground">
-                    Images: JPEG, PNG, GIF, WebP. Video: MP4, WebM. Max 20 MB.
+                    Images: JPEG, PNG, GIF, WebP. Video: MP4, WebM. Max 20 MB each.
                 </p>
                 <div v-if="appendLoading" class="mt-2 space-y-2">
                     <div class="flex justify-between text-sm text-muted-foreground">
@@ -121,10 +143,10 @@ const emit = defineEmits<{
                     </Button>
                 </DialogClose>
                 <Button
-                    :disabled="!appendFile || appendLoading"
+                    :disabled="appendFiles.length === 0 || appendLoading"
                     @click="emit('submit-append-doc')"
                 >
-                    {{ appendLoading ? 'Adding…' : 'Add to document' }}
+                    {{ appendLoading ? 'Adding…' : appendFiles.length > 1 ? `Add ${appendFiles.length} to document` : 'Add to document' }}
                 </Button>
             </DialogFooter>
         </DialogContent>

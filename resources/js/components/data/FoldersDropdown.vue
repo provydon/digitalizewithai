@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { FileText, Folder, FolderPlus } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
+import NewFolderModal from '@/components/data/NewFolderModal.vue';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -8,7 +9,6 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import NewFolderModal from '@/components/data/NewFolderModal.vue';
 import type { FolderItem } from '@/types';
 
 const props = withDefaults(

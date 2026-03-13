@@ -3,7 +3,6 @@ import { Head } from '@inertiajs/vue3';
 import { Folder, FolderPlus, Inbox, Trash2 } from 'lucide-vue-next';
 import { ref } from 'vue';
 import DataListSection from '@/components/data/DataListSection.vue';
-import AppLayout from '@/layouts/AppLayout.vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -13,6 +12,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import AppLayout from '@/layouts/AppLayout.vue';
 import api from '@/lib/api';
 import { dashboard } from '@/routes';
 import type { BreadcrumbItem, FolderItem } from '@/types';

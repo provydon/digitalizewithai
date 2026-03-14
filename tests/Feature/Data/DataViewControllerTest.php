@@ -1,10 +1,14 @@
 <?php
 
+use App\Ai\Agents\DataInsightAgenticAgent;
 use App\Models\Data;
 use App\Models\SavedDataChart;
 use App\Models\SavedDataChat;
 use App\Models\User;
 use Illuminate\Support\Facades\Storage;
+use Laravel\Ai\Responses\AgentResponse;
+use Laravel\Ai\Responses\Data\Meta;
+use Laravel\Ai\Responses\Data\Usage;
 
 beforeEach(function () {
     Storage::fake('local');
@@ -60,6 +64,29 @@ test('dashboard api data ask stream returns only final answer for nova', functio
         'ai_provider' => 'nova',
         'ai_model' => 'nova-2-lite-v1',
     ]);
+
+    $this->app->bind(DataInsightAgenticAgent::class, function ($app, array $parameters) use ($data) {
+        expect($parameters['data']->is($data))->toBeTrue();
+
+        $agent = Mockery::mock(DataInsightAgenticAgent::class, [$parameters['data']])->makePartial();
+        $agent->shouldReceive('prompt')
+            ->once()
+            ->withArgs(function (string $prompt, array $attachments = [], ?string $provider = null, ?string $model = null): bool {
+                expect($prompt)
+                    ->toContain('What is the most common color?')
+                    ->toContain('Uploaded data for this page');
+
+                return $attachments === [] && $provider === 'nova' && $model === 'nova-2-lite-v1';
+            })
+            ->andReturn(new AgentResponse(
+                'test-data-insight',
+                'Red',
+                new Usage,
+                new Meta('nova', 'nova-2-lite-v1'),
+            ));
+
+        return $agent;
+    });
 
     $this->actingAs($user);
     $response = $this->post(

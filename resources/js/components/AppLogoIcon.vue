@@ -21,15 +21,15 @@ defineProps<Props>();
     >
         <!-- Neural node: lines first, then circles on top -->
         <path
-            stroke="currentColor"
+            stroke="#FFFFFF"
             stroke-width="2"
             stroke-linecap="round"
             fill="none"
             d="M20 16 L8 12 M20 16 L32 12 M20 16 L20 33"
         />
-        <circle cx="20" cy="16" r="5" fill="currentColor" />
-        <circle cx="8" cy="12" r="3" fill="currentColor" />
-        <circle cx="32" cy="12" r="3" fill="currentColor" />
-        <circle cx="20" cy="33" r="3" fill="currentColor" />
+        <circle cx="20" cy="16" r="5" fill="#FFFFFF" />
+        <circle cx="8" cy="12" r="3" fill="#FFFFFF" />
+        <circle cx="32" cy="12" r="3" fill="#FFFFFF" />
+        <circle cx="20" cy="33" r="3" fill="#FFFFFF" />
     </svg>
 </template>

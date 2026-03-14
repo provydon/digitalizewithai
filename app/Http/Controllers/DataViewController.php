@@ -11,6 +11,7 @@ use App\Models\SavedDataChart;
 use App\Models\SavedDataChat;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -260,8 +261,8 @@ class DataViewController extends Controller
             abort(404);
         }
         $updates = [];
-        $name = $request->input('name');
-        if ($name !== null) {
+        if (array_key_exists('name', $request->all())) {
+            $name = $request->input('name');
             if (! is_string($name) || trim($name) === '') {
                 return response()->json(['message' => 'name must be non-empty when provided.'], 422);
             }
@@ -391,13 +392,15 @@ class DataViewController extends Controller
             return response()->json(['message' => 'No data content to analyze.'], 422);
         }
 
-        $agent = new DataInsightAgent;
+        $agent = app(DataInsightAgent::class);
         $response = $agent->prompt(
             "Here is the user's data:\n\n---\n{$context}\n---\n\nUser question or request:\n{$question}"
         );
+        $responseData = $this->normalizeStructuredResponse($response);
+        $answer = $this->sanitizeAssistantAnswer((string) ($responseData['answer'] ?? ''));
 
         return response()->json([
-            'answer' => $response['answer'] ?? '',
+            'answer' => $answer,
         ]);
     }
 
@@ -458,7 +461,7 @@ class DataViewController extends Controller
             return response()->json(['message' => 'No data content to analyze.'], 422);
         }
 
-        $prompt = "The user's message (their question and any attachments) is the primary context—answer based on it first. When they attach image(s) and ask about them (e.g. \"is this the book cover?\", \"what's in this image?\"), answer from the attached image(s). Only use the \"uploaded data\" block below as additional or secondary context when relevant.\n\nUser question or request: {$question}{$attachmentBlock}\n\n---\nUploaded data for this page (secondary context):\n---\n{$context}";
+        $prompt = "The user's message (their question and any attachments) is the primary context—answer based on it first. When they attach image(s) and ask about them (e.g. \"is this the book cover?\", \"what's in this image?\"), answer from the attached image(s). Only use the \"uploaded data\" block below as additional or secondary context when relevant. Return only the final answer for the user. Do not show counting, step-by-step analysis, reasoning, or thought process unless the user explicitly asks for it.\n\nUser question or request: {$question}{$attachmentBlock}\n\n---\nUploaded data for this page (secondary context):\n---\n{$context}";
 
         $dataType = $digitalData['type'] ?? '';
         $isTable = is_array($digitalData) && $dataType === 'table';
@@ -466,9 +469,9 @@ class DataViewController extends Controller
         $useAgentic = $isTable || $isDoc;
 
         if ($useAgentic) {
-            $agent = new DataInsightAgenticAgent($data);
+            $agent = app()->makeWith(DataInsightAgenticAgent::class, ['data' => $data]);
             $response = $agent->prompt($prompt, $imageAttachments, $data->ai_provider, $data->ai_model);
-            $text = (string) $response;
+            $text = $this->sanitizeAssistantAnswer((string) $response);
             $dataUpdated = true;
             // Only include view_data_url when the agent likely changed data (user may want to see it).
             // Omit by default so we don't show "View data" on every reply.
@@ -493,13 +496,13 @@ class DataViewController extends Controller
             ]);
         }
 
-        $agent = new DataInsightStreamingAgent;
+        $agent = app(DataInsightStreamingAgent::class);
 
         return $agent->stream($prompt, [], $data->ai_provider, $data->ai_model);
     }
 
     /**
-     * Ask AI to suggest chart type and columns for this table data. Returns JSON chart config.
+     * Ask AI to suggest chart type, columns, aggregation, and axis names for this table data. Returns JSON chart config.
      * Optional body: { "request": "e.g. bar chart of sales by region" }.
      */
     public function chartSuggestion(Request $request, Data $data): JsonResponse
@@ -524,45 +527,687 @@ class DataViewController extends Controller
         if (count($headers) < 2 || count($rows) < 1) {
             return response()->json(['message' => 'Table needs at least 2 columns and 1 row.'], 422);
         }
+        $chartRows = $this->normalizeRowsForCharting($headers, $rows);
+        $excludedSignatures = $this->excludedChartSignatures($request->input('excludeCharts'));
+        $shapeSuggestions = $this->inferChartCandidatesFromData($headers, $chartRows);
+        $shapeSuggestion = $this->firstUnseenChartCandidate($shapeSuggestions, $excludedSignatures);
 
         $context = 'Column headers (0-based index in brackets): '.implode(', ', array_map(fn ($h, $i) => "{$i}: {$h}", $headers, array_keys($headers)));
-        $sample = array_slice($rows, 0, 15);
+        $sample = array_slice($chartRows, 0, 15);
         foreach ($sample as $row) {
             $context .= "\n".implode(' | ', array_map(fn ($c) => (string) $c, $row));
+        }
+        if ($shapeSuggestions !== []) {
+            $context .= "\n\nRecommended business/logistics chart candidates based on the data shape:\n".json_encode($shapeSuggestions);
         }
 
         $userRequest = $request->input('request');
         $userRequest = is_string($userRequest) ? trim($userRequest) : '';
+        $provider = $data->ai_provider;
         $promptSuffix = $userRequest !== ''
-            ? "User wants this specific chart: \"{$userRequest}\". Suggest chart type and column indices that best match this request."
-            : 'Suggest the best chart type and which column indices to use for labels and values.';
+            ? "User wants this specific chart: \"{$userRequest}\". Suggest chart type, column indices, aggregation, and axis names that best match this request."
+            : 'Suggest the best chart type, which column indices to use for labels and values, whether aggregation is needed, and clear axis names for the chart. The result must make business or logistics sense and should avoid identifiers or row numbers.';
+        if ($excludedSignatures !== []) {
+            $context .= "\n\nAlready shown chart configurations (do not repeat these): ".json_encode(array_values($excludedSignatures));
+            $promptSuffix .= ' Return a materially different chart from the previously shown chart configurations.';
+        }
+        if ($provider === 'nova') {
+            $promptSuffix .= ' IMPORTANT FOR NOVA: reply with a single JSON object only, with no prose, and prefer the recommended chart candidates when they match the table shape.';
+        }
 
-        $agent = new ChartSuggestionAgent;
+        $agent = app(ChartSuggestionAgent::class);
         $response = $agent->prompt(
             "Table data:\n---\n{$context}\n---\n{$promptSuffix}",
-            provider: $data->ai_provider,
+            provider: $provider,
             model: $data->ai_model,
         );
+        $responseData = $this->normalizeStructuredResponse($response);
+        if ($userRequest === '' && $shapeSuggestion !== null && (! $this->hasUsableChartSuggestion($responseData) || ! $this->isReasonableChartSuggestion($responseData, $headers, $chartRows) || $this->isExcludedChartSuggestion($responseData, $excludedSignatures))) {
+            Log::info('[charts] using shape-based default chart suggestion', [
+                'data_id' => $data->id,
+                'provider' => $provider,
+                'ai_response' => $responseData,
+                'shape_suggestion' => $shapeSuggestion,
+            ]);
+            $responseData = $shapeSuggestion;
+        }
+        if ($userRequest !== '' && $this->hasUsableChartSuggestion($responseData) && ! $this->isReasonableChartSuggestion($responseData, $headers, $chartRows)) {
+            $fallback = $this->inferChartSuggestionFromRequest($headers, $userRequest, $chartRows);
+            if ($fallback !== null) {
+                $existingTitle = isset($responseData['title']) ? trim((string) $responseData['title']) : '';
+                if ($existingTitle !== '') {
+                    $fallback['title'] = $existingTitle;
+                }
+                $responseData = $fallback;
+            }
+        }
+        if (! $this->hasUsableChartSuggestion($responseData)) {
+            Log::warning('[charts] AI returned no usable chart suggestion', [
+                'data_id' => $data->id,
+                'request' => $userRequest !== '' ? $userRequest : null,
+                'response' => $responseData,
+                'raw_response' => $this->truncateForLog($this->rawStructuredResponse($response)),
+            ]);
+            $fallback = $this->inferChartSuggestionFromRequest($headers, $userRequest, $chartRows);
+            if ($fallback !== null) {
+                Log::info('[charts] using heuristic chart fallback', [
+                    'data_id' => $data->id,
+                    'request' => $userRequest,
+                    'fallback' => $fallback,
+                ]);
+                $responseData = $fallback;
+            } elseif ($shapeSuggestion !== null) {
+                $responseData = $shapeSuggestion;
+            } else {
+                return response()->json([
+                    'message' => 'AI could not generate a usable chart for that request. Try a simpler prompt or be more specific about the fields you want to compare.',
+                ], 422);
+            }
+        }
 
-        $chartType = $response['chartType'] ?? 'bar';
+        $chartType = $responseData['chartType'] ?? 'bar';
         $chartType = in_array($chartType, ['bar', 'line', 'pie'], true) ? $chartType : 'bar';
-        $labelCol = (int) ($response['labelColumn'] ?? 0);
-        $valueCol = (int) ($response['valueColumn'] ?? 1);
+        $labelCol = (int) ($responseData['labelColumn'] ?? 0);
+        $valueCol = (int) ($responseData['valueColumn'] ?? 1);
+        $aggregation = (string) ($responseData['aggregation'] ?? 'none');
+        $aggregation = in_array($aggregation, ['none', 'sum', 'count'], true) ? $aggregation : 'none';
         $maxCol = count($headers) - 1;
         $labelCol = max(0, min($labelCol, $maxCol));
         $valueCol = max(0, min($valueCol, $maxCol));
-        if ($labelCol === $valueCol) {
+        if ($aggregation !== 'count' && $labelCol === $valueCol) {
             $valueCol = $labelCol === 0 ? 1 : 0;
         }
 
-        $title = isset($response['title']) ? trim((string) $response['title']) : '';
+        $title = isset($responseData['title']) ? trim((string) $responseData['title']) : '';
+        $xAxisName = isset($responseData['xAxisName']) ? trim((string) $responseData['xAxisName']) : '';
+        $yAxisName = isset($responseData['yAxisName']) ? trim((string) $responseData['yAxisName']) : '';
+        if ($xAxisName === '') {
+            $xAxisName = (string) ($headers[$labelCol] ?? 'Category');
+        }
+        if ($yAxisName === '') {
+            $yAxisName = (string) ($headers[$valueCol] ?? 'Value');
+        }
 
         return response()->json([
             'chartType' => $chartType,
             'labelColumn' => $labelCol,
             'valueColumn' => $valueCol,
+            'aggregation' => $aggregation,
+            'xAxisName' => $xAxisName,
+            'yAxisName' => $yAxisName,
             'title' => $title === '' ? null : $title,
         ]);
+    }
+
+    /**
+     * Normalize agent structured output into an associative array.
+     *
+     * @return array<string, mixed>
+     */
+    private function normalizeStructuredResponse(mixed $response): array
+    {
+        if (is_array($response)) {
+            return $response;
+        }
+
+        if (is_object($response) && isset($response->text) && is_string($response->text)) {
+            return $this->decodeStructuredJson($response->text);
+        }
+
+        if (is_string($response)) {
+            return $this->decodeStructuredJson($response);
+        }
+
+        return [];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function decodeStructuredJson(string $text): array
+    {
+        $decoded = json_decode($text, true);
+        if (is_array($decoded)) {
+            return $decoded;
+        }
+
+        $trimmed = trim($text);
+        if (preg_match('/```(?:json)?\s*(\{.*\})\s*```/is', $trimmed, $matches) === 1) {
+            $decoded = json_decode($matches[1], true);
+            if (is_array($decoded)) {
+                return $decoded;
+            }
+        }
+
+        if (preg_match('/(\{.*\})/s', $trimmed, $matches) === 1) {
+            $decoded = json_decode($matches[1], true);
+            if (is_array($decoded)) {
+                return $decoded;
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * @param  array<string, mixed>  $responseData
+     */
+    private function hasUsableChartSuggestion(array $responseData): bool
+    {
+        return isset($responseData['chartType'], $responseData['labelColumn'], $responseData['valueColumn']);
+    }
+
+    /**
+     * @param  array<string, mixed>  $responseData
+     * @param  array<int, string>  $headers
+     * @param  array<int, array<int, mixed>>  $rows
+     */
+    private function isReasonableChartSuggestion(array $responseData, array $headers, array $rows): bool
+    {
+        if (! $this->hasUsableChartSuggestion($responseData)) {
+            return false;
+        }
+
+        $maxCol = count($headers) - 1;
+        $labelCol = (int) $responseData['labelColumn'];
+        $valueCol = (int) $responseData['valueColumn'];
+        $aggregation = (string) ($responseData['aggregation'] ?? 'none');
+        if ($labelCol < 0 || $valueCol < 0 || $labelCol > $maxCol || $valueCol > $maxCol) {
+            return false;
+        }
+        if ($this->isLowSignalHeader((string) ($headers[$labelCol] ?? ''))) {
+            return false;
+        }
+        if ($aggregation !== 'count' && $labelCol === $valueCol) {
+            return false;
+        }
+        if ($aggregation === 'count') {
+            return true;
+        }
+
+        return $this->numericScoreForColumn($rows, $valueCol) >= 0.4;
+    }
+
+    private function rawStructuredResponse(mixed $response): string
+    {
+        if (is_string($response)) {
+            return $response;
+        }
+
+        if (is_array($response)) {
+            return (string) json_encode($response);
+        }
+
+        if (is_object($response) && isset($response->text) && is_string($response->text)) {
+            return $response->text;
+        }
+
+        return is_object($response) ? get_class($response) : '';
+    }
+
+    private function truncateForLog(string $text, int $limit = 3000): string
+    {
+        $text = trim($text);
+        if ($text === '') {
+            return '';
+        }
+
+        return strlen($text) > $limit ? substr($text, 0, $limit).'…' : $text;
+    }
+
+    /**
+     * @param  array<int, string>  $headers
+     * @return array<string, mixed>|null
+     */
+    private function inferChartSuggestionFromRequest(array $headers, string $userRequest, array $rows = []): ?array
+    {
+        $request = strtolower(trim($userRequest));
+        if ($request === '') {
+            return null;
+        }
+
+        $labelCol = null;
+        if (preg_match('/item|items|order|orders|product|products|dish|dishes|meal|meals/', $request) === 1) {
+            $labelCol = $this->findHeaderIndexByKeywords($headers, ['order', 'item', 'product', 'dish', 'meal']);
+        }
+        if ($labelCol === null && preg_match('/customer|customers|client|clients|buyer|buyers/', $request) === 1) {
+            $labelCol = $this->findHeaderIndexByKeywords($headers, ['customer', 'client', 'buyer']);
+        }
+        if ($labelCol === null && preg_match('/date|day|month|time|daily|monthly|weekly|trend/', $request) === 1) {
+            $labelCol = $this->findHeaderIndexByKeywords($headers, ['date', 'day', 'month', 'time']);
+        }
+        if ($labelCol === null) {
+            $labelCol = $this->findHeaderIndexByKeywords($headers, ['customer', 'client', 'buyer']);
+        }
+        if ($labelCol === null) {
+            $labelCol = $this->findHeaderIndexByKeywords($headers, ['order', 'item', 'product', 'dish', 'meal']);
+        }
+        if ($labelCol === null) {
+            $labelCol = $this->findHeaderIndexByKeywords($headers, ['date', 'day', 'month', 'time']);
+        }
+        if ($labelCol === null) {
+            $labelCol = $this->bestMatchingHeaderIndex($headers, $request);
+        }
+        if ($labelCol === null) {
+            $labelCol = 0;
+        }
+
+        $valueCol = null;
+        if (preg_match('/money|spent|spend|sales|revenue|amount|total|price|cost/', $request) === 1) {
+            $valueCol = $this->findPreferredMoneyColumnIndex($headers, $rows);
+        }
+        if ($valueCol === null) {
+            $valueCol = $this->findPreferredMoneyColumnIndex($headers, $rows);
+        }
+        if ($valueCol === null) {
+            $valueCol = $labelCol === 0 ? 1 : 0;
+        }
+
+        $aggregation = 'none';
+        if (preg_match('/count|how many|number of/', $request) === 1) {
+            $aggregation = 'count';
+        } elseif (preg_match('/total|sum|spent|spend|sales|revenue|amount|per | by /', $request) === 1) {
+            $aggregation = 'sum';
+        }
+
+        $chartType = 'bar';
+        if (preg_match('/pie|share|distribution|composition/', $request) === 1) {
+            $chartType = 'pie';
+        } elseif (preg_match('/line|trend|over time|daily|monthly/', $request) === 1) {
+            $chartType = 'line';
+        }
+
+        $xAxisName = (string) ($headers[$labelCol] ?? 'Category');
+        $yAxisName = $aggregation === 'count'
+            ? 'Count'
+            : (preg_match('/money|spent|spend|cost/', $request) === 1
+                ? 'Money spent'
+                : (string) ($headers[$valueCol] ?? 'Value'));
+        $title = ucwords(trim($userRequest));
+
+        return [
+            'chartType' => $chartType,
+            'labelColumn' => $labelCol,
+            'valueColumn' => $valueCol,
+            'aggregation' => $aggregation,
+            'xAxisName' => $xAxisName,
+            'yAxisName' => $yAxisName,
+            'title' => $title,
+        ];
+    }
+
+    /**
+     * @param  array<int, string>  $headers
+     * @param  array<int, array<int, mixed>>  $rows
+     * @return list<array<string, mixed>>
+     */
+    private function inferChartCandidatesFromData(array $headers, array $rows): array
+    {
+        $dateCol = $this->findHeaderIndexByKeywords($headers, ['date', 'day', 'month', 'time', 'year']);
+        $numericCol = $this->findPreferredMoneyColumnIndex($headers, $rows);
+        if ($numericCol === null) {
+            $numericCol = $this->bestNumericColumnIndex($headers, $rows);
+        }
+        $customerCol = $this->findHeaderIndexByKeywords($headers, ['customer', 'client', 'buyer']);
+        $platformCol = $this->findHeaderIndexByKeywords($headers, ['platform', 'channel', 'source', 'carrier', 'vendor', 'region']);
+        $itemCol = $this->findHeaderIndexByKeywords($headers, ['order', 'item', 'product', 'sku', 'inventory', 'category']);
+        $genericCategoryCol = $this->bestCategoryColumnIndex($headers, $rows, [$dateCol, $numericCol, $customerCol, $platformCol, $itemCol]);
+
+        $candidates = [];
+        if ($dateCol !== null && $numericCol !== null) {
+            $candidates[] = [
+                'chartType' => 'line',
+                'labelColumn' => $dateCol,
+                'valueColumn' => $numericCol,
+                'aggregation' => 'sum',
+                'xAxisName' => (string) ($headers[$dateCol] ?? 'Date'),
+                'yAxisName' => (string) ($headers[$numericCol] ?? 'Value'),
+                'title' => sprintf('%s by %s', (string) ($headers[$numericCol] ?? 'Value'), (string) ($headers[$dateCol] ?? 'Date')),
+            ];
+        }
+        foreach ([$customerCol, $platformCol, $itemCol, $genericCategoryCol] as $categoryCol) {
+            if ($categoryCol === null || $this->isLowSignalHeader((string) ($headers[$categoryCol] ?? ''))) {
+                continue;
+            }
+            if ($numericCol !== null) {
+                $candidates[] = [
+                    'chartType' => 'bar',
+                    'labelColumn' => $categoryCol,
+                    'valueColumn' => $numericCol,
+                    'aggregation' => 'sum',
+                    'xAxisName' => (string) ($headers[$categoryCol] ?? 'Category'),
+                    'yAxisName' => (string) ($headers[$numericCol] ?? 'Value'),
+                    'title' => sprintf('%s by %s', (string) ($headers[$numericCol] ?? 'Value'), (string) ($headers[$categoryCol] ?? 'Category')),
+                ];
+            }
+            $candidates[] = [
+                'chartType' => 'bar',
+                'labelColumn' => $categoryCol,
+                'valueColumn' => $categoryCol,
+                'aggregation' => 'count',
+                'xAxisName' => (string) ($headers[$categoryCol] ?? 'Category'),
+                'yAxisName' => 'Count',
+                'title' => sprintf('Count by %s', (string) ($headers[$categoryCol] ?? 'Category')),
+            ];
+        }
+
+        return $this->uniqueChartCandidates($candidates);
+    }
+
+    /**
+     * @param  array<int, string>  $headers
+     * @param  array<int, array<int, mixed>>  $rows
+     */
+    private function normalizeRowsForCharting(array $headers, array $rows): array
+    {
+        $fillDownCols = [];
+        foreach ($headers as $index => $header) {
+            $normalized = strtolower((string) $header);
+            if (preg_match('/date|day|month|time|customer|client|buyer|platform|channel|region|sl#|s\/n|serial/', $normalized) === 1) {
+                $fillDownCols[] = $index;
+            }
+        }
+
+        $normalizedRows = [];
+        $lastValues = [];
+        foreach ($rows as $row) {
+            $row = array_values((array) $row);
+            if ($this->isLikelyChartSummaryRow($row)) {
+                continue;
+            }
+            foreach ($fillDownCols as $index) {
+                $cell = trim((string) ($row[$index] ?? ''));
+                if ($cell !== '') {
+                    $lastValues[$index] = $cell;
+
+                    continue;
+                }
+                if (($this->rowHasMeaningfulContent($row, $index)) && array_key_exists($index, $lastValues)) {
+                    $row[$index] = $lastValues[$index];
+                }
+            }
+            $normalizedRows[] = $row;
+        }
+
+        return $normalizedRows !== [] ? $normalizedRows : $rows;
+    }
+
+    /**
+     * @param  array<int, string>  $headers
+     */
+    private function findHeaderIndexByKeywords(array $headers, array $keywords): ?int
+    {
+        foreach ($keywords as $keyword) {
+            foreach ($headers as $index => $header) {
+                $normalized = strtolower((string) $header);
+                if (str_contains($normalized, strtolower($keyword))) {
+                    return $index;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<int, string>  $headers
+     */
+    private function bestMatchingHeaderIndex(array $headers, string $request): ?int
+    {
+        $tokens = preg_split('/[^a-z0-9]+/', $request, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $bestScore = 0;
+        $bestIndex = null;
+        foreach ($headers as $index => $header) {
+            $headerTokens = preg_split('/[^a-z0-9]+/', strtolower((string) $header), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+            $score = count(array_intersect($tokens, $headerTokens));
+            if ($score > $bestScore) {
+                $bestScore = $score;
+                $bestIndex = $index;
+            }
+        }
+
+        return $bestIndex;
+    }
+
+    /**
+     * @param  array<int, string>  $headers
+     * @param  array<int, array<int, mixed>>  $rows
+     */
+    private function bestNumericColumnIndex(array $headers, array $rows): ?int
+    {
+        $bestIndex = null;
+        $bestScore = 0.0;
+        foreach ($headers as $index => $_header) {
+            $score = $this->numericScoreForColumn($rows, $index);
+            if ($score > $bestScore) {
+                $bestScore = $score;
+                $bestIndex = $index;
+            }
+        }
+
+        return $bestScore >= 0.4 ? $bestIndex : null;
+    }
+
+    /**
+     * @param  array<int, string>  $headers
+     * @param  array<int, array<int, mixed>>  $rows
+     */
+    private function findPreferredMoneyColumnIndex(array $headers, array $rows): ?int
+    {
+        $candidates = ['total', 'amount', 'revenue', 'sales', 'value', 'price', 'unit price', 'unit', 'cost'];
+        $bestIndex = null;
+        $bestScore = 0.0;
+        foreach ($candidates as $keyword) {
+            foreach ($headers as $index => $header) {
+                if (! str_contains(strtolower((string) $header), $keyword)) {
+                    continue;
+                }
+                $score = $this->numericScoreForColumn($rows, $index);
+                if ($score > $bestScore) {
+                    $bestScore = $score;
+                    $bestIndex = $index;
+                }
+            }
+            if ($bestIndex !== null && $bestScore >= 0.4) {
+                return $bestIndex;
+            }
+        }
+
+        return $bestIndex;
+    }
+
+    /**
+     * @param  array<int, string>  $headers
+     * @param  array<int, array<int, mixed>>  $rows
+     * @param  array<int, int|null>  $exclude
+     */
+    private function bestCategoryColumnIndex(array $headers, array $rows, array $exclude = []): ?int
+    {
+        $excluded = array_filter($exclude, fn ($index) => is_int($index));
+        foreach ($headers as $index => $_header) {
+            if (in_array($index, $excluded, true)) {
+                continue;
+            }
+            if ($this->isLowSignalHeader((string) ($headers[$index] ?? ''))) {
+                continue;
+            }
+            if ($this->numericScoreForColumn($rows, $index) < 0.4) {
+                return $index;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array<string, true>
+     */
+    private function excludedChartSignatures(mixed $excludeCharts): array
+    {
+        if (! is_array($excludeCharts)) {
+            return [];
+        }
+
+        $signatures = [];
+        foreach ($excludeCharts as $chart) {
+            if (is_array($chart) && $this->hasUsableChartSuggestion($chart)) {
+                $signatures[$this->chartSuggestionSignature($chart)] = true;
+            }
+        }
+
+        return $signatures;
+    }
+
+    /**
+     * @param  array<string, mixed>  $chart
+     */
+    private function chartSuggestionSignature(array $chart): string
+    {
+        return implode('|', [
+            (string) ($chart['chartType'] ?? 'bar'),
+            (string) ($chart['aggregation'] ?? 'none'),
+            (string) ($chart['labelColumn'] ?? ''),
+            (string) ($chart['valueColumn'] ?? ''),
+        ]);
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $candidates
+     * @param  array<string, true>  $excludedSignatures
+     * @return array<string, mixed>|null
+     */
+    private function firstUnseenChartCandidate(array $candidates, array $excludedSignatures): ?array
+    {
+        foreach ($candidates as $candidate) {
+            if (! isset($excludedSignatures[$this->chartSuggestionSignature($candidate)])) {
+                return $candidate;
+            }
+        }
+
+        return $candidates[0] ?? null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $chart
+     * @param  array<string, true>  $excludedSignatures
+     */
+    private function isExcludedChartSuggestion(array $chart, array $excludedSignatures): bool
+    {
+        return isset($excludedSignatures[$this->chartSuggestionSignature($chart)]);
+    }
+
+    private function isLowSignalHeader(string $header): bool
+    {
+        $normalized = strtolower(trim($header));
+        if ($normalized === '') {
+            return true;
+        }
+
+        return preg_match('/\b(id|identifier|serial|sl#|s\/n|ref|reference|row|index|code|no)\b/', $normalized) === 1;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $candidates
+     * @return list<array<string, mixed>>
+     */
+    private function uniqueChartCandidates(array $candidates): array
+    {
+        $unique = [];
+        foreach ($candidates as $candidate) {
+            if (! $this->hasUsableChartSuggestion($candidate)) {
+                continue;
+            }
+            $signature = $this->chartSuggestionSignature($candidate);
+            $unique[$signature] = $candidate;
+        }
+
+        return array_values($unique);
+    }
+
+    /**
+     * @param  array<int, mixed>  $row
+     */
+    private function rowHasMeaningfulContent(array $row, int $exceptIndex): bool
+    {
+        foreach ($row as $index => $value) {
+            if ($index === $exceptIndex) {
+                continue;
+            }
+            if (trim((string) $value) !== '') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  array<int, mixed>  $row
+     */
+    private function isLikelyChartSummaryRow(array $row): bool
+    {
+        $joined = strtolower(trim(implode(' | ', array_map(fn ($value) => trim((string) $value), $row))));
+        if ($joined === '') {
+            return true;
+        }
+
+        return preg_match('/(?:^|\b)(total|pos|t\.?f|tf|glovo|chowdeck|chowder)\s*[:=]/', $joined) === 1;
+    }
+
+    /**
+     * @param  array<int, array<int, mixed>>  $rows
+     */
+    private function numericScoreForColumn(array $rows, int $index): float
+    {
+        $sample = array_slice($rows, 0, 50);
+        $numeric = 0;
+        foreach ($sample as $row) {
+            $value = $row[$index] ?? null;
+            if (trim((string) $value) === '') {
+                continue;
+            }
+            if ($this->parseNumericValue($value) !== null) {
+                $numeric++;
+            }
+        }
+
+        return count($sample) > 0 ? $numeric / count($sample) : 0.0;
+    }
+
+    private function parseNumericValue(mixed $value): ?float
+    {
+        if (is_int($value) || is_float($value)) {
+            return (float) $value;
+        }
+
+        $raw = trim((string) $value);
+        if ($raw === '') {
+            return null;
+        }
+
+        if (! preg_match('/-?\d[\d,]*(?:\.\d+)?/', $raw, $matches)) {
+            return null;
+        }
+
+        $normalized = str_replace(',', '', $matches[0]);
+
+        return is_numeric($normalized) ? (float) $normalized : null;
+    }
+
+    private function sanitizeAssistantAnswer(string $text): string
+    {
+        $clean = trim((string) preg_replace('/<think\b[^>]*>.*?<\/think>/is', '', $text));
+        if ($clean === '') {
+            return '';
+        }
+
+        if (preg_match('/(?:^|\n)\s*(?:final answer|answer)\s*:\s*(.+)$/is', $clean, $matches)) {
+            return trim($matches[1]);
+        }
+
+        $clean = preg_replace('/(?:^|\n)\s*(?:analysis|reasoning|thought process|thinking)\s*:\s*/i', "\n", $clean);
+
+        return trim($clean ?? $text);
     }
 
     private function buildDataContext(?array $digitalData): string
@@ -711,7 +1356,7 @@ class DataViewController extends Controller
         ]);
     }
 
-    /** Save current chart. POST body: { "name": "optional title", "chart_config": { chartType, labelColumn, valueColumn, title } }. */
+    /** Save current chart. POST body: { "name": "optional title", "chart_config": { chartType, labelColumn, valueColumn, xAxisName, yAxisName, title } }. */
     public function savedChartStore(Request $request, Data $data): JsonResponse
     {
         if ($data->user_id !== auth()->id()) {

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Ai\Agents\DigitalizeAgent;
 use App\Ai\Agents\DigitalizeAgentNova;
+use App\Support\DigitalizeResponseNormalizer;
 use Illuminate\Support\Facades\Log;
 use Laravel\Ai\Files\Document;
 use Laravel\Ai\Files\Image;
@@ -381,18 +382,7 @@ class DigitalizeExtractionService
 
     private function normalizeNovaResponse(array $response): array
     {
-        $content = $response['content'] ?? '';
-        if (! is_string($content) || $content === '') {
-            return $response;
-        }
-        $stripped = preg_replace('/^\s*```(?:json)?\s*/i', '', $content);
-        $stripped = preg_replace('/\s*```\s*$/', '', trim($stripped));
-        $decoded = json_decode($stripped, true);
-        if (! is_array($decoded) || ! isset($decoded['type'], $decoded['content'])) {
-            return $response;
-        }
-
-        return array_merge($response, $decoded);
+        return DigitalizeResponseNormalizer::normalize($response);
     }
 
     private function buildDigitalDataFromResponse(array $response): array

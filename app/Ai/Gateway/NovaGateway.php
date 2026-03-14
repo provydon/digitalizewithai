@@ -372,7 +372,7 @@ class NovaGateway implements Gateway
                         $json = substr($stripped, $start, $i - $start + 1);
                         $decoded = json_decode($json, true);
 
-                        return is_array($decoded) && isset($decoded['type'], $decoded['content']) ? $decoded : null;
+                        return is_array($decoded) ? $decoded : null;
                     }
                 }
             }
@@ -395,13 +395,32 @@ class NovaGateway implements Gateway
             return 'Respond with valid JSON only, no other text or preamble.';
         }
 
+        $quotedKeys = array_map(fn (string $key) => "\"{$key}\"", $keys);
         $lines = [
             'Output only a single JSON object. Do not include any preamble, markdown fences, or text before or after the JSON.',
-            'Required keys: "type" (must be the string "doc" or "table"), "content" (string).',
-            'Use type "table" for any repeated list with columns: e.g. state + abbreviation, name + value, key + value, product + price. Each such list MUST have type "table" and content MUST be a JSON string of {"headers": ["Col1", "Col2", ...], "rows": [["a", "b"], ...]}. Do not use type "doc" for lists that have a column structure.',
-            'Use type "doc" only for continuous prose or paragraphs, not for columnar lists.',
-            'Optional keys: "table_row_count" (integer), "doc_page_count" (integer), "doc_pages" (array of strings), "suggested_prompts" (array of strings), "insights" (array of strings).',
+            'Return exactly one JSON object with these keys: '.implode(', ', $quotedKeys).'.',
+            'Use proper JSON types for every value. Strings must be quoted, integers must be bare numbers, booleans must be true/false, arrays must be JSON arrays, and objects must be JSON objects.',
+            'Do not rename keys, omit keys, or add extra keys.',
         ];
+
+        if (in_array('chartType', $keys, true)) {
+            $lines[] = 'If "chartType" is present, it must be exactly one of: "bar", "line", or "pie".';
+        }
+
+        if (in_array('labelColumn', $keys, true) || in_array('valueColumn', $keys, true)) {
+            $lines[] = 'If "labelColumn" or "valueColumn" is present, use 0-based integer column indexes.';
+        }
+
+        if (in_array('aggregation', $keys, true)) {
+            $lines[] = 'If "aggregation" is present, it must be exactly one of: "none", "sum", or "count".';
+        }
+
+        if (in_array('type', $keys, true) && in_array('content', $keys, true)) {
+            $lines[] = 'If "type" is present, it must be the string "doc" or "table".';
+            $lines[] = 'Use type "table" for any repeated list with columns: e.g. state + abbreviation, name + value, key + value, product + price.';
+            $lines[] = 'For type "table", "content" must be a JSON string of {"headers": ["Col1", "Col2", ...], "rows": [["a", "b"], ...]}.';
+            $lines[] = 'Use type "doc" only for continuous prose or paragraphs, not for columnar lists.';
+        }
 
         return implode("\n", $lines);
     }

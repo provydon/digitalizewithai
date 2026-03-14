@@ -13,6 +13,7 @@ import {
     PieController,
     PointElement,
     Title,
+    Tooltip,
 } from 'chart.js';
 import { BarChart3, Bookmark, ChevronDown, ChevronRight, Loader2, Trash2 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
@@ -33,12 +34,14 @@ ChartJS.register(
     ArcElement,
     Legend,
     Title,
+    Tooltip,
 );
 
 const props = defineProps<{
     tableData: { headers?: string[]; rows?: unknown[][] } | null;
     aiModelLabel: string;
     chartSuggestion: ChartSuggestion | null;
+    chartSuggestionError: string | null;
     chartRequest: string;
     chartSuggestions: string[];
     showSpecificChartRequest: boolean;
@@ -93,13 +96,59 @@ const effectiveChartConfig = computed(() => {
     const labelCol = s ? Math.min(s.labelColumn, maxCol) : 0;
     const valueCol = s ? Math.min(s.valueColumn, maxCol) : Math.min(1, maxCol);
     const chartType = s?.chartType && ['bar', 'line', 'pie'].includes(s.chartType) ? s.chartType : 'bar';
-    return { labelCol, valueCol, chartType, title: s?.title ?? null };
+    return {
+        labelCol,
+        valueCol,
+        chartType,
+        aggregation: s?.aggregation ?? 'none',
+        title: s?.title ?? null,
+        xAxisName: s?.xAxisName?.trim() || null,
+        yAxisName: s?.yAxisName?.trim() || null,
+    };
+});
+
+const axisTitles = computed(() => {
+    const t = props.tableData;
+    const config = effectiveChartConfig.value;
+    if (!t?.headers?.length || !config) {
+        return { x: 'Category', y: 'Value' };
+    }
+    return {
+        x: config.xAxisName || t.headers[config.labelCol] || 'Category',
+        y: config.yAxisName || t.headers[config.valueCol] || 'Value',
+    };
 });
 
 function getThemeColor(cssVar: string): string {
     if (typeof document === 'undefined') return 'hsl(0 0% 50%)';
     const raw = getComputedStyle(document.documentElement).getPropertyValue(cssVar).trim();
     return raw.startsWith('hsl') ? raw : `hsl(${raw})`;
+}
+
+function normalizeLabel(value: unknown): string {
+    const label = String(value ?? '').trim();
+    return label || 'Unknown';
+}
+
+function resolveGroupedLabel(row: unknown[], labelCol: number, previousLabel: string | null): string {
+    const current = String(row[labelCol] ?? '').trim();
+    if (current) return current;
+    return previousLabel ?? 'Unknown';
+}
+
+function parseNumericValue(value: unknown): number | null {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    const raw = String(value ?? '').trim();
+    if (!raw) return null;
+    const match = raw.match(/-?\d[\d,]*(?:\.\d+)?/);
+    if (!match) return null;
+    const normalized = match[0].replace(/,/g, '');
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : null;
+}
+
+function formatChartValue(value: number): string {
+    return new Intl.NumberFormat().format(value);
 }
 
 const chartOptions = computed(() => {
@@ -111,9 +160,26 @@ const chartOptions = computed(() => {
     return {
         responsive: true,
         maintainAspectRatio: false,
+        interaction: {
+            mode: 'nearest',
+            intersect: true,
+        },
         plugins: {
             legend: { display: isPie },
             title: config?.title ? { display: true, text: config.title, font: { size: 14 } } : undefined,
+            tooltip: {
+                enabled: true,
+                callbacks: {
+                    label(context) {
+                        const label = context.dataset.label ? `${context.dataset.label}: ` : '';
+                        const value = typeof context.parsed === 'number'
+                            ? context.parsed
+                            : (typeof context.parsed?.y === 'number' ? context.parsed.y : context.raw);
+                        const numericValue = typeof value === 'number' ? value : Number(value) || 0;
+                        return `${label}${formatChartValue(numericValue)}`;
+                    },
+                },
+            },
         },
         scales: isPie
             ? {}
@@ -121,11 +187,23 @@ const chartOptions = computed(() => {
                 x: {
                     grid: { color: gridColor },
                     ticks: { color: tickColor, font: { size: 11 } },
+                    title: {
+                        display: true,
+                        text: axisTitles.value.x,
+                        color: tickColor,
+                        font: { size: 12, weight: '600' },
+                    },
                 },
                 y: {
                     beginAtZero: true,
                     grid: { color: gridColor },
                     ticks: { color: tickColor, font: { size: 11 } },
+                    title: {
+                        display: true,
+                        text: axisTitles.value.y,
+                        color: tickColor,
+                        font: { size: 12, weight: '600' },
+                    },
                 },
             },
     };
@@ -135,11 +213,28 @@ const chartData = computed(() => {
     const t = props.tableData;
     const config = effectiveChartConfig.value;
     if (!t?.headers?.length || !t.rows?.length || !config) return { labels: [], datasets: [] };
-    const labels = (t.rows as unknown[][]).map((row) => String(row[config.labelCol] ?? ''));
-    const values = (t.rows as unknown[][]).map((row) => {
-        const v = row[config.valueCol];
-        return typeof v === 'number' ? v : Number(v) || 0;
-    });
+    let labels: string[] = [];
+    let values: number[] = [];
+    if (config.aggregation === 'sum' || config.aggregation === 'count') {
+        const grouped = new Map<string, number>();
+        let previousLabel: string | null = null;
+        for (const row of t.rows as unknown[][]) {
+            const label = resolveGroupedLabel(row, config.labelCol, previousLabel);
+            previousLabel = label;
+            if (config.aggregation === 'count') {
+                grouped.set(label, (grouped.get(label) ?? 0) + 1);
+                continue;
+            }
+            const numeric = parseNumericValue(row[config.valueCol]);
+            if (numeric === null) continue;
+            grouped.set(label, (grouped.get(label) ?? 0) + numeric);
+        }
+        labels = Array.from(grouped.keys());
+        values = Array.from(grouped.values());
+    } else {
+        labels = (t.rows as unknown[][]).map((row) => normalizeLabel(row[config.labelCol]));
+        values = (t.rows as unknown[][]).map((row) => parseNumericValue(row[config.valueCol]) ?? 0);
+    }
     const colors = isDarkChart.value ? chartColorsDark : chartColors;
     const pieColors = config.chartType === 'pie'
         ? labels.map((_, i) => colors[i % colors.length])
@@ -148,7 +243,7 @@ const chartData = computed(() => {
         labels,
         datasets: [
             {
-                label: (t.headers as string[])[config.valueCol] || 'Value',
+                label: axisTitles.value.y,
                 data: values,
                 backgroundColor: pieColors,
                 borderColor: config.chartType === 'line' ? colors[0] : undefined,
@@ -217,7 +312,7 @@ function chartTitle(chart: SavedChart): string {
                 :value="chartRequest"
                 type="text"
                 class="min-h-[44px] w-full flex-1 rounded-lg border border-sidebar-border/70 bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring dark:border-sidebar-border sm:max-w-md"
-                placeholder="e.g. bar chart of sales by region, pie chart of market share"
+                placeholder="e.g. total money spent per customer, pie chart of market share"
                 @input="onChartRequestInput"
                 @keydown.enter.prevent="emit('suggest-chart')"
             />
@@ -231,6 +326,9 @@ function chartTitle(chart: SavedChart): string {
                 {{ chartSuggestionLoading ? 'Sending…' : 'Send' }}
             </button>
         </div>
+        <p v-if="chartSuggestionError" class="text-sm text-destructive">
+            {{ chartSuggestionError }}
+        </p>
         <div v-if="!chartSuggestion" class="space-y-3 rounded-lg border border-dashed border-sidebar-border/70 py-4 px-4 text-center dark:border-sidebar-border sm:py-6 sm:px-5">
             <p class="text-xs text-muted-foreground">
                 Generate a chart or pick a suggestion below.

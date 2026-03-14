@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Ai\Agents\DigitalizeAgent;
 use App\Models\Data;
 use App\Services\VideoFrameExtractor;
+use App\Support\DigitalizeResponseNormalizer;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -58,6 +59,8 @@ class DigitalizeFileCommand extends Command
         $this->info('Sending to AI...');
         $agent = new DigitalizeAgent;
         $response = $agent->prompt($prompt, attachments: $attachments);
+        $response = $this->responseToArray($response);
+        $response = DigitalizeResponseNormalizer::normalize($response);
 
         $type = $response['type'] ?? 'doc';
         $content = $response['content'] ?? '';
@@ -110,6 +113,18 @@ class DigitalizeFileCommand extends Command
             fn (array $f) => Image::fromBase64($f['base64'], $f['mime']),
             $frames
         );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function responseToArray(array|object $response): array
+    {
+        if (is_array($response)) {
+            return $response;
+        }
+
+        return method_exists($response, 'toArray') ? $response->toArray() : (array) $response;
     }
 
     private function getMimeType(string $path): string

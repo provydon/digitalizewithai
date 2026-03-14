@@ -1462,27 +1462,61 @@ const chartRequest = ref('');
 const showSpecificChartRequest = ref(false);
 const chartSuggestion = ref<ChartSuggestion | null>(null);
 const chartSuggestionLoading = ref(false);
+const chartSuggestionError = ref<string | null>(null);
+const generatedChartHistory = ref<ChartSuggestion[]>([]);
 const savedCharts = ref<SavedChart[]>([]);
 const saveChartLoading = ref(false);
 const savedChartError = ref<string | null>(null);
 
+function chartSignature(chart: ChartSuggestion): string {
+    return [
+        chart.chartType,
+        chart.aggregation ?? 'none',
+        chart.labelColumn,
+        chart.valueColumn,
+    ].join('|');
+}
+
+function rememberGeneratedChart(chart: ChartSuggestion) {
+    const signature = chartSignature(chart);
+    if (generatedChartHistory.value.some((entry) => chartSignature(entry) === signature)) return;
+    generatedChartHistory.value.push({ ...chart });
+}
+
 async function suggestChartFromAi() {
     if (!record.value || !canChart.value) return;
     chartSuggestionLoading.value = true;
+    chartSuggestionError.value = null;
     try {
+        const request = chartRequest.value.trim();
+        const excludeCharts = request === ''
+            ? [
+                ...generatedChartHistory.value,
+                ...(chartSuggestion.value ? [chartSuggestion.value] : []),
+            ]
+            : [];
         const { data } = await api.post<ChartSuggestion>(
             `/dashboard/api/data/${record.value.id}/chart-suggestion`,
-            { request: chartRequest.value.trim() || undefined },
+            {
+                request: request || undefined,
+                excludeCharts: excludeCharts.length > 0 ? excludeCharts : undefined,
+            },
         );
         const chartType = ['bar', 'line', 'pie'].includes(data.chartType) ? data.chartType : 'bar';
-        chartSuggestion.value = {
+        const suggestedChart: ChartSuggestion = {
             chartType,
             labelColumn: data.labelColumn,
             valueColumn: data.valueColumn,
+            aggregation: data.aggregation ?? 'none',
+            xAxisName: data.xAxisName ?? null,
+            yAxisName: data.yAxisName ?? null,
             title: data.title ?? null,
         };
-    } catch {
-        chartSuggestion.value = null;
+        chartSuggestion.value = suggestedChart;
+        rememberGeneratedChart(suggestedChart);
+    } catch (e: unknown) {
+        const err = e as { response?: { data?: { message?: string } }; message?: string };
+        chartSuggestionError.value = err.response?.data?.message ?? err.message ?? 'Failed to generate chart';
     } finally {
         chartSuggestionLoading.value = false;
     }
@@ -1532,6 +1566,8 @@ async function deleteSavedChat(chat: SavedChat) {
 function startNewChart() {
     chartSuggestion.value = null;
     chartRequest.value = '';
+    chartSuggestionError.value = null;
+    generatedChartHistory.value = [];
     showSpecificChartRequest.value = false;
 }
 
@@ -1561,8 +1597,12 @@ function loadSavedChart(chart: SavedChart) {
             chartType,
             labelColumn: cfg.labelColumn,
             valueColumn: cfg.valueColumn,
+            aggregation: cfg.aggregation ?? 'none',
+            xAxisName: cfg.xAxisName ?? null,
+            yAxisName: cfg.yAxisName ?? null,
             title: cfg.title ?? null,
         };
+        chartSuggestionError.value = null;
     }
 }
 
@@ -1588,18 +1628,41 @@ const chartSuggestions = computed(() => {
     const t = tableData.value;
     const headers = t?.headers?.filter((h): h is string => typeof h === 'string' && h.trim() !== '') ?? [];
     if (headers.length < 2) return [];
-    const a = headers[0];
-    const b = headers[1];
-    const suggestions: string[] = [
-        `Bar chart of ${a} by ${b}`,
-        `Pie chart of ${b}`,
-        `Line chart of ${a} by ${b}`,
-    ];
-    if (headers.length >= 3) {
-        const c = headers[2];
-        suggestions.push(`Bar chart of ${a} by ${c}`);
+    const lower = headers.map((h) => h.toLowerCase());
+    const isLowSignal = (header: string) => /\b(id|identifier|serial|sl#|s\/n|ref|reference|row|index|code|no)\b/.test(header.toLowerCase());
+    const findHeader = (keywords: string[]) => {
+        for (const keyword of keywords) {
+            const index = lower.findIndex((h) => h.includes(keyword) && !isLowSignal(h));
+            if (index >= 0) return headers[index];
+        }
+        return null;
+    };
+
+    const dateHeader = findHeader(['date', 'day', 'month', 'time']);
+    const totalHeader = findHeader(['total', 'amount', 'revenue', 'sales', 'price', 'cost']);
+    const customerHeader = findHeader(['customer', 'client', 'buyer']);
+    const platformHeader = findHeader(['platform', 'channel', 'vendor', 'source', 'region']);
+    const itemHeader = findHeader(['order', 'item', 'product', 'category', 'inventory', 'sku']);
+    const suggestions = new Set<string>();
+
+    if (dateHeader && totalHeader) {
+        suggestions.add(`Line chart of ${totalHeader} by ${dateHeader}`);
     }
-    return suggestions;
+    if (customerHeader && totalHeader) {
+        suggestions.add(`Bar chart of total money spent per ${customerHeader.toLowerCase()}`);
+    }
+    if (platformHeader && totalHeader) {
+        suggestions.add(`Bar chart of ${totalHeader} by ${platformHeader}`);
+        suggestions.add(`Pie chart of ${totalHeader} share by ${platformHeader}`);
+    }
+    if (itemHeader && totalHeader) {
+        suggestions.add(`Bar chart of ${totalHeader} by ${itemHeader}`);
+    }
+    if (customerHeader) {
+        suggestions.add(`Bar chart of order count by ${customerHeader.toLowerCase()}`);
+    }
+
+    return Array.from(suggestions).slice(0, 4);
 });
 const canExportExcel = computed(
     () => !!(tableData.value?.headers?.length) && !!record.value,
@@ -1835,6 +1898,7 @@ const aiModelLabel = computed(() => {
                                     :table-data="tableData"
                                     :ai-model-label="aiModelLabel"
                                     :chart-suggestion="chartSuggestion"
+                                    :chart-suggestion-error="chartSuggestionError"
                                     :chart-request="chartRequest"
                                     :chart-suggestions="chartSuggestions"
                                     :show-specific-chart-request="showSpecificChartRequest"

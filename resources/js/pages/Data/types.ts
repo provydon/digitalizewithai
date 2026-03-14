@@ -52,6 +52,9 @@ export type ChartSuggestion = {
     chartType: 'bar' | 'line' | 'pie';
     labelColumn: number;
     valueColumn: number;
+    aggregation?: 'none' | 'sum' | 'count' | null;
+    xAxisName?: string | null;
+    yAxisName?: string | null;
     title: string | null;
 };
 

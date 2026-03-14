@@ -50,6 +50,31 @@ test('dashboard api data ask stream requires question', function () {
     $response->assertStatus(422);
 });
 
+test('dashboard api data ask stream returns only final answer for nova', function () {
+    $user = User::factory()->create();
+    $data = Data::factory()->table(
+        ['Item', 'Color'],
+        [['Hat', 'Red'], ['Cape', 'Blue'], ['Mask', 'Red']],
+    )->create([
+        'user_id' => $user->id,
+        'ai_provider' => 'nova',
+        'ai_model' => 'nova-2-lite-v1',
+    ]);
+
+    $this->actingAs($user);
+    $response = $this->post(
+        route('dashboard.api.data.ask.stream', $data),
+        ['question' => 'What is the most common color?'],
+        ['Accept' => 'text/event-stream']
+    );
+
+    $response->assertOk();
+    expect($response->streamedContent())->toContain('Red')
+        ->not->toContain('To determine the most common color')
+        ->not->toContain("let's count each color")
+        ->not->toContain('Answer:');
+});
+
 test('saved chats index returns list for data', function () {
     $user = User::factory()->create();
     $data = Data::factory()->create(['user_id' => $user->id]);

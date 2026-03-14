@@ -9,6 +9,7 @@ use App\Jobs\DigitalizeOrchestratorJob;
 use App\Jobs\StoreOriginalFileToS3Job;
 use App\Models\Data;
 use App\Services\VideoFrameExtractor;
+use App\Support\DigitalizeResponseNormalizer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -787,18 +788,7 @@ class DigitalizeController extends Controller
      */
     private function normalizeDigitalizeResponse(array $response): array
     {
-        $content = $response['content'] ?? '';
-        if (! is_string($content) || $content === '') {
-            return $response;
-        }
-        $stripped = preg_replace('/^\s*```(?:json)?\s*/i', '', $content);
-        $stripped = preg_replace('/\s*```\s*$/', '', trim($stripped));
-        $decoded = json_decode($stripped, true);
-        if (! is_array($decoded) || ! isset($decoded['type'], $decoded['content'])) {
-            return $response;
-        }
-
-        return array_merge($response, $decoded);
+        return DigitalizeResponseNormalizer::normalize($response);
     }
 
     /**
